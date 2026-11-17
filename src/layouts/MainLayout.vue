@@ -21,7 +21,7 @@
 
         <el-sub-menu index="purchase">
           <template #title><el-icon><ShoppingCart /></el-icon><span>采购管理</span></template>
-          <el-menu-item index="/purchase">采购订单</el-menu-item>
+          <el-menu-item index="/purchase">采购管理</el-menu-item>
           <el-menu-item index="/purchase/history">历史采购单</el-menu-item>
           <el-menu-item index="/purchase/supplier">供应商管理</el-menu-item>
         </el-sub-menu>
@@ -29,7 +29,7 @@
         <el-sub-menu index="inventory">
           <template #title><el-icon><Box /></el-icon><span>库存管理</span></template>
           <el-menu-item index="/inventory/stock">库存记录</el-menu-item>
-          <el-menu-item index="/inventory/stocktake">仓库盘点</el-menu-item>
+          <el-menu-item index="/inventory/stocktake">库存盘点</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="aftersale">

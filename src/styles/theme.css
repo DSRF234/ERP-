@@ -75,3 +75,53 @@ body {
 
 /* 按钮贴近原型高度 */
 .el-button--small { height: 28px; padding: 0 10px; }
+
+/* 指标卡（原型顶部横排数字卡） */
+.stat-row {
+  display: grid; gap: 12px; margin-bottom: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+}
+.stat { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.stat-label { font-size: 12px; color: var(--ink-3); }
+.stat-value {
+  margin-top: 6px; font-size: 19px; font-weight: 600; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: .2px;
+}
+.stat-value .unit { margin-left: 3px; font-size: 12px; font-weight: 400; color: var(--ink-3); }
+.stat.is-warn .stat-value { color: var(--warn); }
+.stat.is-danger .stat-value { color: var(--danger); }
+
+/* 工具栏（搜索 + 下拉 + 右侧统计） */
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.toolbar .grow { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+
+/* 表格底部固定工具栏 / 分页 */
+.table-foot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-top: 1px solid var(--line-2);
+}
+.table-foot .sum { font-size: 12.5px; color: var(--ink-2); }
+.table-foot .sum b { color: var(--ink); font-weight: 600; font-size: 14px; }
+.pager { display: flex; justify-content: flex-end; padding: 10px 14px; border-top: 1px solid var(--line-2); }
+
+/* 弹窗内的键值对 */
+.kv { display: grid; grid-template-columns: 92px 1fr; row-gap: 10px; align-items: center; font-size: 13px; }
+.kv .k { color: var(--ink-3); font-size: 12.5px; }
+.kv .v { color: var(--ink); }
+.kv .v b { font-weight: 600; }
+
+/* 字段说明（原型黄色批注位置） */
+.field-hint { margin-top: 2px; font-size: 11.5px; line-height: 1.5; color: var(--ink-3); }
+.dlg-hint {
+  margin: 0 0 12px; padding: 7px 10px; border-radius: 5px;
+  background: var(--brand-l); color: #0E7FB2; font-size: 12px; line-height: 1.6;
+}
+.dlg-act { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+/* 剩余容量进度条 */
+.cap { display: flex; align-items: center; gap: 6px; }
+.cap-bar { flex: 1; height: 5px; border-radius: 3px; background: var(--line-2); overflow: hidden; min-width: 34px; }
+.cap-bar i { display: block; height: 100%; border-radius: 3px; background: var(--brand); }
+.cap.is-low .cap-bar i { background: var(--warn); }
+.cap.is-out .cap-bar i { background: var(--danger); }
+.cap-txt { width: 34px; text-align: right; font-size: 11.5px; color: var(--ink-3); }

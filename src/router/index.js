@@ -31,8 +31,10 @@ export const routes = [
       { path: 'order/done', name: 'OrderDone', component: () => import('@/views/order/list.vue'),
         props: { status: 'done' }, meta: { title: '已完结', group: '订单管理' } },
 
-      { path: 'purchase', name: 'Purchase', component: () => import('@/views/purchase/order.vue'),
-        meta: { title: '采购订单', group: '采购管理' } },
+      { path: 'purchase', name: 'Purchase', component: () => import('@/views/purchase/list.vue'),
+        meta: { title: '采购管理', group: '采购管理' } },
+      { path: 'purchase/create', name: 'PurchaseCreate', component: () => import('@/views/purchase/create.vue'),
+        meta: { title: '新建采购单', group: '采购管理' } },
       { path: 'purchase/history', name: 'PurchaseHistory', component: () => import('@/views/purchase/history.vue'),
         meta: { title: '历史采购单', group: '采购管理' } },
       { path: 'purchase/supplier', name: 'Supplier', component: () => import('@/views/purchase/supplier.vue'),
@@ -42,7 +44,7 @@ export const routes = [
       { path: 'inventory/stock', name: 'Stock', component: () => import('@/views/inventory/stock.vue'),
         meta: { title: '库存记录', group: '库存管理' } },
       { path: 'inventory/stocktake', name: 'Stocktake', component: () => import('@/views/inventory/stocktake.vue'),
-        meta: { title: '仓库盘点', group: '库存管理' } },
+        meta: { title: '库存盘点', group: '库存管理' } },
 
       { path: 'aftersale', redirect: '/aftersale/wait' },
       { path: 'aftersale/wait', name: 'AfterWait', component: () => import('@/views/aftersale/list.vue'),
