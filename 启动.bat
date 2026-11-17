@@ -1,15 +1,40 @@
 @echo off
-chcp 65001 >nul
+setlocal
 cd /d "%~dp0"
-echo ========================================
-echo   星野优选 ERP
-echo ========================================
+
+echo ==========================================
+echo    Xingye ERP  -  Dev Server
+echo ==========================================
 echo.
-if not exist node_modules (
-    echo [1/2] 首次运行，正在安装依赖...
-    call npm install
-    if errorlevel 1 ( echo 依赖安装失败，请检查网络 & pause & exit /b 1 )
+
+where npm >nul 2>nul
+if errorlevel 1 (
+  echo [ERROR] npm not found.
+  echo Please install Node.js 18 or above: https://nodejs.org/
+  echo.
+  pause
+  exit /b 1
 )
-echo [2/2] 启动开发服务器 http://localhost:5173
+
+if not exist "node_modules" (
+  echo [1/2] Installing dependencies, this may take a few minutes...
+  call npm install
+  if errorlevel 1 (
+    echo.
+    echo [ERROR] npm install failed. Check your network.
+    pause
+    exit /b 1
+  )
+  echo.
+)
+
+echo [2/2] Starting dev server ...
+echo       Open http://localhost:5173 in your browser
+echo       Close this window to stop the server
+echo.
+
 call npm run dev
+
+echo.
+echo Server stopped.
 pause
