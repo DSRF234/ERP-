@@ -68,7 +68,21 @@
         </el-breadcrumb>
         <div class="right">
           <span class="time">数据更新至 {{ today }}</span>
-          <el-avatar :size="26" class="avatar">星</el-avatar>
+          <el-dropdown trigger="click" @command="onCommand">
+            <div class="user">
+              <el-avatar :size="26" class="avatar">{{ initial }}</el-avatar>
+              <span class="uname">{{ store.name }}</span>
+              <span class="upost">{{ store.post }}</span>
+              <el-icon class="arrow"><ArrowDown /></el-icon>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item disabled>账号：{{ store.user?.account }}</el-dropdown-item>
+                <el-dropdown-item disabled>部门：{{ store.user?.dept }}</el-dropdown-item>
+                <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </header>
 
@@ -83,8 +97,28 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessageBox, ElMessage } from 'element-plus'
+import { useUserStore } from '@/stores/user'
+
 const route = useRoute()
+const router = useRouter()
+const store = useUserStore()
+
+const initial = computed(() => (store.name || '星').slice(0, 1))
+
+async function onCommand(cmd) {
+  if (cmd !== 'logout') return
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
+      confirmButtonText: '退出', cancelButtonText: '取消', type: 'warning'
+    })
+    store.logout()
+    ElMessage.success('已退出登录')
+    router.replace('/login')
+  } catch (e) { /* 取消 */ }
+}
+
 const today = computed(() => {
   const d = new Date()
   return `${d.getMonth() + 1}-${String(d.getDate()).padStart(2, '0')}`
@@ -105,6 +139,11 @@ const today = computed(() => {
 .topbar { height: 52px; flex: none; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 20px; }
 .right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .time { font-size: 12px; color: var(--ink-3); }
+.user { display: flex; align-items: center; gap: 7px; cursor: pointer; padding: 3px 6px; border-radius: 5px; }
+.user:hover { background: var(--fill); }
 .avatar { background: var(--brand-l); color: var(--brand-d); font-size: 12px; }
+.uname { font-size: 12.5px; color: var(--ink); }
+.upost { font-size: 11px; color: var(--ink-3); background: var(--fill); border-radius: 3px; padding: 1px 5px; }
+.arrow { font-size: 11px; color: var(--ink-3); }
 .content { flex: 1; overflow-y: auto; padding: 18px 20px 40px; }
 </style>

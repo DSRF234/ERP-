@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
+import { useUserStore } from '@/stores/user'
 
 /**
  * 路由严格对应《ERP 功能架构》（Map1.pdf）
@@ -10,6 +11,8 @@ import MainLayout from '@/layouts/MainLayout.vue'
  *   售后：/aftersale/wait|doing|done
  */
 export const routes = [
+  { path: '/login', name: 'Login', component: () => import('@/views/login/index.vue'),
+    meta: { title: '登录', public: true } },
   {
     path: '/',
     component: MainLayout,
@@ -80,4 +83,16 @@ export const routes = [
   { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
 ]
 
-export default createRouter({ history: createWebHashHistory(), routes })
+const router = createRouter({ history: createWebHashHistory(), routes })
+
+// 登录守卫：未登录一律回登录页，登录后回跳原地址
+router.beforeEach(to => {
+  const store = useUserStore()
+  if (to.meta.public) {
+    return store.isLogin && to.path === '/login' ? '/dashboard' : true
+  }
+  if (!store.isLogin) return { path: '/login', query: { redirect: to.fullPath } }
+  return true
+})
+
+export default router
