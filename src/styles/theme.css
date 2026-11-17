@@ -1,0 +1,77 @@
+:root {
+  /* 原型配色 */
+  --brand: #169BD5;
+  --brand-d: #1289BE;
+  --brand-l: #E6F4FB;
+
+  --ink: #2F3438;
+  --ink-2: #5C6772;
+  --ink-3: #8A949E;
+
+  --line: #DDE1E6;
+  --line-2: #EDEFF2;
+  --fill: #F2F3F5;
+  --bg: #F5F6F8;
+
+  --ok: #1E8E5A;
+  --ok-l: #E8F6EF;
+  --warn: #B26A00;
+  --warn-l: #FFF4E5;
+  --danger: #C0392B;
+  --danger-l: #FDECEA;
+
+  /* 覆盖 Element Plus 主色 */
+  --el-color-primary: #169BD5;
+  --el-color-primary-light-3: #4DB3E1;
+  --el-color-primary-light-5: #7FC8EA;
+  --el-color-primary-light-7: #A9DAF1;
+  --el-color-primary-light-8: #BFE3F6;
+  --el-color-primary-light-9: #E6F4FB;
+  --el-color-primary-dark-2: #1289BE;
+
+  --el-color-success: #1E8E5A;
+  --el-color-warning: #B26A00;
+  --el-color-danger: #C0392B;
+  --el-color-info: #8A949E;
+
+  --el-border-radius-base: 5px;
+  --el-font-size-base: 13px;
+  --el-text-color-primary: #2F3438;
+  --el-text-color-regular: #5C6772;
+  --el-border-color: #DDE1E6;
+  --el-border-color-light: #EDEFF2;
+}
+
+* { box-sizing: border-box; }
+html, body, #app { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 通用卡片 */
+.card { background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.card-head {
+  height: 44px; display: flex; align-items: center;
+  padding: 0 16px; border-bottom: 1px solid var(--line-2);
+}
+.card-head h3 { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.card-head .extra { margin-left: auto; font-size: 11.5px; color: var(--ink-3); }
+
+/* 指标/tag 通用 */
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.mono { font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-3); }
+
+/* 表格更紧凑，贴近原型 */
+.el-table { font-size: 12.5px; }
+.el-table th.el-table__cell { background: #FAFBFC !important; color: var(--ink-3); font-weight: 500; }
+.el-table .cell { line-height: 1.5; }
+
+/* 按钮贴近原型高度 */
+.el-button--small { height: 28px; padding: 0 10px; }
