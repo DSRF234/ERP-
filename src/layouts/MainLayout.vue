@@ -11,44 +11,58 @@
           <el-icon><DataLine /></el-icon><span>数据看板</span>
         </el-menu-item>
 
+        <el-menu-item index="/goods">
+          <el-icon><Goods /></el-icon><span>商品管理</span>
+        </el-menu-item>
+
         <el-sub-menu index="order">
           <template #title><el-icon><Document /></el-icon><span>订单管理</span></template>
-          <el-menu-item index="/order">销售订单</el-menu-item>
+          <el-menu-item index="/order/review">订单审核</el-menu-item>
+          <el-menu-item index="/order/pending">待发货</el-menu-item>
+          <el-menu-item index="/order/shipped">已发货</el-menu-item>
+          <el-menu-item index="/order/done">已完结</el-menu-item>
           <el-menu-item index="/order/exception">异常订单</el-menu-item>
-        </el-sub-menu>
-
-        <el-sub-menu index="inventory">
-          <template #title><el-icon><Box /></el-icon><span>仓储管理</span></template>
-          <el-menu-item index="/inventory/stock">库存查询</el-menu-item>
-          <el-menu-item index="/inventory/inbound">入库管理</el-menu-item>
-          <el-menu-item index="/inventory/outbound">出库管理</el-menu-item>
-          <el-menu-item index="/inventory/stocktake">库存盘点</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="purchase">
           <template #title><el-icon><ShoppingCart /></el-icon><span>采购管理</span></template>
-          <el-menu-item index="/purchase">采购单</el-menu-item>
+          <el-menu-item index="/purchase">采购订单</el-menu-item>
+          <el-menu-item index="/purchase/supplier">供应商管理</el-menu-item>
           <el-menu-item index="/purchase/suggest">补货建议</el-menu-item>
-          <el-menu-item index="/purchase/supplier">供应商</el-menu-item>
         </el-sub-menu>
 
-        <el-menu-item index="/aftersale">
-          <el-icon><Service /></el-icon><span>售后管理</span>
-        </el-menu-item>
+        <el-sub-menu index="inventory">
+          <template #title><el-icon><Box /></el-icon><span>库存管理</span></template>
+          <el-menu-item index="/inventory/stock">库存记录</el-menu-item>
+          <el-menu-item index="/inventory/stocktake">库存盘点</el-menu-item>
+          <el-menu-item index="/inventory/transfer">库存调拨</el-menu-item>
+          <el-menu-item index="/inventory/inbound">入库管理</el-menu-item>
+          <el-menu-item index="/inventory/outbound">出库管理</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="aftersale">
+          <template #title><el-icon><Service /></el-icon><span>售后管理</span></template>
+          <el-menu-item index="/aftersale/wait">售后待处理</el-menu-item>
+          <el-menu-item index="/aftersale/doing">售后处理中</el-menu-item>
+          <el-menu-item index="/aftersale/done">售后处理完成</el-menu-item>
+        </el-sub-menu>
 
         <el-sub-menu index="finance">
           <template #title><el-icon><Money /></el-icon><span>财务管理</span></template>
           <el-menu-item index="/finance/reconciliation">对账中心</el-menu-item>
-          <el-menu-item index="/finance/bill">平台账单</el-menu-item>
-          <el-menu-item index="/finance/profit">成本利润</el-menu-item>
-          <el-menu-item index="/finance/payable">应付账款</el-menu-item>
+          <el-menu-item index="/finance/shipment">发货数据</el-menu-item>
+          <el-menu-item index="/finance/goods">商品信息</el-menu-item>
+          <el-menu-item index="/finance/aging">库存积压</el-menu-item>
+          <el-menu-item index="/finance/payable">应付账款台账</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="system">
           <template #title><el-icon><Setting /></el-icon><span>系统设置</span></template>
-          <el-menu-item index="/system/api">API 对接</el-menu-item>
-          <el-menu-item index="/system/account">角色账号</el-menu-item>
+          <el-menu-item index="/system/warehouse">发货仓设置</el-menu-item>
+          <el-menu-item index="/system/post">职位管理</el-menu-item>
+          <el-menu-item index="/system/account">账号管理</el-menu-item>
           <el-menu-item index="/system/permission">权限管理</el-menu-item>
+          <el-menu-item index="/system/api">API 对接</el-menu-item>
         </el-sub-menu>
       </el-menu>
     </aside>
@@ -108,7 +122,7 @@ const today = computed(() => {
 
 .nav { border-right: none; padding: 8px 0; flex: 1; overflow-y: auto; }
 .nav :deep(.el-menu-item),
-.nav :deep(.el-sub-menu__title) { height: 42px; line-height: 42px; font-size: 13.5px; }
+.nav :deep(.el-sub-menu__title) { height: 40px; line-height: 40px; font-size: 13.5px; }
 .nav :deep(.el-menu-item.is-active) { background: #ecf5ff; font-weight: 500; }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }

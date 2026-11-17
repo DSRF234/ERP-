@@ -48,10 +48,11 @@ src/
 ├─ styles/index.css     全局变量与通用类
 ├─ views/               页面，按模块分目录
 │  ├─ dashboard/        数据看板
-│  ├─ order/            订单管理
-│  ├─ inventory/        仓储管理
+│  ├─ goods/            商品库
+│  ├─ order/            订单管理（list.vue 用 props.status 复用于四个状态）
 │  ├─ purchase/         采购管理
-│  ├─ aftersale/        售后管理
+│  ├─ inventory/        库存管理
+│  ├─ aftersale/        售后管理（list.vue 同上）
 │  ├─ finance/          财务管理
 │  └─ system/           系统设置
 └─ main.js
@@ -79,7 +80,19 @@ src/
 
 **不要自己写外层容器、不要自己定页面内边距**，`MainLayout` 已经处理了。
 
-### 2. 只用这些全局类
+### 2. 状态型页面只写一个组件
+
+订单审核 / 待发货 / 已发货 / 已完结，是**同一张表的不同筛选**，不要复制四份页面。
+做法：一个 `list.vue`，路由用 `props` 传状态。
+
+```js
+{ path: 'order/pending', component: () => import('@/views/order/list.vue'),
+  props: { status: 'pending' } }
+```
+
+售后同理。**复制页面是团队协作里最容易长出"四种风格"的地方。**
+
+### 3. 只用这些全局类
 
 | 类名 | 用途 |
 |---|---|
@@ -90,7 +103,7 @@ src/
 
 需要新样式时，写在组件内的 `<style scoped>`，**不要写全局样式**，避免互相覆盖。
 
-### 3. 颜色只用四种语义色
+### 4. 颜色只用四种语义色
 
 - `--blue` 主色 / 正常
 - `--green` 成功 / 正向
@@ -99,7 +112,7 @@ src/
 
 禁止引入其他颜色。图表配色从 `mock/dashboard.js` 的 `color` 字段取，保证渠道颜色全站一致。
 
-### 4. 数据一律走 api 层
+### 5. 数据一律走 api 层
 
 ```js
 import { getDashboard } from '@/api'
@@ -108,14 +121,14 @@ const data = await getDashboard()
 
 **不要在组件里直接 import mock 文件。** 后端就绪后只改 `api/index.js` 一行，页面不用动。
 
-### 5. 表格规范
+### 6. 表格规范
 
 - 统一 `size="small"`
 - 金额、数量列必须加 `align="right"`，并在外层加 `class="num"` 保持等宽数字
 - 空值显示 `—`，不显示 `0`，不显示空白
 - 分页统一 `layout="total, sizes, prev, pager, next"`
 
-### 6. 命名
+### 7. 命名
 
 | 对象 | 规则 | 示例 |
 |---|---|---|
