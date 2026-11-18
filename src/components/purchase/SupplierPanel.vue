@@ -67,7 +67,8 @@
           <el-input v-model="add.form.owner" maxlength="50" placeholder="手动输入，最多 50 个字符" />
         </el-form-item>
         <el-form-item label="联系电话" prop="phone">
-          <el-input v-model="add.form.phone" maxlength="13" placeholder="111-1111-1111" />
+          <el-input v-model="add.form.phone" maxlength="11" placeholder="1XXXXXXXXXX"
+            @input="add.form.phone = onlyDigits(add.form.phone)" />
         </el-form-item>
         <el-form-item label="地址" prop="address">
           <el-input v-model="add.form.address" type="textarea" :rows="2" maxlength="300" show-word-limit
@@ -123,7 +124,7 @@ import { money } from '@/utils/format'
 
 const suppliers = ref([
   {
-    name: '某林林公司', owner: '某林公', phone: '123-4567-8901',
+    name: '某林林公司', owner: '某林公', phone: '12345678901',
     address: '河北省石家庄市正定县新龙科技2211号', status: '合作中',
     goods: [
       { code: 'SO-2026-001', name: '洗面奶', spec: '100g/支', price: 9.99, minPrice: 12.02 },
@@ -132,7 +133,7 @@ const suppliers = ref([
     ]
   },
   {
-    name: '美妆公司', owner: '张经理', phone: '123-3344-5678',
+    name: '美妆公司', owner: '张经理', phone: '12333445678',
     address: '河北省石家庄市正定县新龙科技222号', status: '合作中',
     goods: [
       { code: 'SO-2026-011', name: '眼睫毛', spec: '5ml/支', price: 6.60, minPrice: 8.40 },
@@ -140,12 +141,12 @@ const suppliers = ref([
     ]
   },
   {
-    name: '和正日化', owner: '王主管', phone: '138-0013-8001',
+    name: '和正日化', owner: '王主管', phone: '13800138001',
     address: '广州市白云区机场路 12 号', status: '已停用',
     goods: [{ code: 'SO-2026-021', name: '护手霜', spec: '50g/支', price: 7.80, minPrice: 9.90 }]
   },
   {
-    name: '雅美化妆品', owner: '陈志强', phone: '139-0013-9002',
+    name: '雅美化妆品', owner: '陈志强', phone: '13900139002',
     address: '深圳市宝安区福永街道 66 号', status: '已暂停',
     goods: [{ code: 'SO-2026-031', name: '精华液', spec: '30ml/瓶', price: 68.00, minPrice: 79.00 }]
   }
@@ -170,6 +171,7 @@ function toggle(row) {
 }
 
 /* ------- 添加供应商 ------- */
+const onlyDigits = v => String(v ?? '').replace(/\D/g, '')
 const formRef = ref()
 const add = reactive({
   visible: false,
@@ -180,17 +182,23 @@ const rules = {
     { validator: (r, v, cb) => suppliers.value.some(s => s.name === v) ? cb(new Error('该供应商名称已存在')) : cb(), trigger: 'blur' }],
   owner: [{ required: true, message: '请输入负责人', trigger: 'blur' }],
   phone: [{ required: true, message: '请输入联系电话', trigger: 'blur' },
-    { pattern: /^1\d{2}-\d{4}-\d{4}$/, message: '格式须为 111-1111-1111，首位为 1', trigger: 'blur' },
+    { pattern: /^1\d{10}$/, message: '只能输入数字，共 11 位且首位为 1', trigger: 'blur' },
     {
       validator: (r, v, cb) => {
-        const digits = String(v || '').replace(/-/g, '')
-        // 11 位全相同（111-1111-1111、222-2222-2222…）视为无效号码
-        if (/^(\d)\1{10}$/.test(digits)) return cb(new Error('联系电话不能全部为同一个数字'))
+        // 11 位全相同（11111111111、33333333333…）视为无效号码
+        if (/^(\d)\1{10}$/.test(String(v || ''))) return cb(new Error('联系电话不能全部为同一个数字'))
         cb()
       },
       trigger: 'blur'
     },
-    { validator: (r, v, cb) => suppliers.value.some(s => s.phone === v) ? cb(new Error('该联系电话已被使用')) : cb(), trigger: 'blur' }],
+    {
+      validator: (r, v, cb) => {
+        const digits = String(v || '')
+        const dup = suppliers.value.some(s => String(s.phone || '').replace(/\D/g, '') === digits)
+        return dup ? cb(new Error('该联系电话已被使用')) : cb()
+      },
+      trigger: 'blur'
+    }],
   address: [{ required: true, message: '请输入地址', trigger: 'blur' }]
 }
 
