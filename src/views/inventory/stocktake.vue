@@ -56,55 +56,98 @@
     </div>
 
     <!-- 创建盘点任务 -->
-    <el-dialog v-model="dg.visible" title="创建盘点任务" width="720px" align-center>
-      <p class="dlg-hint">盘点单号规则：PD + 年 + 月 + 日 + 时间，由系统自动生成；创建后任务状态为「待盘点」。</p>
-      <el-form label-width="76px" size="small">
-        <el-row :gutter="14">
+    <el-dialog v-model="dg.visible" title="创建盘点任务" width="640px" align-center>
+      <el-form label-position="top" size="small" class="take-form">
+        <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="选择仓库">
+            <el-form-item label="供货仓库" required>
               <el-select v-model="dg.warehouse" style="width: 100%">
                 <el-option v-for="w in warehouses" :key="w" :label="w" :value="w" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="负责人">
-              <el-select v-model="dg.owner" style="width: 100%">
-                <el-option v-for="o in owners" :key="o" :label="o" :value="o" />
+            <el-form-item label="供应商名称" required>
+              <el-select v-model="dg.supplier" style="width: 100%">
+                <el-option v-for="s in suppliers" :key="s" :label="s" :value="s" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="备注">
-          <el-input v-model="dg.remark" type="textarea" :rows="2" maxlength="200" show-word-limit
-            placeholder="选填，如：月末全仓盘点" />
-        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="货品类型" required>
+              <el-select v-model="dg.category" style="width: 100%">
+                <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="负责人" required>
+              <el-select v-model="dg.owner" style="width: 100%">
+                <el-option v-for="o in owners" :key="o" :label="o" :value="o" />
+              </el-select>
+              <div class="field-hint">按入库类型选择负责人</div>
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
 
       <div class="detail-head">
         <h4>盘点明细</h4>
-        <span class="extra">已选 {{ dg.goods.length }} 个商品</span>
+        <el-button size="small" :icon="Plus" @click="openPicker">添加货品</el-button>
       </div>
-      <div class="detail-tool">
-        <el-select v-model="dg.goods" multiple filterable collapse-tags collapse-tags-tooltip
-          placeholder="添加商品：输入货品名称/编码，同步供应商管理的货品" style="flex: 1">
-          <el-option v-for="g in pool" :key="g.code" :label="`${g.name}（${g.code}）`" :value="g.code" />
-        </el-select>
-        <el-button size="small" @click="dg.goods = pool.map(g => g.code)">全选</el-button>
-        <el-button size="small" @click="dg.goods = []">清空</el-button>
-      </div>
-      <el-table :data="pickedGoods" size="small" max-height="200" empty-text="还没有添加商品">
-        <el-table-column prop="name" label="货品名称" min-width="140" />
-        <el-table-column prop="code" label="货码编号" width="130" />
-        <el-table-column prop="spec" label="规格" width="100" />
-        <el-table-column label="库存数" width="90" align="right">
+      <el-table :data="pickedGoods" size="small" :max-height="200"
+        empty-text="还没有添加商品，点右上角「添加货品」">
+        <el-table-column prop="name" label="货品名称" min-width="150" />
+        <el-table-column prop="code" label="货品编码" width="130" />
+        <el-table-column prop="batch" label="批次号" width="120" />
+        <el-table-column label="库存数" width="86" align="right">
           <template #default="{ row }"><span class="mono">{{ num(row.stockQty) }}</span></template>
         </el-table-column>
       </el-table>
 
+      <div class="remark-label">备注</div>
+      <el-input v-model="dg.remark" type="textarea" :rows="3" maxlength="200" show-word-limit
+        placeholder="选填，如：月末全仓盘点" />
+
       <div class="dlg-act">
         <el-button size="small" @click="dg.visible = false">取消</el-button>
         <el-button size="small" type="primary" @click="saveCreate">确定</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 添加货品 -->
+    <el-dialog v-model="pk.visible" title="添加货品" width="800px" align-center>
+      <div class="pk-row">
+        <div class="pk-thumb"><el-icon><Picture /></el-icon></div>
+        <div class="pk-field">
+          <label>供应商名称</label>
+          <el-select v-model="pk.supplier" size="small" style="width: 100%" clearable placeholder="全部供应商">
+            <el-option v-for="s in suppliers" :key="s" :label="s" :value="s" />
+          </el-select>
+        </div>
+        <div class="pk-field">
+          <label>货品类型</label>
+          <el-select v-model="pk.category" size="small" style="width: 100%" clearable placeholder="全部类型">
+            <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+          </el-select>
+        </div>
+        <div class="pk-field pk-goods">
+          <label>货品名称</label>
+          <el-select v-model="pk.codes" size="small" style="width: 100%" multiple filterable
+            collapse-tags collapse-tags-tooltip placeholder="洗面奶，同步库存管理已入库货品">
+            <el-option v-for="g in pkOptions" :key="g.code" :label="g.name" :value="g.code" />
+          </el-select>
+        </div>
+      </div>
+      <p class="field-hint" style="margin-top: 10px">
+        支持多选该供应商已连接的货品，按货品类型和货品名称筛选；已在盘点明细中的货品不再出现。
+        取消后本次勾选清空，点「确定」才加入明细。
+      </p>
+      <div class="dlg-act">
+        <el-button size="small" @click="cancelPicker">取消</el-button>
+        <el-button size="small" type="primary" @click="savePicker">确定</el-button>
       </div>
     </el-dialog>
 
@@ -213,24 +256,61 @@ watch(() => view.value.length, n => {
 
 /* ------- 货品池（同步库存/供应商货品） ------- */
 const pool = [
-  { code: 'SE-2026-001', name: '洗面奶 100g', spec: '100g/支', stockQty: 680 },
-  { code: 'SE-2026-819', name: '睫毛膏 8g', spec: '8g/支', stockQty: 102 },
-  { code: 'AS-2026-021', name: '抽纸 3层', spec: '3层/包', stockQty: 0 },
-  { code: 'SE-2026-002', name: '眼睫毛 5ml', spec: '5ml/支', stockQty: 230 },
-  { code: 'SE-2026-003', name: '牙膏 30g', spec: '30g/个', stockQty: 800 },
-  { code: 'AS-2026-022', name: '精华液 30ml', spec: '30ml/瓶', stockQty: 30 }
+  { code: 'SE-2026-001', name: '洗面奶 100g', spec: '100g/支', batch: 'B20260101', category: '家居日用', supplier: '某林林公司', stockQty: 680 },
+  { code: 'SE-2026-819', name: '睫毛膏 8g', spec: '8g/支', batch: 'B20261021', category: '美妆个护', supplier: '某林林公司', stockQty: 102 },
+  { code: 'AS-2026-021', name: '抽纸 3层', spec: '3层/包', batch: 'B20260819', category: '家居日用', supplier: '美妆公司', stockQty: 0 },
+  { code: 'SE-2026-002', name: '眼睫毛 5ml', spec: '5ml/支', batch: 'B20260912', category: '美妆个护', supplier: '美妆公司', stockQty: 230 },
+  { code: 'SE-2026-003', name: '牙膏 30g', spec: '30g/个', batch: 'B20260714', category: '家居日用', supplier: '某林林公司', stockQty: 800 },
+  { code: 'AS-2026-022', name: '精华液 30ml', spec: '30ml/瓶', batch: 'B20260114', category: '美妆个护', supplier: '雅美化妆品', stockQty: 30 }
 ]
+const suppliers = [...new Set(pool.map(g => g.supplier))]
+const categories = [...new Set(pool.map(g => g.category))]
 
 /* ------- 创建盘点任务 ------- */
-const dg = reactive({ visible: false, warehouse: '华东主仓', owner: '杨主管', remark: '', goods: [] })
+const dg = reactive({
+  visible: false, warehouse: '华东主仓', supplier: '某林林公司', category: '家居日用',
+  owner: '杨主管', remark: '', goods: []
+})
 const pickedGoods = computed(() => pool.filter(g => dg.goods.includes(g.code)))
 
 function openCreate() {
   dg.warehouse = '华东主仓'
+  dg.supplier = '某林林公司'
+  dg.category = '家居日用'
   dg.owner = '杨主管'
   dg.remark = ''
   dg.goods = []
   dg.visible = true
+}
+
+/* ------- 添加货品（弹窗内多选） ------- */
+const pk = reactive({ visible: false, supplier: '', category: '', codes: [] })
+/** 只列出符合条件的货品，已在明细里的排除，避免重复添加 */
+const pkOptions = computed(() => pool.filter(g => {
+  const okS = !pk.supplier || g.supplier === pk.supplier
+  const okC = !pk.category || g.category === pk.category
+  return okS && okC && !dg.goods.includes(g.code)
+}))
+
+function openPicker() {
+  pk.supplier = dg.supplier || ''
+  pk.category = dg.category || ''
+  pk.codes = []
+  pk.visible = true
+}
+
+function cancelPicker() {
+  pk.visible = false
+  pk.codes = []
+}
+
+function savePicker() {
+  const add = pk.codes.filter(c => !dg.goods.includes(c))
+  if (!add.length) return ElMessage.error('请先勾选要添加的货品')
+  dg.goods.push(...add)
+  pk.visible = false
+  pk.codes = []
+  ElMessage.success(`已添加 ${add.length} 个货品到盘点明细`)
 }
 
 function saveCreate() {
@@ -240,7 +320,8 @@ function saveCreate() {
   const no = `PD${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}`
   pickedGoods.value.forEach(g => {
     rows.value.unshift({
-      no, poNo: '—', name: g.name, warehouse: dg.warehouse,
+      no, poNo: '—', name: g.name, code: g.code, batch: g.batch,
+      category: g.category, warehouse: dg.warehouse,
       inType: dg.warehouse === '华东主仓' ? '采购入库' : '调拨入库',
       produceDate: '2026-09-12', expireDate: '2027-09-12',
       stockQty: g.stockQty, realQty: null, owner: dg.owner, status: '待盘点',
@@ -307,7 +388,28 @@ function saveCheck() {
 }
 .detail-head h4 { margin: 0; font-size: 13px; font-weight: 600; }
 .detail-head .extra { margin-left: auto; font-size: 11.5px; color: var(--ink-3); }
-.detail-tool { display: flex; gap: 8px; margin-bottom: 8px; }
+.detail-head .el-button { margin-left: auto; }
+
+/* 创建盘点任务：标签在输入框上方 */
+.take-form :deep(.el-form-item) { margin-bottom: 14px; }
+.take-form :deep(.el-form-item__label) {
+  padding-bottom: 4px; font-size: 12px; line-height: 1.4; color: var(--ink-2);
+}
+.remark-label { margin: 14px 0 6px; font-size: 12px; color: var(--ink-2); }
+
+/* 添加货品：图片 + 三项筛选横排 */
+.pk-row { display: flex; gap: 14px; align-items: flex-start; }
+.pk-thumb {
+  width: 96px; height: 84px; flex: none; border-radius: 6px;
+  background: var(--brand-l); color: var(--brand);
+  display: flex; align-items: center; justify-content: center; font-size: 30px;
+}
+.pk-field { flex: 1; min-width: 0; }
+.pk-goods { flex: 1.4; }
+.pk-field label {
+  display: block; margin-bottom: 6px; font-size: 12px; color: var(--ink-2);
+}
+.pk-field label::before { content: '*'; color: #E4573D; margin-right: 2px; }
 
 /* 盘点 / 查看弹窗 */
 .take-dlg { max-width: 96vw; }
