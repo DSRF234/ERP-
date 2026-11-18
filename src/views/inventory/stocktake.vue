@@ -115,7 +115,7 @@
       <el-table :data="chkItems" size="small" border class="detail-table"
         :header-cell-style="{ background: '#F7F8FA', color: 'var(--ink-2)', whiteSpace: 'normal', padding: '6px' }"
         :cell-style="{ padding: '7px 6px' }">
-        <el-table-column label="盘点单号" width="112">
+        <el-table-column label="盘点单号" width="110">
           <template #header>
             <div class="th2"><span>盘点单号</span><em>PD+年+月+日+时间</em></div>
           </template>
@@ -127,24 +127,24 @@
         <el-table-column prop="category" label="货品类型" width="64" />
         <el-table-column prop="inType" label="入库类型" width="64" />
         <el-table-column prop="warehouse" label="收货仓" width="64" />
-        <el-table-column prop="poNo" label="采购单号" width="112">
+        <el-table-column prop="poNo" label="采购单号" width="110">
           <template #header>
             <div class="th2"><span>采购单号</span><em>同步采购管理</em></div>
           </template>
         </el-table-column>
-        <el-table-column prop="produceDate" label="货品生产日期" width="82" />
-        <el-table-column prop="expireDate" label="货品有效期" width="80" />
+        <el-table-column prop="produceDate" label="货品生产日期" width="80" />
+        <el-table-column prop="expireDate" label="货品有效期" width="78" />
         <el-table-column label="库存数" width="56" align="right">
           <template #default="{ row }"><span class="mono">{{ num(row.stockQty) }}</span></template>
         </el-table-column>
-        <el-table-column label="实盘数" width="62" align="right">
+        <el-table-column label="实盘数" width="94" align="center">
           <template #default="{ row }">
             <el-input v-if="!chk.readonly" v-model="chk.vals[keyOf(row)]" size="small" class="qty-in"
-              placeholder="请输入" @input="chk.vals[keyOf(row)] = onlyNum(chk.vals[keyOf(row)])" />
-            <span v-else class="mono">{{ num(row.realQty) }}</span>
+              maxlength="6" placeholder="0-100000" @input="onQtyInput(row)" />
+            <span v-else class="mono qty-txt">{{ num(row.realQty) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="owner" label="负责人" width="60" />
+        <el-table-column prop="owner" label="负责人" width="58" />
       </el-table>
 
       <div class="sec-title">备注</div>
@@ -254,9 +254,17 @@ function saveCreate() {
 
 /* ------- 盘点 / 查看 ------- */
 const chk = reactive({ visible: false, row: null, readonly: false, vals: {}, remark: '' })
-const chkItems = computed(() => (chk.row ? rows.value.filter(r => r.no === chk.row.no) : []))
+const chkItems = computed(() => (chk.row ? [chk.row] : []))
 const keyOf = r => `${r.no}|${r.name}`
 const onlyNum = v => String(v ?? '').replace(/[^\d]/g, '')
+const QTY_MAX = 100000
+/** 实盘数只收数字，且不超过 100000 */
+function onQtyInput(row) {
+  const k = keyOf(row)
+  let v = onlyNum(chk.vals[k])
+  if (v !== '' && Number(v) > QTY_MAX) v = String(QTY_MAX)
+  chk.vals[k] = v
+}
 
 function openCheck(row) {
   chk.row = row
@@ -273,6 +281,8 @@ function saveCheck() {
   if (chk.readonly) { chk.visible = false; return }
   const blank = chkItems.value.filter(r => String(chk.vals[keyOf(r)] ?? '').trim() === '')
   if (blank.length) return ElMessage.error('请填写实盘数后才能保存')
+  const over = chkItems.value.find(r => Number(chk.vals[keyOf(r)]) > QTY_MAX)
+  if (over) return ElMessage.error(`实盘数需在 0~${QTY_MAX} 之间`)
   let diff = 0
   chkItems.value.forEach(r => {
     const real = Number(chk.vals[keyOf(r)])
@@ -316,5 +326,18 @@ function saveCheck() {
 .th2 em { font-style: normal; font-size: 9.5px; color: var(--ink-3); font-weight: 400; }
 .pd-no { color: var(--brand); font-variant-numeric: tabular-nums; }
 .qty-in { width: 100%; }
-.qty-in :deep(.el-input__inner) { padding: 0 6px; text-align: right; }
+/* 实盘数是唯一需要录入的字段，用品牌色描边 + 淡蓝底 + 居中加粗数字突出 */
+.qty-in :deep(.el-input__wrapper) {
+  padding: 0 7px; min-height: 28px;
+  background: var(--brand-l); box-shadow: 0 0 0 1px var(--brand) inset;
+}
+.qty-in :deep(.el-input__wrapper:hover) { box-shadow: 0 0 0 1px var(--brand-d) inset; }
+.qty-in :deep(.el-input__wrapper.is-focus) {
+  background: #fff; box-shadow: 0 0 0 1px var(--brand), 0 0 0 3px rgba(22, 155, 213, .16);
+}
+.qty-in :deep(.el-input__inner) {
+  height: 28px; text-align: center; font-size: 13px; font-weight: 600; color: var(--brand-d);
+}
+.qty-in :deep(.el-input__inner::placeholder) { font-weight: 400; color: #6EAED2; }
+.qty-txt { font-weight: 600; color: var(--ink); }
 </style>
