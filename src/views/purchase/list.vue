@@ -27,27 +27,27 @@
     </div>
 
     <div class="card">
-      <el-table :data="paged" size="small">
-        <el-table-column prop="no" label="采购编号" width="152" />
-        <el-table-column prop="buyer" label="采购员" width="90" />
-        <el-table-column prop="supplier" label="供应商" min-width="170" show-overflow-tooltip />
-        <el-table-column prop="warehouse" label="收货仓" width="100" />
-        <el-table-column prop="date" label="采购时间" width="140" />
-        <el-table-column prop="expressNo" label="物流单号" width="150" />
-        <el-table-column prop="logistics" label="物流公司" width="118" />
-        <el-table-column prop="category" label="货品类型" width="100" />
-        <el-table-column label="运费" width="92" align="right">
+      <el-table :data="paged" size="small" class="order-table">
+        <el-table-column prop="no" label="采购编号" width="120" />
+        <el-table-column prop="buyer" label="采购员" width="76" />
+        <el-table-column prop="supplier" label="供应商" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="warehouse" label="收货仓" width="86" />
+        <el-table-column prop="date" label="采购时间" width="118" />
+        <el-table-column prop="expressNo" label="物流单号" width="124" />
+        <el-table-column prop="logistics" label="物流公司" width="86" />
+        <el-table-column prop="category" label="货品类型" width="78" />
+        <el-table-column label="运费" width="78" align="right">
           <template #default="{ row }"><span class="mono">{{ money(row.freight) }}</span></template>
         </el-table-column>
-        <el-table-column label="总采购金额" width="122" align="right">
+        <el-table-column label="总采购金额" width="104" align="right">
           <template #default="{ row }"><span class="mono strong">{{ money(row.amount) }}</span></template>
         </el-table-column>
-        <el-table-column label="状态" width="96">
+        <el-table-column label="状态" width="76">
           <template #default="{ row }">
             <el-tag size="small" :type="TAG[row.status]">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="112" fixed="right">
+        <el-table-column label="操作" width="96" fixed="right">
           <template #default="{ row }">
             <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
             <el-button link type="primary" size="small" :disabled="row.status !== '待审核'"
@@ -160,7 +160,7 @@ const warehouse = ref('all')
 const categories = computed(() => [...new Set(rows.value.map(r => r.category).filter(Boolean))])
 const warehouses = computed(() => [...new Set(rows.value.map(r => r.warehouse).filter(Boolean))])
 const page = ref(1)
-const size = ref(5)
+const size = ref(20)
 const drawer = ref(false)
 
 const view = computed(() => rows.value.filter(r => {
@@ -176,15 +176,17 @@ const paged = computed(() => view.value.slice((page.value - 1) * size.value, pag
 const sum = (arr, key) => arr.reduce((s, r) => s + Number(r[key] || 0), 0)
 const wan = v => (v >= 10000 ? (v / 10000).toFixed(2) + ' 万元' : v.toLocaleString('zh-CN') + ' 元')
 const stats = computed(() => {
-  // 跟随筛选结果，与下方列表保持同一口径
+  // 与下方列表同一口径：计数按筛选后的行，
+  // 金额与运费只统计「已完成」的单据（未完成的不计入实际采购额）
   const all = view.value
+  const done = all.filter(r => r.status === '已完成')
   return [
     { label: '总采购订单', value: all.length, unit: '单' },
-    { label: '已采购订单', value: all.filter(r => r.status === '已完成').length, unit: '单' },
+    { label: '已采购订单', value: done.length, unit: '单' },
     { label: '进行中订单', value: all.filter(r => r.status === '进行中').length, unit: '单', tone: 'warn' },
     { label: '未审核订单', value: all.filter(r => r.status === '待审核').length, unit: '单', tone: 'warn' },
-    { label: '总采购金额', value: wan(sum(all, 'amount')) },
-    { label: '总运费金额', value: wan(sum(all, 'freight')) }
+    { label: '总采购金额', value: wan(sum(done, 'amount')) },
+    { label: '总运费金额', value: wan(sum(done, 'freight')) }
   ]
 })
 
@@ -244,6 +246,8 @@ function reject() {
 
 <style scoped>
 .strong { font-weight: 600; }
+/* 12 列要在 1200px 内放下，字号收一档避免逐列换行 */
+.order-table :deep(.el-table__cell) { font-size: 11.5px; }
 
 /* 审核弹窗 */
 .audit-dlg :deep(.el-dialog__header) {
