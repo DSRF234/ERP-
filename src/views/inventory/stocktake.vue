@@ -7,8 +7,9 @@
     <StatCards :items="stats" />
 
     <div class="toolbar">
-      <el-input v-model="kw" size="small" style="width: 260px" clearable :prefix-icon="Search"
+      <el-input v-model="kw" size="small" style="width: 240px" clearable :prefix-icon="Search"
         placeholder="输入盘点号/货品名称/负责人" />
+      <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
       <el-select v-model="category" size="small" style="width: 132px">
         <el-option label="全部货品类型" value="all" />
         <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
@@ -21,8 +22,6 @@
         <el-option label="全部收货仓" value="all" />
         <el-option v-for="w in warehouses" :key="w" :label="w" :value="w" />
       </el-select>
-      <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
-      <el-button size="small" @click="reset">重置</el-button>
       <span class="grow">共 {{ view.length }} 条</span>
     </div>
 
@@ -242,8 +241,6 @@ const stats = computed(() => {
     { label: '本月盘点货品', value: all.reduce((s, r) => s + Number(r.stockQty || 0), 0).toLocaleString('zh-CN'), unit: '件' }
   ]
 })
-
-function reset() { kw.value = ''; category.value = 'all'; state.value = 'all'; warehouse.value = 'all'; page.value = 1 }
 
 watch(() => view.value.length, n => {
   const max = Math.max(1, Math.ceil(n / size.value))

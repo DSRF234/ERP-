@@ -7,14 +7,21 @@
     <StatCards :items="stats" />
 
     <div class="toolbar">
-      <el-input v-model="kw" size="small" style="width: 260px" clearable :prefix-icon="Search"
+      <el-input v-model="kw" size="small" style="width: 240px" clearable :prefix-icon="Search"
         placeholder="输入商品名称/编码/批次号" />
-      <el-select v-model="warehouse" size="small" style="width: 130px">
-        <el-option label="全部仓库" value="all" />
+      <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
+      <el-select v-model="category" size="small" style="width: 124px">
+        <el-option label="全部货品类型" value="all" />
+        <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+      </el-select>
+      <el-select v-model="stockState" size="small" style="width: 118px">
+        <el-option label="全部库存状态" value="all" />
+        <el-option v-for="t in STATES" :key="t" :label="t" :value="t" />
+      </el-select>
+      <el-select v-model="warehouse" size="small" style="width: 140px">
+        <el-option label="全部收货仓" value="all" />
         <el-option v-for="w in warehouses" :key="w" :label="w" :value="w" />
       </el-select>
-      <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
-      <el-button size="small" @click="reset">重置</el-button>
       <span class="grow">共 {{ view.length }} 条</span>
     </div>
 
@@ -145,18 +152,22 @@ import StatCards from '@/components/StatCards.vue'
 
 const TAG = { 正常: 'success', 预警: 'warning', 缺货: 'danger' }
 const warehouses = ['华东主仓', '华南仓', '平台仓1', '平台仓2']
+const STATES = ['正常', '预警', '缺货']
 
 const rows = ref([
-  { name: '洗面奶 100g', code: 'SE-2026-001', batch: 'B20260101', supplier: '某林林公司', warehouse: '华东主仓', inNo: 'BQ20260101111', inQty: 1200, outQty: 520, left: 680, cap: 86, warnValue: 200, warnDays: 12, warnUnit: '月', unit: '支', expiry: '2027-09-01' },
-  { name: '睫毛膏 8g', code: 'SE-2026-819', batch: 'B20261021', supplier: '某林林公司', warehouse: '华南仓', inNo: 'BQ20260101113', inQty: 300, outQty: 198, left: 102, cap: 34, warnValue: 150, warnDays: 1, warnUnit: '月', unit: '支', expiry: '2026-12-10' },
-  { name: '抽纸 3层', code: 'AS-2026-021', batch: 'B20260819', supplier: '美妆公司', warehouse: '平台仓1', inNo: 'BQ20260819002', inQty: 2400, outQty: 2400, left: 0, cap: 0, warnValue: 100, warnDays: 3, warnUnit: '月', unit: '件', expiry: '2027-03-15' },
-  { name: '眼睫毛 5ml', code: 'SE-2026-002', batch: 'B20260912', supplier: '美妆公司', warehouse: '华东主仓', inNo: 'BQ20260912003', inQty: 860, outQty: 630, left: 230, cap: 27, warnValue: 300, warnDays: 3, warnUnit: '月', unit: '支', expiry: '2027-01-20' },
-  { name: '牙膏 30g', code: 'SE-2026-003', batch: 'B20260714', supplier: '某林林公司', warehouse: '平台仓2', inNo: 'BQ20260714004', inQty: 1500, outQty: 700, left: 800, cap: 53, warnValue: 200, warnDays: 3, warnUnit: '月', unit: '个', expiry: '2028-02-28' },
-  { name: '精华液 30ml', code: 'AS-2026-022', batch: 'B20260114', supplier: '雅美化妆品', warehouse: '华南仓', inNo: 'BQ20260114005', inQty: 640, outQty: 610, left: 30, cap: 5, warnValue: 60, warnDays: 2, warnUnit: '月', unit: '瓶', expiry: '2026-12-25' }
+  { name: '洗面奶 100g', code: 'SE-2026-001', batch: 'B20260101', category: '家居日用', supplier: '某林林公司', warehouse: '华东主仓', inNo: 'BQ20260101111', inQty: 1200, outQty: 520, left: 680, cap: 86, warnValue: 200, warnDays: 12, warnUnit: '月', unit: '支', expiry: '2027-09-01' },
+  { name: '睫毛膏 8g', code: 'SE-2026-819', batch: 'B20261021', category: '美妆个护', supplier: '某林林公司', warehouse: '华南仓', inNo: 'BQ20260101113', inQty: 300, outQty: 198, left: 102, cap: 34, warnValue: 150, warnDays: 1, warnUnit: '月', unit: '支', expiry: '2026-12-10' },
+  { name: '抽纸 3层', code: 'AS-2026-021', batch: 'B20260819', category: '家居日用', supplier: '美妆公司', warehouse: '平台仓1', inNo: 'BQ20260819002', inQty: 2400, outQty: 2400, left: 0, cap: 0, warnValue: 100, warnDays: 3, warnUnit: '月', unit: '件', expiry: '2027-03-15' },
+  { name: '眼睫毛 5ml', code: 'SE-2026-002', batch: 'B20260912', category: '美妆个护', supplier: '美妆公司', warehouse: '华东主仓', inNo: 'BQ20260912003', inQty: 860, outQty: 630, left: 230, cap: 27, warnValue: 300, warnDays: 3, warnUnit: '月', unit: '支', expiry: '2027-01-20' },
+  { name: '牙膏 30g', code: 'SE-2026-003', batch: 'B20260714', category: '家居日用', supplier: '某林林公司', warehouse: '平台仓2', inNo: 'BQ20260714004', inQty: 1500, outQty: 700, left: 800, cap: 53, warnValue: 200, warnDays: 3, warnUnit: '月', unit: '个', expiry: '2028-02-28' },
+  { name: '精华液 30ml', code: 'AS-2026-022', batch: 'B20260114', category: '美妆个护', supplier: '雅美化妆品', warehouse: '华南仓', inNo: 'BQ20260114005', inQty: 640, outQty: 610, left: 30, cap: 5, warnValue: 60, warnDays: 2, warnUnit: '月', unit: '瓶', expiry: '2026-12-25' }
 ])
 
 const kw = ref('')
+const category = ref('all')
+const stockState = ref('all')
 const warehouse = ref('all')
+const categories = computed(() => [...new Set(rows.value.map(r => r.category).filter(Boolean))])
 const page = ref(1)
 const size = ref(5)
 
@@ -182,7 +193,9 @@ const view = computed(() => rows.value.map(r => ({ ...r, status: statusOf(r) }))
   const k = kw.value.trim()
   const okKw = !k || [r.name, r.code, r.batch].some(v => String(v).includes(k))
   const okWh = warehouse.value === 'all' || r.warehouse === warehouse.value
-  return okKw && okWh
+  const okCat = category.value === 'all' || r.category === category.value
+  const okSt = stockState.value === 'all' || r.status === stockState.value
+  return okKw && okWh && okCat && okSt
 }))
 const paged = computed(() => view.value.slice((page.value - 1) * size.value, page.value * size.value))
 
@@ -199,8 +212,6 @@ const stats = computed(() => {
     { label: '本月出库', value: num(sum(all, 'outQty')), unit: '件' }
   ]
 })
-
-function reset() { kw.value = ''; warehouse.value = 'all'; page.value = 1 }
 
 watch(() => view.value.length, n => {
   const max = Math.max(1, Math.ceil(n / size.value))

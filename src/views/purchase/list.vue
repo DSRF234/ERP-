@@ -8,14 +8,21 @@
     <StatCards :items="stats" />
 
     <div class="toolbar">
-      <el-input v-model="kw" size="small" style="width: 260px" clearable :prefix-icon="Search"
+      <el-input v-model="kw" size="small" style="width: 240px" clearable :prefix-icon="Search"
         placeholder="输入采购单编号/采购员/物流公司" />
-      <el-select v-model="status" size="small" style="width: 132px">
+      <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
+      <el-select v-model="status" size="small" style="width: 118px">
         <el-option label="全部状态" value="all" />
         <el-option v-for="s in STATUS" :key="s" :label="s" :value="s" />
       </el-select>
-      <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
-      <el-button size="small" @click="reset">重置</el-button>
+      <el-select v-model="category" size="small" style="width: 124px">
+        <el-option label="全部货品类型" value="all" />
+        <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+      </el-select>
+      <el-select v-model="warehouse" size="small" style="width: 140px">
+        <el-option label="全部收货仓" value="all" />
+        <el-option v-for="w in warehouses" :key="w" :label="w" :value="w" />
+      </el-select>
       <span class="grow">共 {{ view.length }} 条</span>
     </div>
 
@@ -148,6 +155,10 @@ const rows = ref([
 
 const kw = ref('')
 const status = ref('all')
+const category = ref('all')
+const warehouse = ref('all')
+const categories = computed(() => [...new Set(rows.value.map(r => r.category).filter(Boolean))])
+const warehouses = computed(() => [...new Set(rows.value.map(r => r.warehouse).filter(Boolean))])
 const page = ref(1)
 const size = ref(5)
 const drawer = ref(false)
@@ -156,7 +167,9 @@ const view = computed(() => rows.value.filter(r => {
   const k = kw.value.trim()
   const okKw = !k || [r.no, r.buyer, r.logistics, r.supplier, r.expressNo].some(v => String(v).includes(k))
   const okStatus = status.value === 'all' || r.status === status.value
-  return okKw && okStatus
+  const okCat = category.value === 'all' || r.category === category.value
+  const okWh = warehouse.value === 'all' || r.warehouse === warehouse.value
+  return okKw && okStatus && okCat && okWh
 }))
 const paged = computed(() => view.value.slice((page.value - 1) * size.value, page.value * size.value))
 
@@ -173,8 +186,6 @@ const stats = computed(() => {
     { label: '总运费金额', value: wan(sum(all, 'freight')) }
   ]
 })
-
-function reset() { kw.value = ''; status.value = 'all'; page.value = 1 }
 
 // 筛选后当前页超出范围时回到最后一页
 watch(() => view.value.length, n => {

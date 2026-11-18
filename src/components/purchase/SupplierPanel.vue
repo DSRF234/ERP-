@@ -1,10 +1,20 @@
 <template>
   <div class="sup-panel">
     <div class="toolbar">
-      <el-input v-model="kw" size="small" style="width: 260px" clearable
-        placeholder="输入供应商姓名/负责人/联系电话/地址" :prefix-icon="Search" />
+      <el-input v-model="kwInput" size="small" style="width: 240px" clearable
+        placeholder="输入供应商姓名/负责人/联系电话/地址" :prefix-icon="Search"
+        @keyup.enter="doSearch" @clear="doSearch" />
+      <el-button size="small" type="primary" @click="doSearch">搜索</el-button>
+      <el-select v-model="typeFilter" size="small" style="width: 124px">
+        <el-option label="全部货品类型" value="all" />
+        <el-option v-for="t in TYPES" :key="t" :label="t" :value="t" />
+      </el-select>
+      <el-select v-model="coState" size="small" style="width: 124px">
+        <el-option label="全部合作状态" value="all" />
+        <el-option v-for="s in CO_STATES" :key="s" :label="s" :value="s" />
+      </el-select>
+      <span class="grow">共 {{ view.length }} 家 · 合作中 {{ activeCount }} 家</span>
       <el-button size="small" type="primary" @click="openAdd">添加供应商</el-button>
-      <span class="grow">共 {{ view.length }} 家供应商 · 合作中 {{ activeCount }} 家</span>
     </div>
 
     <el-table :data="view" size="small" highlight-current-row :max-height="260"
@@ -13,7 +23,11 @@
       <el-table-column prop="owner" label="负责人" width="100" />
       <el-table-column prop="phone" label="联系电话" width="140" />
       <el-table-column prop="address" label="地址" min-width="240" show-overflow-tooltip />
-      <el-table-column prop="goodsCount" label="货品数" width="80" align="right" />
+      <el-table-column label="货品数" width="80" align="right">
+        <template #default="{ row }">
+          <span class="mono">{{ (row.goods || []).length }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="合作状态" width="100">
         <template #default="{ row }">
           <el-tag size="small" :type="row.status === '合作中' ? 'success' : 'info'">{{ row.status }}</el-tag>
@@ -127,38 +141,48 @@ const suppliers = ref([
     name: '某林林公司', owner: '某林公', phone: '12345678901',
     address: '河北省石家庄市正定县新龙科技2211号', status: '合作中',
     goods: [
-      { code: 'SO-2026-001', name: '洗面奶', spec: '100g/支', price: 9.99, minPrice: 12.02 },
-      { code: 'SO-2026-002', name: '睫毛膏', spec: '8g/支', price: 8.20, minPrice: 9.80 },
-      { code: 'SO-2026-003', name: '牙膏', spec: '30g/个', price: 12.00, minPrice: 19.50 }
+      { code: 'SO-2026-001', name: '洗面奶', type: '家居日用', spec: '100g/支', price: 9.99, minPrice: 12.02 },
+      { code: 'SO-2026-002', name: '睫毛膏', type: '美妆个护', spec: '8g/支', price: 8.20, minPrice: 9.80 },
+      { code: 'SO-2026-003', name: '牙膏', type: '家居日用', spec: '30g/个', price: 12.00, minPrice: 19.50 }
     ]
   },
   {
     name: '美妆公司', owner: '张经理', phone: '12333445678',
     address: '河北省石家庄市正定县新龙科技222号', status: '合作中',
     goods: [
-      { code: 'SO-2026-011', name: '眼睫毛', spec: '5ml/支', price: 6.60, minPrice: 8.40 },
-      { code: 'SO-2026-012', name: '抽纸', spec: '3层/包', price: 3.50, minPrice: 4.20 }
+      { code: 'SO-2026-011', name: '眼睫毛', type: '美妆个护', spec: '5ml/支', price: 6.60, minPrice: 8.40 },
+      { code: 'SO-2026-012', name: '抽纸', type: '家居日用', spec: '3层/包', price: 3.50, minPrice: 4.20 }
     ]
   },
   {
     name: '和正日化', owner: '王主管', phone: '13800138001',
     address: '广州市白云区机场路 12 号', status: '已停用',
-    goods: [{ code: 'SO-2026-021', name: '护手霜', spec: '50g/支', price: 7.80, minPrice: 9.90 }]
+    goods: [{ code: 'SO-2026-021', name: '护手霜', type: '美妆个护', spec: '50g/支', price: 7.80, minPrice: 9.90 }]
   },
   {
     name: '雅美化妆品', owner: '陈志强', phone: '13900139002',
     address: '深圳市宝安区福永街道 66 号', status: '已暂停',
-    goods: [{ code: 'SO-2026-031', name: '精华液', spec: '30ml/瓶', price: 68.00, minPrice: 79.00 }]
+    goods: [{ code: 'SO-2026-031', name: '精华液', type: '美妆个护', spec: '30ml/瓶', price: 68.00, minPrice: 79.00 }]
   }
 ])
 
+const TYPES = ['家居日用', '美妆个护']
+const CO_STATES = ['合作中', '已停用', '已暂停']
+
+const kwInput = ref('')
 const kw = ref('')
+const typeFilter = ref('all')
+const coState = ref('all')
 const activeName = ref('')
 
+function doSearch() { kw.value = kwInput.value.trim() }
+
 const view = computed(() => suppliers.value.filter(s => {
-  const k = kw.value.trim()
-  if (!k) return true
-  return [s.name, s.owner, s.phone, s.address].some(v => String(v).includes(k))
+  const k = kw.value
+  if (k && ![s.name, s.owner, s.phone, s.address].some(v => String(v).includes(k))) return false
+  if (typeFilter.value !== 'all' && !(s.goods || []).some(g => g.type === typeFilter.value)) return false
+  if (coState.value !== 'all' && s.status !== coState.value) return false
+  return true
 }))
 const active = computed(() => suppliers.value.find(s => s.name === activeName.value) || null)
 const activeCount = computed(() => suppliers.value.filter(s => s.status === '合作中').length)
@@ -233,7 +257,7 @@ function openGoods() {
 async function submitGoods() {
   try { await goodsRef.value.validate() } catch (e) { return }
   active.value.goods.push({
-    code: goods.form.code, name: goods.form.name,
+    code: goods.form.code, name: goods.form.name, type: goods.form.type,
     spec: goods.form.spec, price: Number(goods.form.price), minPrice: Number(goods.form.price)
   })
   goods.visible = false
