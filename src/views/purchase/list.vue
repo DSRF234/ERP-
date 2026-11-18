@@ -182,7 +182,7 @@ const stats = computed(() => {
   const done = all.filter(r => r.status === '已完成')
   return [
     { label: '总采购订单', value: all.length, unit: '单' },
-    { label: '已采购订单', value: done.length, unit: '单' },
+    { label: '已完成订单', value: done.length, unit: '单' },
     { label: '进行中订单', value: all.filter(r => r.status === '进行中').length, unit: '单', tone: 'warn' },
     { label: '未审核订单', value: all.filter(r => r.status === '待审核').length, unit: '单', tone: 'warn' },
     { label: '总采购金额', value: wan(sum(done, 'amount')) },
