@@ -9,10 +9,17 @@
     <div class="toolbar">
       <el-input v-model="kw" size="small" style="width: 260px" clearable :prefix-icon="Search"
         placeholder="输入盘点号/货品名称/负责人" />
-      <el-select v-model="inType" size="small" style="width: 130px">
-        <el-option label="全部入库类型" value="all" />
-        <el-option label="采购入库" value="采购入库" />
-        <el-option label="调拨入库" value="调拨入库" />
+      <el-select v-model="category" size="small" style="width: 132px">
+        <el-option label="全部货品类型" value="all" />
+        <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+      </el-select>
+      <el-select v-model="state" size="small" style="width: 120px">
+        <el-option label="全部状态" value="all" />
+        <el-option v-for="t in STATUS" :key="t" :label="t" :value="t" />
+      </el-select>
+      <el-select v-model="warehouse" size="small" style="width: 140px">
+        <el-option label="全部收货仓" value="all" />
+        <el-option v-for="w in warehouses" :key="w" :label="w" :value="w" />
       </el-select>
       <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
       <el-button size="small" @click="reset">重置</el-button>
@@ -193,6 +200,7 @@ import { Plus, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCards from '@/components/StatCards.vue'
 
+const STATUS = ['待盘点', '已完成', '有差异']
 const TAG = { 待盘点: 'info', 已完成: 'success', 有差异: 'danger' }
 const warehouses = ['华东主仓', '华南仓', '平台仓1', '平台仓2']
 const owners = ['杨主管', '李丽霞', '王强']
@@ -207,15 +215,19 @@ const rows = ref([
 ])
 
 const kw = ref('')
-const inType = ref('all')
+const category = ref('all')
+const state = ref('all')
+const warehouse = ref('all')
 const page = ref(1)
 const size = ref(5)
 
 const view = computed(() => rows.value.filter(r => {
   const k = kw.value.trim()
-  const okKw = !k || [r.no, r.name, r.owner].some(v => String(v).includes(k))
-  const okType = inType.value === 'all' || r.inType === inType.value
-  return okKw && okType
+  const okKw = !k || [r.no, r.name, r.owner, r.code].some(v => String(v).includes(k))
+  const okCat = category.value === 'all' || r.category === category.value
+  const okSt = state.value === 'all' || r.status === state.value
+  const okWh = warehouse.value === 'all' || r.warehouse === warehouse.value
+  return okKw && okCat && okSt && okWh
 }))
 const paged = computed(() => view.value.slice((page.value - 1) * size.value, page.value * size.value))
 
@@ -231,7 +243,7 @@ const stats = computed(() => {
   ]
 })
 
-function reset() { kw.value = ''; inType.value = 'all'; page.value = 1 }
+function reset() { kw.value = ''; category.value = 'all'; state.value = 'all'; warehouse.value = 'all'; page.value = 1 }
 
 watch(() => view.value.length, n => {
   const max = Math.max(1, Math.ceil(n / size.value))
