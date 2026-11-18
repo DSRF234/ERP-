@@ -185,7 +185,7 @@ const view = computed(() => suppliers.value.filter(s => {
   return true
 }))
 const active = computed(() => suppliers.value.find(s => s.name === activeName.value) || null)
-const activeCount = computed(() => suppliers.value.filter(s => s.status === '合作中').length)
+const activeCount = computed(() => view.value.filter(s => s.status === '合作中').length)
 
 function onSelect(row) { if (row) activeName.value = row.name }
 

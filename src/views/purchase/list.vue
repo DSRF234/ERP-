@@ -176,7 +176,8 @@ const paged = computed(() => view.value.slice((page.value - 1) * size.value, pag
 const sum = (arr, key) => arr.reduce((s, r) => s + Number(r[key] || 0), 0)
 const wan = v => (v >= 10000 ? (v / 10000).toFixed(2) + ' 万元' : v.toLocaleString('zh-CN') + ' 元')
 const stats = computed(() => {
-  const all = rows.value
+  // 跟随筛选结果，与下方列表保持同一口径
+  const all = view.value
   return [
     { label: '总采购订单', value: all.length, unit: '单' },
     { label: '已采购订单', value: all.filter(r => r.status === '已完成').length, unit: '单' },
