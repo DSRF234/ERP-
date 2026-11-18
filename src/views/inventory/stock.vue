@@ -15,12 +15,11 @@
       </el-select>
       <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
       <el-button size="small" @click="reset">重置</el-button>
-      <span class="grow">共 {{ view.length }} 条 · 已选 {{ selected.length }} 个商品</span>
+      <span class="grow">共 {{ view.length }} 条</span>
     </div>
 
     <div class="card">
-      <el-table :data="paged" size="small" @selection-change="rows => selected = rows">
-        <el-table-column type="selection" width="42" />
+      <el-table :data="paged" size="small">
         <el-table-column prop="name" label="货品名称" min-width="160" />
         <el-table-column prop="code" label="货码" width="118" />
         <el-table-column prop="batch" label="批次号" width="112" />
@@ -76,6 +75,14 @@
         <el-input v-model="warn.kw" size="small" class="warn-kw" clearable :prefix-icon="Search"
           placeholder="输入商品名称/编码/批次号" @keyup.enter="doSearch" />
         <el-button size="small" type="primary" @click="doSearch">查找</el-button>
+      </div>
+
+      <div class="warn-allbar">
+        <label class="warn-all">
+          <el-checkbox :model-value="allChecked" :indeterminate="partChecked" @change="toggleAll" />
+          <span>全选</span>
+        </label>
+        <span class="all-tip">勾选当前筛选的 {{ warnResults.length }} 个商品</span>
       </div>
 
       <div class="warn-list">
@@ -152,7 +159,6 @@ const kw = ref('')
 const warehouse = ref('')
 const page = ref(1)
 const size = ref(5)
-const selected = ref([])
 
 /* ---- 预警计算：数量下限 + 保质期剩余天数 ---- */
 const UNIT_DAYS = { 年: 365, 月: 30, 日: 1 }
@@ -235,6 +241,16 @@ function doSearch() {
 }
 watch(() => warn.supplier, doSearch)
 
+const allChecked = computed(() =>
+  warnResults.value.length > 0 && warnResults.value.every(g => warn.checked.includes(g.code)))
+const partChecked = computed(() =>
+  !allChecked.value && warnResults.value.some(g => warn.checked.includes(g.code)))
+
+/** 全选/取消全选当前筛选结果（幂等，避免 label 转发导致的重复 change） */
+function toggleAll(on) {
+  warnResults.value.forEach(g => setGoods(g.code, on))
+}
+
 /** 幂等设置勾选态：行 label 点击可能让 checkbox 触发多次 change，用目标值而非取反 */
 function setGoods(code, on) {
   const i = warn.checked.indexOf(code)
@@ -245,7 +261,7 @@ function setGoods(code, on) {
 function openWarn() {
   warn.supplier = ''
   warn.kw = ''
-  warn.checked = selected.value.map(r => r.code).filter((c, i, a) => a.indexOf(c) === i)
+  warn.checked = []
   warn.days = ''
   warn.unit = '月'
   warn.value = ''
@@ -279,9 +295,16 @@ function saveWarn() {
 .warn-filter { display: flex; align-items: center; gap: 8px; }
 .warn-kw { flex: 1; min-width: 0; }
 
+/* 弹窗：全选条 */
+.warn-allbar { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.warn-all { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
+.warn-all :deep(.el-checkbox) { margin-right: 0; height: auto; }
+.warn-all :deep(.el-checkbox__label) { display: none; }
+.warn-allbar .all-tip { font-size: 11.5px; color: var(--ink-3); }
+
 /* 弹窗：货品勾选列表 */
 .warn-list {
-  margin-top: 12px; max-height: 182px; overflow-y: auto;
+  margin-top: 6px; max-height: 182px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 5px;
 }
 .warn-row {
