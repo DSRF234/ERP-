@@ -32,9 +32,9 @@ export const routes = [
         props: { status: 'done' }, meta: { title: '已完结', group: '订单管理' } },
 
       { path: 'purchase', name: 'Purchase', component: () => import('@/views/purchase/list.vue'),
-        meta: { title: '采购管理', group: '采购管理' } },
+        meta: { title: '采购订单', group: '采购管理' } },
       { path: 'purchase/create', name: 'PurchaseCreate', component: () => import('@/views/purchase/create.vue'),
-        meta: { title: '新建采购单', group: '采购管理' } },
+        meta: { title: '新建采购单', group: '采购管理', parent: { title: '采购订单', path: '/purchase' } } },
       { path: 'purchase/supplier', name: 'Supplier', component: () => import('@/views/purchase/supplier.vue'),
         meta: { title: '供应商管理', group: '采购管理' } },
 

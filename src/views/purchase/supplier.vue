@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="供应商管理" sub="供应商基础资料 · 供应商货品 · 合作状态">
-      <el-button size="small" @click="router.push('/purchase')">返回采购管理</el-button>
+      <el-button size="small" @click="router.push('/purchase')">返回采购订单</el-button>
     </PageHeader>
 
     <div class="card" style="padding: 14px">

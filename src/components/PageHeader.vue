@@ -15,7 +15,7 @@ import { useRouter } from 'vue-router'
 const props = defineProps({
   title: String,
   sub: String,
-  /** 有值时在标题左侧显示返回链接，值为链接文案（如「采购管理」） */
+  /** 有值时在标题左侧显示返回链接，值为链接文案（如「采购订单」） */
   back: String,
   /** 返回目标路由，缺省回退一页 */
   backTo: String

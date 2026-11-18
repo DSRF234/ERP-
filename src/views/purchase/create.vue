@@ -1,6 +1,6 @@
 <template>
   <div>
-    <PageHeader title="新建采购单" back="采购管理" back-to="/purchase"
+    <PageHeader title="新建采购单" back="返回采购订单" back-to="/purchase"
       sub="提交后进入「待审核」，审核通过变为「进行中」">
       <el-button size="small" @click="cancel">取消</el-button>
       <el-button size="small" type="primary" @click="submit">提交审核</el-button>

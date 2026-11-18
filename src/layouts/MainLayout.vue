@@ -21,7 +21,7 @@
 
         <el-sub-menu index="purchase">
           <template #title><el-icon><ShoppingCart /></el-icon><span>采购管理</span></template>
-          <el-menu-item index="/purchase">采购管理</el-menu-item>
+          <el-menu-item index="/purchase">采购订单</el-menu-item>
           <el-menu-item index="/purchase/supplier">供应商管理</el-menu-item>
         </el-sub-menu>
 
@@ -63,6 +63,7 @@
       <header class="topbar">
         <el-breadcrumb separator="/">
           <el-breadcrumb-item v-if="route.meta.group">{{ route.meta.group }}</el-breadcrumb-item>
+          <el-breadcrumb-item v-if="route.meta.parent">{{ route.meta.parent.title }}</el-breadcrumb-item>
           <el-breadcrumb-item>{{ route.meta.title }}</el-breadcrumb-item>
         </el-breadcrumb>
         <div class="right">

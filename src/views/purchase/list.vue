@@ -1,6 +1,6 @@
 <template>
   <div>
-    <PageHeader title="采购管理" sub="采购单全流程：新建 → 审核 → 进行中 → 已完成">
+    <PageHeader title="采购订单" sub="采购单全流程：新建 → 审核 → 进行中 → 已完成">
       <el-button size="small" type="primary" :icon="Plus" @click="router.push('/purchase/create')">新建采购单</el-button>
       <el-button size="small" @click="drawer = true">供应商管理</el-button>
     </PageHeader>
