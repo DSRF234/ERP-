@@ -10,7 +10,7 @@
       <el-input v-model="kw" size="small" style="width: 260px" clearable :prefix-icon="Search"
         placeholder="输入盘点号/货品名称/负责人" />
       <el-select v-model="inType" size="small" style="width: 130px">
-        <el-option label="全部入库类型" value="" />
+        <el-option label="全部入库类型" value="all" />
         <el-option label="采购入库" value="采购入库" />
         <el-option label="调拨入库" value="调拨入库" />
       </el-select>
@@ -207,14 +207,14 @@ const rows = ref([
 ])
 
 const kw = ref('')
-const inType = ref('')
+const inType = ref('all')
 const page = ref(1)
 const size = ref(5)
 
 const view = computed(() => rows.value.filter(r => {
   const k = kw.value.trim()
   const okKw = !k || [r.no, r.name, r.owner].some(v => String(v).includes(k))
-  const okType = !inType.value || r.inType === inType.value
+  const okType = inType.value === 'all' || r.inType === inType.value
   return okKw && okType
 }))
 const paged = computed(() => view.value.slice((page.value - 1) * size.value, page.value * size.value))
@@ -231,7 +231,7 @@ const stats = computed(() => {
   ]
 })
 
-function reset() { kw.value = ''; inType.value = ''; page.value = 1 }
+function reset() { kw.value = ''; inType.value = 'all'; page.value = 1 }
 
 watch(() => view.value.length, n => {
   const max = Math.max(1, Math.ceil(n / size.value))

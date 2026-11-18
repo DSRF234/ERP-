@@ -11,7 +11,7 @@
       <el-input v-model="kw" size="small" style="width: 260px" clearable :prefix-icon="Search"
         placeholder="输入采购单编号/采购员/物流公司" />
       <el-select v-model="status" size="small" style="width: 132px">
-        <el-option label="全部状态" value="" />
+        <el-option label="全部状态" value="all" />
         <el-option v-for="s in STATUS" :key="s" :label="s" :value="s" />
       </el-select>
       <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
@@ -147,7 +147,7 @@ const rows = ref([
 ])
 
 const kw = ref('')
-const status = ref('')
+const status = ref('all')
 const page = ref(1)
 const size = ref(5)
 const drawer = ref(false)
@@ -155,7 +155,7 @@ const drawer = ref(false)
 const view = computed(() => rows.value.filter(r => {
   const k = kw.value.trim()
   const okKw = !k || [r.no, r.buyer, r.logistics, r.supplier, r.expressNo].some(v => String(v).includes(k))
-  const okStatus = !status.value || r.status === status.value
+  const okStatus = status.value === 'all' || r.status === status.value
   return okKw && okStatus
 }))
 const paged = computed(() => view.value.slice((page.value - 1) * size.value, page.value * size.value))
@@ -174,7 +174,7 @@ const stats = computed(() => {
   ]
 })
 
-function reset() { kw.value = ''; status.value = ''; page.value = 1 }
+function reset() { kw.value = ''; status.value = 'all'; page.value = 1 }
 
 // 筛选后当前页超出范围时回到最后一页
 watch(() => view.value.length, n => {

@@ -10,7 +10,7 @@
       <el-input v-model="kw" size="small" style="width: 260px" clearable :prefix-icon="Search"
         placeholder="输入商品名称/编码/批次号" />
       <el-select v-model="warehouse" size="small" style="width: 130px">
-        <el-option label="全部仓库" value="" />
+        <el-option label="全部仓库" value="all" />
         <el-option v-for="w in warehouses" :key="w" :label="w" :value="w" />
       </el-select>
       <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
@@ -156,7 +156,7 @@ const rows = ref([
 ])
 
 const kw = ref('')
-const warehouse = ref('')
+const warehouse = ref('all')
 const page = ref(1)
 const size = ref(5)
 
@@ -181,7 +181,7 @@ function statusTip(r) {
 const view = computed(() => rows.value.map(r => ({ ...r, status: statusOf(r) })).filter(r => {
   const k = kw.value.trim()
   const okKw = !k || [r.name, r.code, r.batch].some(v => String(v).includes(k))
-  const okWh = !warehouse.value || r.warehouse === warehouse.value
+  const okWh = warehouse.value === 'all' || r.warehouse === warehouse.value
   return okKw && okWh
 }))
 const paged = computed(() => view.value.slice((page.value - 1) * size.value, page.value * size.value))
@@ -200,7 +200,7 @@ const stats = computed(() => {
   ]
 })
 
-function reset() { kw.value = ''; warehouse.value = ''; page.value = 1 }
+function reset() { kw.value = ''; warehouse.value = 'all'; page.value = 1 }
 
 watch(() => view.value.length, n => {
   const max = Math.max(1, Math.ceil(n / size.value))
