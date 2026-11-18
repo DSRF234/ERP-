@@ -27,13 +27,13 @@
 
     <div class="card">
       <el-table :data="paged" size="small">
-        <el-table-column prop="no" label="盘点单号" width="150" />
-        <el-table-column prop="poNo" label="采购单号" width="150" />
-        <el-table-column prop="name" label="货品名称" min-width="150" />
-        <el-table-column prop="warehouse" label="仓库" width="100" />
-        <el-table-column prop="inType" label="入库类型" width="100" />
-        <el-table-column prop="produceDate" label="货品生产日期" width="124" />
-        <el-table-column prop="expireDate" label="货品有效期" width="124" />
+        <el-table-column prop="no" label="盘点单号" width="136" />
+        <el-table-column prop="poNo" label="采购单号" width="136" />
+        <el-table-column prop="name" label="货品名称" min-width="126" />
+        <el-table-column prop="warehouse" label="仓库" width="90" />
+        <el-table-column prop="inType" label="入库类型" width="92" />
+        <el-table-column prop="produceDate" label="货品生产日期" width="112" />
+        <el-table-column prop="expireDate" label="货品有效期" width="112" />
         <el-table-column label="库存数" width="88" align="right">
           <template #default="{ row }"><span class="mono">{{ num(row.stockQty) }}</span></template>
         </el-table-column>
@@ -56,8 +56,8 @@
         </el-table-column>
       </el-table>
       <div class="pager">
-        <el-pagination v-model:current-page="page" v-model:page-size="size" :page-sizes="[5, 10, 20]"
-          :total="view.length" layout="total, sizes, prev, pager, next" small background />
+        <el-pagination v-model:current-page="page" :page-size="PAGE_SIZE"
+          :total="view.length" layout="total, prev, pager, next" small background />
       </div>
     </div>
 
@@ -218,7 +218,7 @@ const category = ref('all')
 const state = ref('all')
 const warehouse = ref('all')
 const page = ref(1)
-const size = ref(5)
+const PAGE_SIZE = 20
 
 const view = computed(() => rows.value.filter(r => {
   const k = kw.value.trim()
@@ -228,7 +228,7 @@ const view = computed(() => rows.value.filter(r => {
   const okWh = warehouse.value === 'all' || r.warehouse === warehouse.value
   return okKw && okCat && okSt && okWh
 }))
-const paged = computed(() => view.value.slice((page.value - 1) * size.value, page.value * size.value))
+const paged = computed(() => view.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
 
 const num = v => (v === null || v === undefined ? '—' : v.toLocaleString('zh-CN'))
 const stats = computed(() => {
@@ -243,7 +243,7 @@ const stats = computed(() => {
 })
 
 watch(() => view.value.length, n => {
-  const max = Math.max(1, Math.ceil(n / size.value))
+  const max = Math.max(1, Math.ceil(n / PAGE_SIZE))
   if (page.value > max) page.value = max
 })
 

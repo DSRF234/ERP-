@@ -67,8 +67,8 @@
         </el-table-column>
       </el-table>
       <div class="pager">
-        <el-pagination v-model:current-page="page" v-model:page-size="size" :page-sizes="[5, 10, 20]"
-          :total="view.length" layout="total, sizes, prev, pager, next" small background />
+        <el-pagination v-model:current-page="page" :page-size="PAGE_SIZE"
+          :total="view.length" layout="total, prev, pager, next" small background />
       </div>
     </div>
 
@@ -169,7 +169,7 @@ const stockState = ref('all')
 const warehouse = ref('all')
 const categories = computed(() => [...new Set(rows.value.map(r => r.category).filter(Boolean))])
 const page = ref(1)
-const size = ref(5)
+const PAGE_SIZE = 20
 
 /* ---- 预警计算：数量下限 + 保质期剩余天数 ---- */
 const UNIT_DAYS = { 年: 365, 月: 30, 日: 1 }
@@ -197,7 +197,7 @@ const view = computed(() => rows.value.map(r => ({ ...r, status: statusOf(r) }))
   const okSt = stockState.value === 'all' || r.status === stockState.value
   return okKw && okWh && okCat && okSt
 }))
-const paged = computed(() => view.value.slice((page.value - 1) * size.value, page.value * size.value))
+const paged = computed(() => view.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
 
 const sum = (arr, key) => arr.reduce((s, r) => s + Number(r[key] || 0), 0)
 const num = v => (v === null || v === undefined ? '—' : v.toLocaleString('zh-CN'))
@@ -214,7 +214,7 @@ const stats = computed(() => {
 })
 
 watch(() => view.value.length, n => {
-  const max = Math.max(1, Math.ceil(n / size.value))
+  const max = Math.max(1, Math.ceil(n / PAGE_SIZE))
   if (page.value > max) page.value = max
 })
 

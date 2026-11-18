@@ -56,8 +56,8 @@
         </el-table-column>
       </el-table>
       <div class="pager">
-        <el-pagination v-model:current-page="page" v-model:page-size="size" :page-sizes="[5, 10, 20]"
-          :total="view.length" layout="total, sizes, prev, pager, next" small background />
+        <el-pagination v-model:current-page="page" :page-size="PAGE_SIZE"
+          :total="view.length" layout="total, prev, pager, next" small background />
       </div>
     </div>
 
@@ -160,7 +160,7 @@ const warehouse = ref('all')
 const categories = computed(() => [...new Set(rows.value.map(r => r.category).filter(Boolean))])
 const warehouses = computed(() => [...new Set(rows.value.map(r => r.warehouse).filter(Boolean))])
 const page = ref(1)
-const size = ref(20)
+const PAGE_SIZE = 20
 const drawer = ref(false)
 
 const view = computed(() => rows.value.filter(r => {
@@ -171,7 +171,7 @@ const view = computed(() => rows.value.filter(r => {
   const okWh = warehouse.value === 'all' || r.warehouse === warehouse.value
   return okKw && okStatus && okCat && okWh
 }))
-const paged = computed(() => view.value.slice((page.value - 1) * size.value, page.value * size.value))
+const paged = computed(() => view.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
 
 const sum = (arr, key) => arr.reduce((s, r) => s + Number(r[key] || 0), 0)
 const wan = v => (v >= 10000 ? (v / 10000).toFixed(2) + ' 万元' : v.toLocaleString('zh-CN') + ' 元')
@@ -192,7 +192,7 @@ const stats = computed(() => {
 
 // 筛选后当前页超出范围时回到最后一页
 watch(() => view.value.length, n => {
-  const max = Math.max(1, Math.ceil(n / size.value))
+  const max = Math.max(1, Math.ceil(n / PAGE_SIZE))
   if (page.value > max) page.value = max
 })
 
