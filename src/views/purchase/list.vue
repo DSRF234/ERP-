@@ -60,23 +60,57 @@
     </el-drawer>
 
     <!-- 审核弹窗 -->
-    <el-dialog v-model="audit.visible" title="审核" width="520px" align-center>
-      <div class="kv">
-        <span class="k">采购单编号</span><span class="v">{{ audit.row?.no }}</span>
-        <span class="k">供货商</span><span class="v">{{ audit.row?.supplier }}</span>
-        <span class="k">制单时间</span><span class="v">{{ audit.row?.date }}</span>
-        <span class="k">采购金额</span><span class="v"><b>{{ money(audit.row?.amount) }}</b></span>
-        <span class="k">当前状态</span>
-        <span class="v"><el-tag size="small" :type="TAG[audit.row?.status]">{{ audit.row?.status }}</el-tag></span>
+    <el-dialog v-model="audit.visible" title="审核" width="780px" align-center class="audit-dlg">
+      <div class="audit-info">
+        <div class="ai-item">
+          <label>供货商</label>
+          <div class="ai-val">{{ audit.row?.supplier }}</div>
+        </div>
+        <div class="ai-item">
+          <label>制单人</label>
+          <div class="ai-val">{{ audit.row?.buyer }}</div>
+        </div>
+        <div class="ai-item">
+          <label>制单时间</label>
+          <div class="ai-val">{{ audit.row?.date }}</div>
+        </div>
+        <div class="ai-item">
+          <label>采购金额</label>
+          <div class="ai-val">{{ money(audit.row?.amount) }}</div>
+        </div>
+        <div class="ai-item">
+          <label>运费</label>
+          <div class="ai-val">{{ money(audit.row?.freight) }}</div>
+        </div>
+        <div class="ai-item">
+          <label>当前状态</label>
+          <div class="ai-val">{{ audit.row?.status }}</div>
+        </div>
       </div>
-      <div style="margin-top: 14px">
-        <div class="fld-label">驳回原因</div>
-        <el-input v-model="audit.reason" type="textarea" :rows="3" maxlength="200" show-word-limit
-          placeholder="驳回时必填，审核通过可不填；填写后会通知该制单人" />
-      </div>
+
+      <div class="sec-title">采购货品</div>
+      <el-table :data="auditGoods" size="small" empty-text="暂无货品明细">
+        <el-table-column type="index" label="序号" width="56" />
+        <el-table-column prop="name" label="采购货品" min-width="120" />
+        <el-table-column prop="spec" label="规格" width="110" />
+        <el-table-column label="单价" width="96" align="right">
+          <template #default="{ row }"><span class="mono">{{ money(row.price) }}</span></template>
+        </el-table-column>
+        <el-table-column label="采购数量" width="104" align="right">
+          <template #default="{ row }"><span class="mono">{{ row.qty }}{{ row.unit }}</span></template>
+        </el-table-column>
+        <el-table-column label="采购金额" width="118" align="right">
+          <template #default="{ row }"><span class="mono">{{ money(row.amount) }}</span></template>
+        </el-table-column>
+        <el-table-column prop="category" label="货品类型" width="104" />
+      </el-table>
+
+      <div class="sec-title" style="margin-top: 16px">驳回原因</div>
+      <el-input v-model="audit.reason" type="textarea" :rows="4" maxlength="200" show-word-limit
+        placeholder="驳回时必填，审核通过可不填；填写后会通知该制单人" />
+
       <div class="dlg-act">
-        <el-button size="small" @click="audit.visible = false">取消</el-button>
-        <el-button size="small" type="danger" plain @click="reject">驳回</el-button>
+        <el-button size="small" @click="reject">驳回</el-button>
         <el-button size="small" type="primary" @click="approve">审核通过</el-button>
       </div>
     </el-dialog>
@@ -161,6 +195,23 @@ async function remove(row) {
 
 /* ------- 审核 ------- */
 const audit = reactive({ visible: false, row: null, reason: '' })
+/** 当前单据的货品明细：数量 1000，单价由采购金额反推，保证与顶部金额一致 */
+const auditGoods = computed(() => {
+  const r = audit.row
+  if (!r) return []
+  const home = r.category === '家居日用'
+  const qty = 1000
+  return [{
+    name: home ? '洗面奶' : '精华液',
+    spec: home ? '100g/支' : '30ml/瓶',
+    unit: home ? '支' : '瓶',
+    price: Number(r.amount) / qty,
+    qty,
+    amount: Number(r.amount),
+    category: r.category
+  }]
+})
+
 function openAudit(row) {
   audit.row = row
   audit.reason = ''
@@ -181,5 +232,21 @@ function reject() {
 
 <style scoped>
 .strong { font-weight: 600; }
-.fld-label { margin-bottom: 6px; font-size: 12.5px; color: var(--ink-2); }
+
+/* 审核弹窗 */
+.audit-dlg :deep(.el-dialog__header) {
+  padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--line-2);
+}
+.audit-info {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 16px;
+  padding: 16px; background: #F5F6F8; border-radius: 6px;
+}
+.ai-item label { display: block; margin-bottom: 6px; font-size: 12px; color: var(--ink-2); }
+.ai-val {
+  height: 30px; line-height: 28px; padding: 0 9px;
+  background: #fff; border: 1px solid var(--line); border-radius: 4px;
+  font-size: 12.5px; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sec-title { margin: 16px 0 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
 </style>

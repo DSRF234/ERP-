@@ -68,10 +68,6 @@
         </el-form-item>
         <el-form-item label="联系电话" prop="phone">
           <el-input v-model="add.form.phone" maxlength="13" placeholder="111-1111-1111" />
-          <div class="field-hint">
-            格式必须为 111-1111-1111，首位为 1，共 11 位数字，不能全部为同一个数字（如 111-1111-1111），
-            且与现有供应商去重
-          </div>
         </el-form-item>
         <el-form-item label="地址" prop="address">
           <el-input v-model="add.form.address" type="textarea" :rows="2" maxlength="300" show-word-limit
