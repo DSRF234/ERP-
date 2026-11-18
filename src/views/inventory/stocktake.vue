@@ -67,22 +67,6 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="供应商名称" required>
-              <el-select v-model="dg.supplier" style="width: 100%">
-                <el-option v-for="s in suppliers" :key="s" :label="s" :value="s" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="货品类型" required>
-              <el-select v-model="dg.category" style="width: 100%">
-                <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="负责人" required>
               <el-select v-model="dg.owner" style="width: 100%">
                 <el-option v-for="o in owners" :key="o" :label="o" :value="o" />
@@ -268,15 +252,12 @@ const categories = [...new Set(pool.map(g => g.category))]
 
 /* ------- 创建盘点任务 ------- */
 const dg = reactive({
-  visible: false, warehouse: '华东主仓', supplier: '某林林公司', category: '家居日用',
-  owner: '杨主管', remark: '', goods: []
+  visible: false, warehouse: '华东主仓', owner: '杨主管', remark: '', goods: []
 })
 const pickedGoods = computed(() => pool.filter(g => dg.goods.includes(g.code)))
 
 function openCreate() {
   dg.warehouse = '华东主仓'
-  dg.supplier = '某林林公司'
-  dg.category = '家居日用'
   dg.owner = '杨主管'
   dg.remark = ''
   dg.goods = []
@@ -293,8 +274,8 @@ const pkOptions = computed(() => pool.filter(g => {
 }))
 
 function openPicker() {
-  pk.supplier = dg.supplier || ''
-  pk.category = dg.category || ''
+  pk.supplier = ''
+  pk.category = ''
   pk.codes = []
   pk.visible = true
 }
