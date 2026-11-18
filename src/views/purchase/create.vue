@@ -6,7 +6,7 @@
       <el-button size="small" type="primary" @click="submit">提交审核</el-button>
     </PageHeader>
 
-    <div class="card" style="margin-bottom: 12px">
+    <div class="card" style="margin-bottom: 16px">
       <div class="card-head">
         <h3>基础信息</h3>
         <span class="extra">状态：待审核（不可更改）</span>
@@ -17,7 +17,7 @@
             <el-col :span="8">
               <el-form-item label="采购编号">
                 <el-input v-model="form.no" disabled />
-                <div class="field-hint">系统自动生成：CG + 年 + 月 + 日 + 时间，如 CG202607081223</div>
+                <div class="field-hint">系统自动生成，如 CG202607081223</div>
               </el-form-item>
             </el-col>
             <el-col :span="8">
@@ -231,5 +231,5 @@ async function cancel() {
 
 <style scoped>
 .strong { font-weight: 600; }
-:deep(.el-form-item) { margin-bottom: 20px; }
+:deep(.el-form-item) { margin-bottom: 16px; }
 </style>
