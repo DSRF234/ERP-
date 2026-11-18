@@ -71,7 +71,6 @@ const tree = [
   ]),
   M('采购管理', 'm-purchase', [
     M('采购订单', 'p-po', [P('查看', 'b-po-view'), P('新建', 'b-po-add'), P('提交', 'b-po-submit')]),
-    M('历史采购单', 'p-poh', [P('查看', 'b-poh-view'), P('导出', 'b-poh-export')]),
     M('供应商管理', 'p-sup', [P('查看', 'b-sup-view'), P('新增', 'b-sup-add'), P('删除', 'b-sup-del')])
   ]),
   M('库存管理', 'm-inv', [

@@ -22,7 +22,6 @@
         <el-sub-menu index="purchase">
           <template #title><el-icon><ShoppingCart /></el-icon><span>采购管理</span></template>
           <el-menu-item index="/purchase">采购管理</el-menu-item>
-          <el-menu-item index="/purchase/history">历史采购单</el-menu-item>
           <el-menu-item index="/purchase/supplier">供应商管理</el-menu-item>
         </el-sub-menu>
 

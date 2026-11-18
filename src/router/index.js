@@ -35,8 +35,6 @@ export const routes = [
         meta: { title: '采购管理', group: '采购管理' } },
       { path: 'purchase/create', name: 'PurchaseCreate', component: () => import('@/views/purchase/create.vue'),
         meta: { title: '新建采购单', group: '采购管理' } },
-      { path: 'purchase/history', name: 'PurchaseHistory', component: () => import('@/views/purchase/history.vue'),
-        meta: { title: '历史采购单', group: '采购管理' } },
       { path: 'purchase/supplier', name: 'Supplier', component: () => import('@/views/purchase/supplier.vue'),
         meta: { title: '供应商管理', group: '采购管理' } },
 
