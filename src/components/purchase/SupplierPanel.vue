@@ -67,8 +67,11 @@
           <el-input v-model="add.form.owner" maxlength="50" placeholder="手动输入，最多 50 个字符" />
         </el-form-item>
         <el-form-item label="联系电话" prop="phone">
-          <el-input v-model="add.form.phone" maxlength="12" placeholder="111-1111-1111" />
-          <div class="field-hint">格式必须为 111-1111-1111，首位为 1，共 11 位数字，且与现有供应商去重</div>
+          <el-input v-model="add.form.phone" maxlength="13" placeholder="111-1111-1111" />
+          <div class="field-hint">
+            格式必须为 111-1111-1111，首位为 1，共 11 位数字，不能全部为同一个数字（如 111-1111-1111），
+            且与现有供应商去重
+          </div>
         </el-form-item>
         <el-form-item label="地址" prop="address">
           <el-input v-model="add.form.address" type="textarea" :rows="2" maxlength="300" show-word-limit
@@ -181,7 +184,16 @@ const rules = {
     { validator: (r, v, cb) => suppliers.value.some(s => s.name === v) ? cb(new Error('该供应商名称已存在')) : cb(), trigger: 'blur' }],
   owner: [{ required: true, message: '请输入负责人', trigger: 'blur' }],
   phone: [{ required: true, message: '请输入联系电话', trigger: 'blur' },
-    { pattern: /^1\d{2}-\d{4}-\d{4}$/, message: '格式须为 111-1111-1111', trigger: 'blur' },
+    { pattern: /^1\d{2}-\d{4}-\d{4}$/, message: '格式须为 111-1111-1111，首位为 1', trigger: 'blur' },
+    {
+      validator: (r, v, cb) => {
+        const digits = String(v || '').replace(/-/g, '')
+        // 11 位全相同（111-1111-1111、222-2222-2222…）视为无效号码
+        if (/^(\d)\1{10}$/.test(digits)) return cb(new Error('联系电话不能全部为同一个数字'))
+        cb()
+      },
+      trigger: 'blur'
+    },
     { validator: (r, v, cb) => suppliers.value.some(s => s.phone === v) ? cb(new Error('该联系电话已被使用')) : cb(), trigger: 'blur' }],
   address: [{ required: true, message: '请输入地址', trigger: 'blur' }]
 }
