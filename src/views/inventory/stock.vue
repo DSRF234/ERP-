@@ -22,20 +22,20 @@
       <el-table :data="paged" size="small" @selection-change="rows => selected = rows">
         <el-table-column type="selection" width="42" />
         <el-table-column prop="name" label="货品名称" min-width="160" />
-        <el-table-column prop="code" label="货码" width="130" />
-        <el-table-column prop="batch" label="批次号" width="120" />
-        <el-table-column prop="warehouse" label="仓库" width="100" />
-        <el-table-column prop="inNo" label="入库单号" width="140" />
-        <el-table-column label="入库数量" width="94" align="right">
+        <el-table-column prop="code" label="货码" width="118" />
+        <el-table-column prop="batch" label="批次号" width="112" />
+        <el-table-column prop="warehouse" label="仓库" width="92" />
+        <el-table-column prop="inNo" label="入库单号" width="130" />
+        <el-table-column label="入库数量" width="86" align="right">
           <template #default="{ row }"><span class="mono">{{ num(row.inQty) }}</span></template>
         </el-table-column>
-        <el-table-column label="出库数量" width="94" align="right">
+        <el-table-column label="出库数量" width="86" align="right">
           <template #default="{ row }"><span class="mono">{{ num(row.outQty) }}</span></template>
         </el-table-column>
-        <el-table-column label="剩余数量" width="94" align="right">
+        <el-table-column label="剩余数量" width="90" align="right">
           <template #default="{ row }"><span class="mono strong">{{ num(row.left) }}</span></template>
         </el-table-column>
-        <el-table-column label="剩余容量" width="124">
+        <el-table-column label="剩余容量" width="112">
           <template #default="{ row }">
             <div class="cap" :class="row.status === '缺货' ? 'is-out' : row.status === '预警' ? 'is-low' : ''">
               <span class="cap-bar"><i :style="{ width: row.cap + '%' }" /></span>
@@ -43,12 +43,20 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="预警值" width="88" align="right">
-          <template #default="{ row }"><span class="mono">{{ num(row.warnValue) }}</span></template>
-        </el-table-column>
-        <el-table-column label="库存状态" width="96">
+        <el-table-column label="预警值" width="80" align="right">
           <template #default="{ row }">
-            <el-tag size="small" :type="TAG[row.status]">{{ row.status }}</el-tag>
+            <el-tooltip v-if="row.warnDays" placement="top"
+              :content="`临期阈值：距到期不足 ${row.warnDays} ${row.warnUnit} 时预警`">
+              <span class="mono warn-val">{{ num(row.warnValue) }}</span>
+            </el-tooltip>
+            <span v-else class="mono">{{ num(row.warnValue) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="库存状态" width="92">
+          <template #default="{ row }">
+            <el-tooltip :content="statusTip(row)" placement="top">
+              <el-tag size="small" :type="TAG[row.status]">{{ row.status }}</el-tag>
+            </el-tooltip>
           </template>
         </el-table-column>
       </el-table>
@@ -59,23 +67,60 @@
     </div>
 
     <!-- 设置预警 -->
-    <el-dialog v-model="warn.visible" title="设置预警" width="440px" align-center>
-      <p class="dlg-hint">
-        已选 <b>{{ selected.length }}</b> 个商品。库存最低值支持按单位设置，
-        剩余数量 ≤ 预警值 时状态为「预警」，剩余数量为 0 时为「缺货」。
-      </p>
-      <el-form label-width="92px" size="small">
-        <el-form-item label="选择单位">
-          <el-select v-model="warn.unit" style="width: 100%">
-            <el-option v-for="u in units" :key="u" :label="u" :value="u" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="库存最低值">
-          <el-input v-model.number="warn.value" placeholder="只写数字，如 200">
-            <template #append>{{ warn.unit }}</template>
+    <el-dialog v-model="warn.visible" title="设置预警" width="620px" align-center>
+      <div class="warn-filter">
+        <el-select v-model="warn.supplier" size="small" style="width: 132px" placeholder="全部供应商">
+          <el-option label="全部供应商" value="" />
+          <el-option v-for="s in suppliers" :key="s" :label="s" :value="s" />
+        </el-select>
+        <el-input v-model="warn.kw" size="small" class="warn-kw" clearable :prefix-icon="Search"
+          placeholder="输入商品名称/编码/批次号" @keyup.enter="doSearch" />
+        <el-button size="small" type="primary" @click="doSearch">查找</el-button>
+      </div>
+
+      <div class="warn-list">
+        <label v-for="g in warnResults" :key="g.code" class="warn-row"
+          :class="{ on: warn.checked.includes(g.code) }">
+          <el-checkbox :model-value="warn.checked.includes(g.code)"
+            @change="v => setGoods(g.code, v)" />
+          <span class="g-name">{{ g.name }}</span>
+          <span class="g-code">{{ g.code }}</span>
+        </label>
+        <div v-if="!warnResults.length" class="warn-empty">没有匹配的货品，换个供应商或关键字试试</div>
+      </div>
+
+      <div class="warn-count">
+        <span>已选 <b>{{ warn.checked.length }}</b> 个商品</span>
+        <span>已匹配 <b>{{ warnResults.length }}</b> 个结果</span>
+      </div>
+
+      <div class="warn-fields">
+        <div class="fld">
+          <label class="req">
+            填写时间
+            <el-tooltip placement="top"
+              content="批次距到期日期不足该时间时，库存状态置为「预警」">
+              <el-icon class="ask"><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </label>
+          <el-input v-model="warn.days" size="small" placeholder="(只写数字)" @input="warn.days = onlyNum(warn.days)" />
+        </div>
+        <div class="fld">
+          <label class="req">选择单位</label>
+          <el-radio-group v-model="warn.unit" class="unit">
+            <el-radio value="年">年</el-radio>
+            <el-radio value="月">月</el-radio>
+            <el-radio value="日">日</el-radio>
+          </el-radio-group>
+        </div>
+        <div class="fld">
+          <label class="req">库存最低值</label>
+          <el-input v-model="warn.value" size="small" placeholder="只写数字" @input="warn.value = onlyNum(warn.value)">
+            <template #append>件</template>
           </el-input>
-        </el-form-item>
-      </el-form>
+        </div>
+      </div>
+
       <div class="dlg-act">
         <el-button size="small" @click="warn.visible = false">取消</el-button>
         <el-button size="small" type="primary" @click="saveWarn">确定</el-button>
@@ -87,21 +132,20 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Bell, Search } from '@element-plus/icons-vue'
+import { Bell, Search, QuestionFilled } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCards from '@/components/StatCards.vue'
 
 const TAG = { 正常: 'success', 预警: 'warning', 缺货: 'danger' }
 const warehouses = ['华东主仓', '华南仓', '平台仓1', '平台仓2']
-const units = ['件', '个', '支']
 
 const rows = ref([
-  { name: '洗面奶 100g', code: 'SE-2026-001', batch: 'B20260101', warehouse: '华东主仓', inNo: 'BQ20260101111', inQty: 1200, outQty: 520, left: 680, cap: 86, warnValue: 200, unit: '支' },
-  { name: '睫毛膏 8g', code: 'SE-2026-819', batch: 'B20261021', warehouse: '华南仓', inNo: 'BQ20260101113', inQty: 300, outQty: 198, left: 102, cap: 34, warnValue: 150, unit: '支' },
-  { name: '抽纸 3层', code: 'AS-2026-021', batch: 'B20260819', warehouse: '平台仓1', inNo: 'BQ20260819002', inQty: 2400, outQty: 2400, left: 0, cap: 0, warnValue: 100, unit: '件' },
-  { name: '眼睫毛 5ml', code: 'SE-2026-002', batch: 'B20260912', warehouse: '华东主仓', inNo: 'BQ20260912003', inQty: 860, outQty: 630, left: 230, cap: 27, warnValue: 300, unit: '支' },
-  { name: '牙膏 30g', code: 'SE-2026-003', batch: 'B20260714', warehouse: '平台仓2', inNo: 'BQ20260714004', inQty: 1500, outQty: 700, left: 800, cap: 53, warnValue: 200, unit: '个' },
-  { name: '精华液 30ml', code: 'AS-2026-022', batch: 'B20260114', warehouse: '华南仓', inNo: 'BQ20260114005', inQty: 640, outQty: 610, left: 30, cap: 5, warnValue: 60, unit: '瓶' }
+  { name: '洗面奶 100g', code: 'SE-2026-001', batch: 'B20260101', supplier: '某林林公司', warehouse: '华东主仓', inNo: 'BQ20260101111', inQty: 1200, outQty: 520, left: 680, cap: 86, warnValue: 200, warnDays: 12, warnUnit: '月', unit: '支', expiry: '2027-09-01' },
+  { name: '睫毛膏 8g', code: 'SE-2026-819', batch: 'B20261021', supplier: '某林林公司', warehouse: '华南仓', inNo: 'BQ20260101113', inQty: 300, outQty: 198, left: 102, cap: 34, warnValue: 150, warnDays: 1, warnUnit: '月', unit: '支', expiry: '2026-12-10' },
+  { name: '抽纸 3层', code: 'AS-2026-021', batch: 'B20260819', supplier: '美妆公司', warehouse: '平台仓1', inNo: 'BQ20260819002', inQty: 2400, outQty: 2400, left: 0, cap: 0, warnValue: 100, warnDays: 3, warnUnit: '月', unit: '件', expiry: '2027-03-15' },
+  { name: '眼睫毛 5ml', code: 'SE-2026-002', batch: 'B20260912', supplier: '美妆公司', warehouse: '华东主仓', inNo: 'BQ20260912003', inQty: 860, outQty: 630, left: 230, cap: 27, warnValue: 300, warnDays: 3, warnUnit: '月', unit: '支', expiry: '2027-01-20' },
+  { name: '牙膏 30g', code: 'SE-2026-003', batch: 'B20260714', supplier: '某林林公司', warehouse: '平台仓2', inNo: 'BQ20260714004', inQty: 1500, outQty: 700, left: 800, cap: 53, warnValue: 200, warnDays: 3, warnUnit: '月', unit: '个', expiry: '2028-02-28' },
+  { name: '精华液 30ml', code: 'AS-2026-022', batch: 'B20260114', supplier: '雅美化妆品', warehouse: '华南仓', inNo: 'BQ20260114005', inQty: 640, outQty: 610, left: 30, cap: 5, warnValue: 60, warnDays: 2, warnUnit: '月', unit: '瓶', expiry: '2026-12-25' }
 ])
 
 const kw = ref('')
@@ -110,7 +154,23 @@ const page = ref(1)
 const size = ref(5)
 const selected = ref([])
 
-const statusOf = r => (r.left <= 0 ? '缺货' : r.left <= r.warnValue ? '预警' : '正常')
+/* ---- 预警计算：数量下限 + 保质期剩余天数 ---- */
+const UNIT_DAYS = { 年: 365, 月: 30, 日: 1 }
+const DAY = 24 * 60 * 60 * 1000
+const leftDays = r => (r.expiry ? Math.ceil((new Date(`${r.expiry}T00:00:00`) - new Date()) / DAY) : null)
+const nearExpiry = r => {
+  if (!r.expiry || !Number(r.warnDays)) return false
+  return leftDays(r) <= Number(r.warnDays) * (UNIT_DAYS[r.warnUnit] || 30)
+}
+const statusOf = r => (r.left <= 0 ? '缺货' : r.left <= r.warnValue || nearExpiry(r) ? '预警' : '正常')
+
+function statusTip(r) {
+  if (r.left <= 0) return '剩余数量为 0，已缺货'
+  const parts = []
+  if (r.left <= r.warnValue) parts.push(`剩余 ${num(r.left)} ≤ 预警值 ${num(r.warnValue)}`)
+  if (nearExpiry(r)) parts.push(`距到期 ${leftDays(r)} 天，低于临期阈值 ${r.warnDays} ${r.warnUnit}`)
+  return parts.length ? parts.join('；') : `剩余 ${num(r.left)}，高于预警值且未到临期阈值`
+}
 
 const view = computed(() => rows.value.map(r => ({ ...r, status: statusOf(r) })).filter(r => {
   const k = kw.value.trim()
@@ -127,7 +187,7 @@ const stats = computed(() => {
   return [
     { label: '库存SKU总数', value: num(all.length), unit: '个' },
     { label: '在库总数量', value: num(sum(all, 'left')), unit: '件' },
-    { label: '低于预警值', value: num(all.filter(r => r.status === '预警').length), unit: '个', tone: 'warn' },
+    { label: '预警商品', value: num(all.filter(r => r.status === '预警').length), unit: '个', tone: 'warn' },
     { label: '已缺货', value: num(all.filter(r => r.status === '缺货').length), unit: '个', tone: 'danger' },
     { label: '本月入库', value: num(sum(all, 'inQty')), unit: '件' },
     { label: '本月出库', value: num(sum(all, 'outQty')), unit: '件' }
@@ -142,26 +202,125 @@ watch(() => view.value.length, n => {
 })
 
 /* ------- 设置预警 ------- */
-const warn = reactive({ visible: false, unit: '件', value: null })
+const suppliers = computed(() => [...new Set(rows.value.map(r => r.supplier).filter(Boolean))])
+const goodsPool = computed(() => {
+  const map = new Map()
+  rows.value.forEach(r => {
+    if (!map.has(r.code)) map.set(r.code, { code: r.code, name: r.name, supplier: r.supplier, batches: [] })
+    const g = map.get(r.code)
+    g.batches.push(r.batch)
+    if (!g.supplier) g.supplier = r.supplier
+  })
+  return [...map.values()]
+})
+
+const warn = reactive({
+  visible: false, supplier: '', kw: '', appliedSupplier: '', appliedKw: '',
+  checked: [], days: '', unit: '月', value: ''
+})
+
+const onlyNum = v => String(v ?? '').replace(/[^\d]/g, '')
+
+const warnResults = computed(() => goodsPool.value.filter(g => {
+  const okS = !warn.appliedSupplier || g.supplier === warn.appliedSupplier
+  const k = warn.appliedKw
+  const okK = !k || g.name.includes(k) || g.code.toLowerCase().includes(k.toLowerCase())
+    || g.batches.some(b => b.includes(k))
+  return okS && okK
+}))
+
+function doSearch() {
+  warn.appliedSupplier = warn.supplier
+  warn.appliedKw = warn.kw.trim()
+}
+watch(() => warn.supplier, doSearch)
+
+/** 幂等设置勾选态：行 label 点击可能让 checkbox 触发多次 change，用目标值而非取反 */
+function setGoods(code, on) {
+  const i = warn.checked.indexOf(code)
+  if (on && i < 0) warn.checked.push(code)
+  if (!on && i > -1) warn.checked.splice(i, 1)
+}
+
 function openWarn() {
-  if (!selected.value.length) return ElMessage.warning('请先勾选需要设置预警的货品')
-  warn.unit = selected.value[0].unit || '件'
-  warn.value = selected.value[0].warnValue
+  warn.supplier = ''
+  warn.kw = ''
+  warn.checked = selected.value.map(r => r.code).filter((c, i, a) => a.indexOf(c) === i)
+  warn.days = ''
+  warn.unit = '月'
+  warn.value = ''
+  doSearch()
   warn.visible = true
 }
+
 function saveWarn() {
-  if (warn.value === null || warn.value === '' || Number(warn.value) < 0) {
-    return ElMessage.error('请填写库存最低值（只写数字）')
-  }
-  selected.value.forEach(r => {
-    const target = rows.value.find(x => x.code === r.code && x.batch === r.batch)
-    if (target) { target.warnValue = Number(warn.value); target.unit = warn.unit }
+  if (!warn.checked.length) return ElMessage.error('请至少勾选一个商品')
+  if (!warn.days || Number(warn.days) <= 0) return ElMessage.error('请填写时间（只写数字，需大于 0）')
+  if (warn.value === '' || warn.value === null) return ElMessage.error('请填写库存最低值')
+  const days = Number(warn.days)
+  const value = Number(warn.value)
+  warn.checked.forEach(code => {
+    rows.value.filter(r => r.code === code).forEach(r => {
+      r.warnDays = days
+      r.warnUnit = warn.unit
+      r.warnValue = value
+    })
   })
+  ElMessage.success(`已为 ${warn.checked.length} 个商品设置预警：距到期不足 ${days} ${warn.unit} 或 剩余 ≤ ${num(value)} 件`)
   warn.visible = false
-  ElMessage.success(`已为 ${selected.value.length} 个商品设置预警值 ${warn.value} ${warn.unit}`)
 }
 </script>
 
 <style scoped>
 .strong { font-weight: 600; }
+.warn-val { border-bottom: 1px dashed var(--line); cursor: help; }
+
+/* 弹窗：供应商 + 关键字筛选 */
+.warn-filter { display: flex; align-items: center; gap: 8px; }
+.warn-kw { flex: 1; min-width: 0; }
+
+/* 弹窗：货品勾选列表 */
+.warn-list {
+  margin-top: 12px; max-height: 182px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.warn-row {
+  display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px;
+  background: var(--fill); border-radius: 4px; cursor: pointer;
+}
+.warn-row:hover { background: #ECEEF1; }
+.warn-row.on { background: var(--brand-l); }
+.warn-row :deep(.el-checkbox) { margin-right: 0; height: auto; }
+.warn-row :deep(.el-checkbox__label) { display: none; }
+.warn-row .g-name {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12.5px; color: var(--ink);
+}
+.warn-row .g-code { font-size: 12.5px; color: var(--brand); font-variant-numeric: tabular-nums; }
+.warn-empty {
+  padding: 16px 0; text-align: center; font-size: 12px; color: var(--ink-3);
+  background: var(--fill); border-radius: 4px;
+}
+
+/* 弹窗：已选 / 已匹配 */
+.warn-count {
+  display: flex; justify-content: space-between; margin-top: 10px;
+  font-size: 12.5px; color: var(--ink-2);
+}
+.warn-count b { margin: 0 2px; color: var(--brand-d); font-weight: 600; }
+
+/* 弹窗：三项字段 */
+.warn-fields {
+  display: grid; grid-template-columns: 1.15fr 1.15fr 1fr; gap: 16px; margin-top: 18px;
+}
+.warn-fields .fld { min-width: 0; }
+.warn-fields label {
+  display: flex; align-items: center; gap: 2px; margin-bottom: 6px;
+  font-size: 12px; color: var(--ink-2);
+}
+.warn-fields label.req::before { content: '*'; color: #E4573D; margin-right: 2px; }
+.warn-fields .ask { font-size: 12px; color: var(--ink-3); cursor: help; }
+.warn-fields .unit { display: flex; height: 28px; align-items: center; }
+.warn-fields .unit :deep(.el-radio) { margin-right: 10px; height: auto; }
+.warn-fields .unit :deep(.el-radio__label) { padding-left: 4px; font-size: 12.5px; }
 </style>
