@@ -98,7 +98,7 @@ export const PERM_TREE = [
 ]
 
 export const ALL_BUTTON_IDS = PERM_TREE.flatMap(m => m.children.flatMap(p => p.children.map(b => b.id)))
-export const TOTAL_PERMS = ALL_BUTTON_IDS.length // 71
+export const TOTAL_PERMS = ALL_BUTTON_IDS.length // 75（以按钮清单为准，勿写死）
 
 export const MODULE_COUNT = id => {
   const m = PERM_TREE.find(x => x.id === id)
@@ -111,7 +111,7 @@ const pick = pred => ALL_BUTTON_IDS.filter(pred)
 export const posts = reactive([
   {
     id: 'post-boss', name: '老板', dept: '管理层', scope: '全部数据', status: '启用',
-    builtin: true, perms: [...ALL_BUTTON_IDS], note: '系统内置职位，默认拥有全部 71 项权限，可在权限管理中调整'
+    builtin: true, perms: [...ALL_BUTTON_IDS], note: `系统内置职位，默认拥有全部 ${ALL_BUTTON_IDS.length} 项权限，可在权限管理中调整`
   },
   {
     id: 'post-ops', name: '运营', dept: '电商运营部', scope: '本部门', status: '启用',
