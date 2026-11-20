@@ -21,6 +21,7 @@ const filters = [{ key:'post', label:'全部职位', options:['老板','运营',
 const searchKeys = ['name', 'account', 'phone']
 
 const rows = [
+  { name:'老板', account:'admin', phone:'13000000000', post:'老板', status:'启用', lastLogin:'2026-11-20 08:12' },
   { name:'耿子毅', account:'genziyi', phone:'13800138001', post:'财务', status:'启用', lastLogin:'2026-11-16 18:22' },
   { name:'王佳丽', account:'wangjl', phone:'13900139002', post:'运营', status:'启用', lastLogin:'2026-11-16 09:12' },
   { name:'李丽霞', account:'lilx', phone:'13700137003', post:'仓管', status:'启用', lastLogin:'2026-11-16 08:40' },
