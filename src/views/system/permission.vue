@@ -1,6 +1,6 @@
 <template>
   <div>
-    <PageHeader title="权限管理" sub="以「职位」为单位分配权限，粒度到模块 → 页面 → 按钮三级。勾选或取消任意一项后点「保存分配」即生效，职位下所有账号自动继承；系统共 71 项按钮级权限。">
+    <PageHeader title="权限管理" :sub="`以「职位」为单位分配权限，粒度到模块 → 页面 → 按钮三级。勾选或取消任意一项后点「保存分配」即生效，职位下所有账号自动继承；系统共 ${TOTAL_PERMS} 项按钮级权限。`">
       <el-button size="small" @click="restore">恢复默认</el-button>
       <el-button size="small" type="primary" :plain="!dirty" :disabled="!dirty" @click="save">
         {{ dirty ? '保存分配' : '已保存' }}
@@ -53,7 +53,7 @@
           </el-tree>
         </div>
         <div class="t-foot">
-          勾模块则其下全部页面与按钮一并勾选；取消任一子项模块变半选。按钮级权限同时管「看不看得见」与「点不点得动」。老板职位默认拥有全部 71 项，同样可勾选或取消。
+          勾模块则其下全部页面与按钮一并勾选；取消任一子项模块变半选。按钮级权限同时管「看不看得见」与「点不点得动」。老板职位默认拥有全部 {{ TOTAL_PERMS }} 项，同样可勾选或取消。
         </div>
       </div>
     </div>
