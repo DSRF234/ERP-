@@ -67,7 +67,9 @@
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button v-if="status === 'wait'" link type="primary" size="small" @click="openAudit(row)">审核</el-button>
-            <el-button v-if="status === 'doing' && row.queue === 'refund' && activeQ !== 'back'" link type="primary" size="small" @click="refund(row)">退款</el-button>
+            <el-button v-if="status === 'doing' && row.queue === 'refund'" link type="primary" size="small" @click="refund(row)">退款</el-button>
+            <el-button v-if="status === 'doing' && row.queue === 'exchange'" link type="primary" size="small" @click="finishExchange(row)">完成换货</el-button>
+            <el-button v-if="status === 'doing' && row.queue === 'resend'" link type="primary" size="small" @click="finishExchange(row)">完成补发</el-button>
             <el-button link size="small" @click="openDetail(row)">查看详情</el-button>
           </template>
         </el-table-column>
@@ -274,7 +276,12 @@ function submitAudit() {
 
 function refund(row) {
   store.refund(row)
-  ElMessage.success(`退款 ${money(row.amount)} 已完成，单据进入处理完成`)
+  ElMessage.success(`退款 ${money(row.amount)} 已完成，订单状态改为「已退款」`)
+}
+
+function finishExchange(row) {
+  store.completeExchange(row)
+  ElMessage.success('换货/补发已完成，订单状态改回「已完结」，账单恢复推送财务')
 }
 </script>
 

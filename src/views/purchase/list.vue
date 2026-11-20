@@ -47,11 +47,13 @@
             <el-tag size="small" :type="TAG[row.status]">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="96" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
-            <el-button link type="primary" size="small" :disabled="row.status !== '待审核'"
+            <el-button v-if="row.status === '待审核'" link type="primary" size="small"
               @click="openAudit(row)">审批</el-button>
+            <el-button v-if="row.status === '进行中'" link type="success" size="small"
+              @click="warehousing(row)">确认入库</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -133,8 +135,10 @@ import PageHeader from '@/components/PageHeader.vue'
 import StatCards from '@/components/StatCards.vue'
 import SupplierPanel from '@/components/purchase/SupplierPanel.vue'
 import { money } from '@/utils/format'
+import { useStockStore } from '@/stores/stock'
 
 const router = useRouter()
+const stockStore = useStockStore()
 const STATUS = ['待审核', '进行中', '已完成', '已驳回']
 const TAG = { 待审核: 'info', 进行中: 'warning', 已完成: 'success', 已驳回: 'danger' }
 
@@ -225,6 +229,22 @@ const auditGoods = computed(() => {
     category: r.category
   }]
 })
+
+const SKU_BY_CATEGORY = { '家居日用': 'SKU-200118', '美妆个护': 'SKU-100231' }
+
+/** 确认入库：按收货仓增加库存，采购单转已完成 */
+function warehousing(row) {
+  const qty = 1000
+  const sku = SKU_BY_CATEGORY[row.category] || 'SKU-100231'
+  ElMessageBox.confirm(
+    `采购单 ${row.no} 将按收货仓「${row.warehouse}」入库，库存增加 ${qty} 件，入库后单据转为「已完成」。`,
+    '确认入库', { type: 'warning', confirmButtonText: '确认入库' }
+  ).then(() => {
+    stockStore.inbound(sku, row.warehouse, qty)
+    row.status = '已完成'
+    ElMessage.success(`入库完成：${row.warehouse} 库存 +${qty}，可在「库存记录」查看`)
+  }).catch(() => {})
+}
 
 function openAudit(row) {
   audit.row = row

@@ -71,14 +71,14 @@ const SEED = [
     address: '上海市浦东新区世纪大道 100 号', note: '', carrier: '中通', amount: 2340, settle: 117, actual: 2223,
     warehouse: '华东主仓', payTime: '2026-11-12 09:00', orderTime: '2026-11-12 09:00', deadline: offsetHours(-40), platformGoods: '雅诗兰黛小棕瓶50ml',
     goods: [{ name: '雅诗兰黛小棕瓶', spec: '50ml', qty: 2, sku: 'SKU-100231' }],
-    stock: { '华东主仓': 9, '华南仓': 2, '平台仓1': 0, '平台仓2': 0 }, status: 'done',
+    stock: { '华东主仓': 9, '华南仓': 2, '平台仓1': 0, '平台仓2': 0 }, status: 'done', afterStatus: '已完结', financePushed: true,
     expressNo: 'ZT1122334455', shippedAt: '2026-11-13 11:00', doneAt: '2026-11-16 18:30' },
 
   { no: 'XC20261110004', platform: '小程序', shop: '小程序商城', receiver: '孙**', phone: '13300008901',
     address: '湖北省武汉市洪山区珞喻路 129 号', note: '', carrier: '顺丰', amount: 76, settle: 0, actual: 76,
     warehouse: '华东主仓', payTime: '2026-11-10 09:00', orderTime: '2026-11-10 09:00', deadline: offsetHours(-60), platformGoods: '星野香薰蜡烛',
     goods: [{ name: '星野香薰蜡烛', spec: '小号', qty: 1, sku: 'SKU-300052' }],
-    stock: { '华东主仓': 40, '华南仓': 10, '平台仓1': 0, '平台仓2': 0 }, status: 'done',
+    stock: { '华东主仓': 40, '华南仓': 10, '平台仓1': 0, '平台仓2': 0 }, status: 'done', afterStatus: '已完结', financePushed: true,
     expressNo: 'SF1122334455', shippedAt: '2026-11-10 15:20', doneAt: '2026-11-13 09:40' }
 ]
 
@@ -88,10 +88,11 @@ export const useOrderStore = defineStore('order', {
   getters: {
     /** 按状态取列表 */
     byStatus: s => st => s.orders.filter(o => o.status === st),
-    /** 财务：已发货未结算（含已发货与已完结） */
-    financeUnsettled: s => s.orders.filter(o => o.status === 'shipped' || o.status === 'done'),
-    /** 财务：已完成待核对 */
-    financeToCheck: s => s.orders.filter(o => o.status === 'done'),
+    /** 财务：已发货未结算（运输中 + 已完结且无售后） */
+    financeUnsettled: s => s.orders.filter(o =>
+      o.status === 'shipped' || (o.status === 'done' && o.afterStatus === '已完结')),
+    /** 财务：已完成待核对 —— 只有「已完结」才推送 */
+    financeToCheck: s => s.orders.filter(o => o.status === 'done' && o.afterStatus === '已完结'),
     counts: s => ({
       review: s.orders.filter(o => o.status === 'review').length,
       pending: s.orders.filter(o => o.status === 'pending').length,
@@ -140,8 +141,17 @@ export const useOrderStore = defineStore('order', {
       if (!target) return
       target.status = 'done'
       target.doneAt = now()
+      target.afterStatus = '已完结'
       target.financePushed = true
       return target
+    },
+
+    /** 售后触发：售后中 / 已退款 / 已完结；非已完结不推送财务 */
+    setAfterStatus(orderNo, st) {
+      const target = this.orders.find(o => o.no === orderNo)
+      if (!target) return
+      target.afterStatus = st
+      target.financePushed = st === '已完结'
     },
 
     /** 新建订单：直接进入待审核 */
