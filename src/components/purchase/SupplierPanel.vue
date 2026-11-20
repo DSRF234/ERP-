@@ -19,21 +19,21 @@
 
     <el-table :data="view" size="small" highlight-current-row :max-height="260"
       empty-text="没有匹配的供应商" @current-change="onSelect">
-      <el-table-column prop="name" label="供应商名称" min-width="180" />
-      <el-table-column prop="owner" label="负责人" width="100" />
-      <el-table-column prop="phone" label="联系电话" width="140" />
-      <el-table-column prop="address" label="地址" min-width="240" show-overflow-tooltip />
-      <el-table-column label="货品数" width="80" align="right">
+      <el-table-column prop="name" label="供应商名称" min-width="150" />
+      <el-table-column prop="owner" label="负责人" width="88" />
+      <el-table-column prop="phone" label="联系电话" width="122" />
+      <el-table-column prop="address" label="地址" min-width="200" show-overflow-tooltip />
+      <el-table-column label="货品数" width="72" align="right">
         <template #default="{ row }">
           <span class="mono">{{ (row.goods || []).length }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="合作状态" width="100">
+      <el-table-column label="合作状态" width="92">
         <template #default="{ row }">
           <el-tag size="small" :type="row.status === '合作中' ? 'success' : 'info'">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="110">
+      <el-table-column label="操作" width="92">
         <template #default="{ row }">
           <el-button v-if="row.status === '合作中'" link type="danger" size="small"
             @click.stop="toggle(row)">停用</el-button>
@@ -161,13 +161,13 @@ const suppliers = ref([
   },
   {
     name: '雅美化妆品', owner: '陈志强', phone: '13900139002',
-    address: '深圳市宝安区福永街道 66 号', status: '已暂停',
+    address: '深圳市宝安区福永街道 66 号', status: '已停用',
     goods: [{ code: 'SO-2026-031', name: '精华液', type: '美妆个护', spec: '30ml/瓶', price: 68.00, minPrice: 79.00 }]
   }
 ])
 
 const TYPES = ['家居日用', '美妆个护']
-const CO_STATES = ['合作中', '已停用', '已暂停']
+const CO_STATES = ['合作中', '已停用']
 
 const kwInput = ref('')
 const kw = ref('')
