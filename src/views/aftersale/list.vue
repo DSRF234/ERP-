@@ -170,9 +170,11 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
-import { money, timeLeft, offsetHours } from '@/utils/format'
+import { money, timeLeft } from '@/utils/format'
+import { useAfterStore } from '@/stores/aftersale'
 
 const props = defineProps({ status: { type: String, default: 'wait' } })
+const store = useAfterStore()
 
 const CONFIG = {
   wait:  { title: '售后待处理', sub: '客户已提交、客服还没给结论的售后单', hint: '超时单据标红，左侧菜单显示待处理角标' },
@@ -192,55 +194,23 @@ const typeDefs = [
   { k: '更改地址', d: '只改收货地址' }
 ]
 
-const queues = [
-  { key: 'back', label: '待客户退回', n: 2 },
-  { key: 'transit', label: '退回在途', n: 1 },
-  { key: 'qc', label: '已收货待质检', n: 1 },
-  { key: 'refund', label: '待退款', n: 2 },
-  { key: 'exchange', label: '换货待发货', n: 1 },
-  { key: 'resend', label: '待补发', n: 1 }
+const QUEUE_DEF = [
+  { key: 'back', label: '待客户退回' },
+  { key: 'transit', label: '退回在途' },
+  { key: 'qc', label: '已收货待质检' },
+  { key: 'refund', label: '待退款' },
+  { key: 'exchange', label: '换货待发货' },
+  { key: 'resend', label: '待补发' }
 ]
-const activeQ = ref('')
 
+const rows = computed(() => store.byStatus(props.status))
+const queues = computed(() => QUEUE_DEF.map(q => ({
+  ...q, n: rows.value.filter(t => t.queue === q.key).length
+})))
+
+const activeQ = ref('')
 const kw = ref('')
 const f = reactive({ channel: '', type: '' })
-
-const RAW = [
-  { ticket: 'AS20261116001', orderNo: 'TM20261116001', channel: '天猫', type: '退货', reason: '商品破损',
-    applyTime: '2026-11-16 09:20', sla: offsetHours(-6), logistics: '已签收', goods: '雅诗兰黛小棕瓶 50ml ×1',
-    sku: 'SKU-100231', qty: 1, customer: '陈**', orderTime: '2026-11-14 10:22',
-    orderAmount: 1286, amount: 1286, expressNo: 'ZT7788990011', result: '—', queue: '', s: 'wait' },
-  { ticket: 'AS20261116002', orderNo: 'XC20261115003', channel: '小程序', type: '补发', reason: '少件',
-    applyTime: '2026-11-16 08:10', sla: offsetHours(5), logistics: '已签收', goods: '星野香薰礼盒 ×3',
-    sku: 'SKU-300045', qty: 1, customer: '赵**', orderTime: '2026-11-13 16:12',
-    orderAmount: 199, amount: 0, expressNo: 'SF1122334455', result: '—', queue: '', s: 'wait' },
-  { ticket: 'AS20261115003', orderNo: 'DY20261114022', channel: '抖音', type: '仅退款', reason: '未按约定时间发货',
-    applyTime: '2026-11-15 14:30', sla: offsetHours(28), logistics: '待签收', goods: '星野收纳箱 大号 ×2',
-    sku: 'SKU-400011', qty: 2, customer: '郑**', orderTime: '2026-11-14 12:30',
-    orderAmount: 528, amount: 528, expressNo: 'YT9988776655', result: '—', queue: '', s: 'wait' },
-  { ticket: 'AS20261114004', orderNo: 'JD20261115012', channel: '京东', type: '换货', reason: '规格不符',
-    applyTime: '2026-11-14 11:00', sla: offsetHours(-30), logistics: '运输中', goods: '兰蔻小黑瓶 30ml ×1',
-    sku: 'SKU-100188', qty: 1, customer: '周**', orderTime: '2026-11-13 21:40',
-    orderAmount: 899, amount: 0, expressNo: 'YZ5566778899', result: '—', queue: 'exchange', s: 'doing' },
-  { ticket: 'AS20261113005', orderNo: 'TM20261112008', channel: '天猫', type: '退货', reason: '不喜欢',
-    applyTime: '2026-11-13 10:15', sla: offsetHours(-24), logistics: '退回在途', goods: '雅诗兰黛小棕瓶 50ml ×2',
-    sku: 'SKU-100231', qty: 2, customer: '吴**', orderTime: '2026-11-12 18:12',
-    orderAmount: 2340, amount: 2340, expressNo: 'ZT1122334455', result: '—', queue: 'transit', s: 'doing' },
-  { ticket: 'AS20261112006', orderNo: 'XC20261110002', channel: '小程序', type: '仅退款', reason: '商品质量问题',
-    applyTime: '2026-11-12 09:00', sla: offsetHours(-12), logistics: '已签收', goods: '星野香薰蜡烛 ×1',
-    sku: 'SKU-300052', qty: 1, customer: '孙**', orderTime: '2026-11-10 11:00',
-    orderAmount: 76, amount: 76, expressNo: 'SF9988776655', result: '—', queue: 'refund', s: 'doing' },
-  { ticket: 'AS20261110007', orderNo: 'TM20261108021', channel: '天猫', type: '退货', reason: '商品破损',
-    applyTime: '2026-11-10 15:20', sla: offsetHours(-90), logistics: '已签收', goods: '雅诗兰黛小棕瓶 50ml ×1',
-    sku: 'SKU-100231', qty: 1, customer: '刘**', orderTime: '2026-11-08 09:30',
-    orderAmount: 1080, amount: 1080, expressNo: 'ZT5544332211', result: '同意', queue: '', s: 'done' },
-  { ticket: 'AS20261109008', orderNo: 'DY20261107015', channel: '抖音', type: '补差价', reason: '降价补差',
-    applyTime: '2026-11-09 10:00', sla: offsetHours(-120), logistics: '已签收', goods: '星野纯棉四件套 ×1',
-    sku: 'SKU-200118', qty: 1, customer: '王**', orderTime: '2026-11-07 14:00',
-    orderAmount: 359, amount: 30, expressNo: 'YT1234567890', result: '同意', queue: '', s: 'done' }
-]
-
-const rows = ref(RAW.filter(r => r.s === props.status))
 
 const view = computed(() => rows.value.filter(r => {
   const k = kw.value.trim()
@@ -297,12 +267,14 @@ function submitAudit() {
   if (form.amount > (cur.value?.orderAmount || 0)) {
     ElMessage.error('退款金额不能超过实付金额'); return
   }
-  rows.value = rows.value.filter(r => r !== cur.value)
+  store.approve(cur.value, { ...form })
   auditVisible.value = false
   ElMessage.success(form.result === 'reject' ? '已拒绝，单据进入处理完成' : '审核通过，单据已流转')
 }
+
 function refund(row) {
-  ElMessage.success(`退款 ${money(row.amount)} 已提交，预计 1-3 个工作日到账`)
+  store.refund(row)
+  ElMessage.success(`退款 ${money(row.amount)} 已完成，单据进入处理完成`)
 }
 </script>
 

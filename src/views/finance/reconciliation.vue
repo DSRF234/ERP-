@@ -84,7 +84,7 @@ const rows = computed(() => {
     no: 'DZ' + o.no.slice(2),
     shop: o.platform + ' · ' + o.shop,
     goods: o.goods.map(g => g.name).join('、'),
-    time: o.payTime,
+    time: o.orderTime || o.payTime,
     type: '销售出库',
     qty: o.goods.reduce((s, g) => s + g.qty, 0),
     amount: o.amount,

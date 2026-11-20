@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { offsetHours } from '@/utils/format'
+import { useStockStore } from '@/stores/stock'
 
 /**
  * 订单全局状态
@@ -36,46 +37,46 @@ const now = () => {
 const SEED = [
   { no: 'TM20261116001', platform: '天猫', shop: '旗舰店', receiver: '陈**', phone: '13800001234',
     address: '浙江省杭州市余杭区文一西路 969 号', note: '', carrier: '中通', amount: 1286, settle: 64.30, actual: 1221.70,
-    warehouse: '华东主仓', payTime: '2026-11-16 10:22', deadline: offsetHours(6), platformGoods: '雅诗兰黛小棕瓶50ml',
+    warehouse: '华东主仓', payTime: '2026-11-16 10:22', orderTime: '2026-11-16 10:22', deadline: offsetHours(6), platformGoods: '雅诗兰黛小棕瓶50ml',
     goods: [{ name: '雅诗兰黛小棕瓶', spec: '50ml', qty: 2, sku: 'SKU-100231' }],
     stock: { '华东主仓': 1, '华南仓': 6, '平台仓1': 0, '平台仓2': 0 }, status: 'review' },
 
   { no: 'DY20261116003', platform: '抖音', shop: '官方店', receiver: '李**', phone: '13900002345',
     address: '广东省广州市白云区机场路 12 号', note: '尽快发货', carrier: '圆通', amount: 459, settle: 0, actual: 459,
-    warehouse: '华南仓', payTime: '2026-11-16 09:41', deadline: offsetHours(-5), platformGoods: '星野纯棉四件套',
+    warehouse: '华南仓', payTime: '2026-11-16 09:41', orderTime: '2026-11-16 09:41', deadline: offsetHours(-5), platformGoods: '星野纯棉四件套',
     goods: [{ name: '星野纯棉四件套', spec: '1.8m 灰', qty: 1, sku: 'SKU-200118' }],
     stock: { '华东主仓': 20, '华南仓': 12, '平台仓1': 0, '平台仓2': 0 }, status: 'review' },
 
   { no: 'XC20261116007', platform: '小程序', shop: '小程序商城', receiver: '赵**', phone: '13700003456',
     address: '江苏省苏州市工业园区星湖街 88 号', note: '', carrier: '顺丰', amount: 168, settle: 0, actual: 168,
-    warehouse: '华东主仓', payTime: '2026-11-16 08:05', deadline: offsetHours(30), platformGoods: '星野香薰礼盒',
-    goods: [{ name: '星野香薰礼盒', spec: '3件装', qty: 1, sku: 'SKU-300045' }],
+    warehouse: '华东主仓', payTime: '2026-11-16 08:05', orderTime: '2026-11-16 08:05', deadline: offsetHours(30), platformGoods: '星野香薰蜡烛',
+    goods: [{ name: '星野香薰蜡烛', spec: '小号', qty: 1, sku: 'SKU-300052' }],
     stock: { '华东主仓': 0, '华南仓': 0, '平台仓1': 0, '平台仓2': 0 }, status: 'review' },
 
   { no: 'JD20261115012', platform: '京东', shop: '京东自营', receiver: '周**', phone: '13600004567',
     address: '北京市朝阳区建国路 89 号', note: '', carrier: '邮政', amount: 899, settle: 26.97, actual: 872.03,
-    warehouse: '平台仓2', payTime: '2026-11-15 21:40', deadline: offsetHours(-2), platformGoods: '兰蔻小黑瓶30ml',
+    warehouse: '平台仓2', payTime: '2026-11-15 21:40', orderTime: '2026-11-15 21:40', deadline: offsetHours(-2), platformGoods: '兰蔻小黑瓶30ml',
     goods: [{ name: '兰蔻小黑瓶', spec: '30ml', qty: 1, sku: 'SKU-100188' }],
     stock: { '华东主仓': 5, '华南仓': 3, '平台仓1': 8, '平台仓2': 10 }, status: 'shipped',
     expressNo: 'YZ5566778899', shippedAt: '2026-11-16 09:10' },
 
   { no: 'DY20261114022', platform: '抖音', shop: '官方店', receiver: '郑**', phone: '13400006789',
     address: '四川省成都市武侯区天府大道 1 号', note: '', carrier: '圆通', amount: 528, settle: 0, actual: 528,
-    warehouse: '华南仓', payTime: '2026-11-14 12:30', deadline: offsetHours(-12), platformGoods: '星野收纳箱大号',
+    warehouse: '华南仓', payTime: '2026-11-14 12:30', orderTime: '2026-11-14 12:30', deadline: offsetHours(-12), platformGoods: '星野收纳箱大号',
     goods: [{ name: '星野收纳箱', spec: '大号', qty: 2, sku: 'SKU-400011' }],
     stock: { '华东主仓': 30, '华南仓': 25, '平台仓1': 0, '平台仓2': 0 }, status: 'shipped',
     expressNo: 'YT7788990011', shippedAt: '2026-11-15 10:20' },
 
   { no: 'TM20261112008', platform: '天猫', shop: '旗舰店', receiver: '刘**', phone: '13500007890',
     address: '上海市浦东新区世纪大道 100 号', note: '', carrier: '中通', amount: 2340, settle: 117, actual: 2223,
-    warehouse: '华东主仓', payTime: '2026-11-12 09:00', deadline: offsetHours(-40), platformGoods: '雅诗兰黛小棕瓶50ml',
+    warehouse: '华东主仓', payTime: '2026-11-12 09:00', orderTime: '2026-11-12 09:00', deadline: offsetHours(-40), platformGoods: '雅诗兰黛小棕瓶50ml',
     goods: [{ name: '雅诗兰黛小棕瓶', spec: '50ml', qty: 2, sku: 'SKU-100231' }],
     stock: { '华东主仓': 9, '华南仓': 2, '平台仓1': 0, '平台仓2': 0 }, status: 'done',
     expressNo: 'ZT1122334455', shippedAt: '2026-11-13 11:00', doneAt: '2026-11-16 18:30' },
 
   { no: 'XC20261110004', platform: '小程序', shop: '小程序商城', receiver: '孙**', phone: '13300008901',
     address: '湖北省武汉市洪山区珞喻路 129 号', note: '', carrier: '顺丰', amount: 76, settle: 0, actual: 76,
-    warehouse: '华东主仓', payTime: '2026-11-10 09:00', deadline: offsetHours(-60), platformGoods: '星野香薰蜡烛',
+    warehouse: '华东主仓', payTime: '2026-11-10 09:00', orderTime: '2026-11-10 09:00', deadline: offsetHours(-60), platformGoods: '星野香薰蜡烛',
     goods: [{ name: '星野香薰蜡烛', spec: '小号', qty: 1, sku: 'SKU-300052' }],
     stock: { '华东主仓': 40, '华南仓': 10, '平台仓1': 0, '平台仓2': 0 }, status: 'done',
     expressNo: 'SF1122334455', shippedAt: '2026-11-10 15:20', doneAt: '2026-11-13 09:40' }
@@ -110,6 +111,11 @@ export const useOrderStore = defineStore('order', {
       target.carrier = carrier
       target.expressNo = expressNo
       target.shippedAt = now()
+
+      // 无 WMS，本地模拟出库扣减
+      const stock = useStockStore()
+      target.goods.forEach(g => stock.deduct(g.sku, target.warehouse, g.qty))
+
       return { carrier, expressNo }
     },
 
@@ -142,17 +148,20 @@ export const useOrderStore = defineStore('order', {
     create(form) {
       const { carrier, expressNo } = genExpress()
       const seq = String(this.orders.length + 1).padStart(3, '0')
+      const amount = Number(form.amount) || 0
+      const settle = +(amount * 0.05).toFixed(2)
       this.orders.unshift({
-        no: 'NEW20261120' + seq,
+        no: 'NEW' + Date.now().toString().slice(-9),
         platform: form.platform, shop: form.shop || '自建店铺',
         receiver: form.receiver, phone: form.phone, address: form.address,
-        note: form.note || '', carrier, amount: 0, settle: 0, actual: 0,
+        note: form.note || '', carrier,
+        amount, settle, actual: +(amount - settle).toFixed(2),
         warehouse: '华东主仓',
-        payTime: now(), deadline: now(),
-        platformGoods: '—',
-        goods: [{ name: '待补充商品', spec: '—', qty: 1, sku: '—' }],
+        payTime: now(), orderTime: now(), deadline: offsetHours(48),
+        platformGoods: form.goodsName || '—',
+        goods: [{ name: form.goodsName || '待补充商品', spec: '—', qty: Number(form.qty) || 1, sku: 'SKU-100231' }],
         stock: { '华东主仓': 10, '华南仓': 10, '平台仓1': 10, '平台仓2': 10 },
-        status: 'review', expressNo
+        status: 'review'
       })
     }
   }

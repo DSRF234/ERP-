@@ -64,27 +64,27 @@ const M = (label, id, children) => ({ id, label, children })
 
 const tree = [
   M('订单管理', 'm-order', [
-    M('订单审核', 'p-review', [P('查看', 'b-review-view'), P('审核', 'b-review-pass'), P('驳回', 'b-review-reject'), P('导出', 'b-review-export')]),
-    M('待发货', 'p-pending', [P('查看', 'b-pending-view'), P('编辑', 'b-pending-edit'), P('撤回订单', 'b-pending-back')]),
-    M('已发货', 'p-shipped', [P('查看', 'b-shipped-view'), P('编辑', 'b-shipped-edit')]),
-    M('已完结', 'p-done', [P('查看', 'b-done-view'), P('导出', 'b-done-export')])
+    M('订单审核', 'p-review', [P('查看', 'b-review-view'), P('审核', 'b-review-pass'), P('驳回', 'b-review-reject'), P('导出', 'b-review-export'), P('编辑', 'b-review-edit'), P('新建订单', 'b-review-add')]),
+    M('待发货', 'p-pending', [P('查看', 'b-pending-view'), P('编辑', 'b-pending-edit'), P('撤回订单', 'b-pending-back'), P('导出', 'b-pending-export')]),
+    M('已发货', 'p-shipped', [P('查看', 'b-shipped-view'), P('编辑', 'b-shipped-edit'), P('导出', 'b-shipped-export'), P('打印面单', 'b-shipped-print')]),
+    M('已完结', 'p-done', [P('查看', 'b-done-view'), P('导出', 'b-done-export'), P('申请售后', 'b-done-aftersale')])
   ]),
   M('采购管理', 'm-purchase', [
-    M('采购订单', 'p-po', [P('查看', 'b-po-view'), P('新建', 'b-po-add'), P('提交', 'b-po-submit')]),
-    M('历史采购单', 'p-poh', [P('查看', 'b-poh-view'), P('导出', 'b-poh-export')]),
-    M('供应商管理', 'p-sup', [P('查看', 'b-sup-view'), P('新增', 'b-sup-add'), P('删除', 'b-sup-del')])
+    M('采购订单', 'p-po', [P('查看', 'b-po-view'), P('新建', 'b-po-add'), P('提交', 'b-po-submit'), P('删除货品', 'b-po-del')]),
+    M('历史采购单', 'p-poh', [P('查看', 'b-poh-view'), P('导出', 'b-poh-export'), P('打印', 'b-poh-print')]),
+    M('供应商管理', 'p-sup', [P('查看', 'b-sup-view'), P('新增', 'b-sup-add'), P('删除', 'b-sup-del'), P('编辑', 'b-sup-edit'), P('供应商货品', 'b-sup-goods')])
   ]),
   M('库存管理', 'm-inv', [
-    M('库存记录', 'p-stock', [P('查看', 'b-stock-view'), P('设置预警', 'b-stock-warn')]),
-    M('仓库盘点', 'p-take', [P('查看', 'b-take-view'), P('创建任务', 'b-take-add'), P('盘点', 'b-take-do')])
+    M('库存记录', 'p-stock', [P('查看', 'b-stock-view'), P('设置预警', 'b-stock-warn'), P('编辑', 'b-stock-edit'), P('导出', 'b-stock-export')]),
+    M('仓库盘点', 'p-take', [P('查看', 'b-take-view'), P('创建任务', 'b-take-add'), P('盘点', 'b-take-do'), P('导出', 'b-take-export'), P('删除任务', 'b-take-del')])
   ]),
   M('售后管理', 'm-after', [
-    M('售后待处理', 'p-wait', [P('查看', 'b-wait-view'), P('审核', 'b-wait-audit'), P('导出', 'b-wait-export')]),
-    M('售后处理中', 'p-doing', [P('查看', 'b-doing-view'), P('退款', 'b-doing-refund'), P('换货', 'b-doing-exchange'), P('补发', 'b-doing-resend')]),
-    M('售后处理完成', 'p-adone', [P('查看', 'b-adone-view'), P('导出', 'b-adone-export')])
+    M('售后待处理', 'p-wait', [P('查看', 'b-wait-view'), P('审核', 'b-wait-audit'), P('导出', 'b-wait-export'), P('查看详情', 'b-wait-detail')]),
+    M('售后处理中', 'p-doing', [P('查看', 'b-doing-view'), P('退款', 'b-doing-refund'), P('换货', 'b-doing-exchange'), P('补发', 'b-doing-resend'), P('查看详情', 'b-doing-detail'), P('导出', 'b-doing-export')]),
+    M('售后处理完成', 'p-adone', [P('查看', 'b-adone-view'), P('导出', 'b-adone-export'), P('复制信息', 'b-adone-copy')])
   ]),
   M('财务管理', 'm-fin', [
-    M('对账中心', 'p-rec', [P('查看', 'b-rec-view'), P('核对', 'b-rec-check')]),
+    M('对账中心', 'p-rec', [P('查看', 'b-rec-view'), P('核对', 'b-rec-check'), P('导出', 'b-rec-export')]),
     M('发货数据', 'p-ship', [P('查看', 'b-ship-view')]),
     M('商品信息', 'p-goods', [P('查看', 'b-goods-view')]),
     M('库存积压', 'p-aging', [P('查看', 'b-aging-view')]),
@@ -104,7 +104,8 @@ const defaultKeys = [
   'b-shipped-view', 'b-done-view', 'b-stock-view', 'b-stock-warn', 'b-dash-view'
 ]
 
-const totalCount = 71
+const flatButtons = nodes => nodes.flatMap(n => (n.children ? flatButtons(n.children) : [n]))
+const totalCount = computed(() => flatButtons(tree).length)
 const checkedCount = ref(defaultKeys.length)
 
 function onCheck() {

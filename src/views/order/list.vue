@@ -60,7 +60,7 @@
         <el-table-column label="平台类型" min-width="140">
           <template #default="{ row }">{{ row.platform }} · {{ row.shop }}</template>
         </el-table-column>
-        <el-table-column prop="carrier" label="快递公司" width="96" />
+        <el-table-column v-if="status === 'shipped' || status === 'done'" prop="carrier" label="快递公司" width="96" />
         <el-table-column v-if="status === 'shipped' || status === 'done'" prop="expressNo"
           label="快递单号" width="140">
           <template #default="{ row }"><span class="mono">{{ row.expressNo }}</span></template>
@@ -95,6 +95,7 @@
             <el-button v-if="status === 'shipped'" link type="primary" size="small"
               @click="receive(row)">确认收货</el-button>
             <el-button v-if="status === 'review'" link size="small" @click="edit(row)">编辑</el-button>
+            <el-button v-if="status === 'done'" link type="primary" size="small" @click="openAfter(row)">申请售后</el-button>
             <el-button v-if="status === 'done'" link size="small" @click="viewDetail(row)">查看</el-button>
           </template>
         </el-table-column>
@@ -138,7 +139,8 @@
         <template v-else>
           <el-alert type="error" :closable="false" show-icon title="所有仓库库存均不足，无法通过审核，请驳回并说明原因。" />
           <div class="stock-list">
-            <span v-for="(v, k) in cur.stock" :key="k">{{ k }}：{{ v }} 件</span>
+            <span v-for="(v, k) in stockStore.warehousesFor(cur.goods[0].sku, cur.goods[0].qty)"
+              :key="k">{{ k }}：{{ v }} 件</span>
           </div>
         </template>
       </template>
@@ -164,6 +166,25 @@
       </template>
     </el-dialog>
 
+    <!-- 申请售后 -->
+    <el-dialog v-model="afterVisible" title="申请售后" width="480px">
+      <el-form label-width="86px" size="small">
+        <el-form-item label="订单编号">{{ cur && cur.no }}</el-form-item>
+        <el-form-item label="处理方式">
+          <el-select v-model="afterForm.type" style="width:100%">
+            <el-option v-for="t in ['退货', '仅退款', '换货', '补发', '补差价']" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="售后原因">
+          <el-input v-model="afterForm.reason" type="textarea" :rows="3" placeholder="请填写售后原因" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="afterVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitAfter">提交</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 新建订单 -->
     <el-dialog v-model="createVisible" title="新建订单" width="640px">
       <el-form :model="form" label-width="96px" size="small">
@@ -174,6 +195,9 @@
           <el-col :span="12"><el-form-item label="收件人"><el-input v-model="form.receiver" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="手机号"><el-input v-model="form.phone" maxlength="11" placeholder="11 位手机号" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="收件地址"><el-input v-model="form.address" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="商品名称"><el-input v-model="form.goodsName" placeholder="如：雅诗兰黛小棕瓶" /></el-form-item></el-col>
+          <el-col :span="6"><el-form-item label="数量"><el-input v-model.number="form.qty" /></el-form-item></el-col>
+          <el-col :span="6"><el-form-item label="订单金额"><el-input v-model.number="form.amount" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="买家留言"><el-input v-model="form.note" placeholder="选填" /></el-form-item></el-col>
         </el-row>
       </el-form>
@@ -191,10 +215,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { money, timeLeft } from '@/utils/format'
 import { useOrderStore } from '@/stores/order'
+import { useAfterStore } from '@/stores/aftersale'
+import { useStockStore, WAREHOUSES } from '@/stores/stock'
 
 const props = defineProps({ status: { type: String, default: 'review' } })
 const store = useOrderStore()
-const warehouses = ['华东主仓', '华南仓', '平台仓1', '平台仓2']
+const afterStore = useAfterStore()
+const stockStore = useStockStore()
+const warehouses = WAREHOUSES
 
 const CONFIG = {
   review:  { title: '订单审核', sub: '对接平台与小程序的订单，审核通过后自动模拟发货', hint: '需校验发货仓库存，不足时提示换仓或驳回' },
@@ -228,15 +256,17 @@ const createVisible = ref(false)
 const cur = ref(null)
 const useAlt = ref(true)
 const rejectReason = ref('')
-const form = reactive({ platform: '天猫', shop: '', receiver: '', phone: '', address: '', note: '' })
+const form = reactive({ platform: '天猫', shop: '', receiver: '', phone: '', address: '', note: '',
+  goodsName: '', qty: 1, amount: 0 })
 
-const stockOf = (wh, sku) => (cur.value && cur.value.stock[wh]) || 0
+const stockOf = (wh, sku) => stockStore.availableOf(sku, wh)
 const enough = computed(() =>
   !!cur.value && cur.value.goods.every(g => stockOf(cur.value.warehouse, g.sku) >= g.qty))
 const altWarehouse = computed(() => {
   if (!cur.value) return null
   const need = cur.value.goods[0]
-  return Object.entries(cur.value.stock).find(([wh, v]) => wh !== cur.value.warehouse && v >= need.qty)?.[0] || null
+  const map = stockStore.warehousesFor(need.sku, need.qty)
+  return Object.entries(map).find(([wh, v]) => wh !== cur.value.warehouse && v >= need.qty)?.[0] || null
 })
 const canPass = computed(() => enough.value || (altWarehouse.value && useAlt.value))
 
@@ -283,9 +313,26 @@ function edit() { ElMessage.info('打开编辑弹窗（待实现）') }
 function viewDetail() { ElMessage.info('查看订单详情（待实现）') }
 function createOrder() {
   if (!form.receiver || !form.address) return ElMessage.error('请填写收件人与地址')
+  if (!form.amount || form.amount <= 0) return ElMessage.error('请填写订单金额')
   store.create(form)
   createVisible.value = false
   ElMessage.success('订单已创建，进入待审核')
+}
+
+/* 申请售后 */
+const afterVisible = ref(false)
+const afterForm = reactive({ type: '退货', reason: '' })
+function openAfter(row) {
+  cur.value = row
+  afterForm.type = '退货'
+  afterForm.reason = ''
+  afterVisible.value = true
+}
+function submitAfter() {
+  if (!afterForm.reason) return ElMessage.error('请填写售后原因')
+  afterStore.createFromOrder(cur.value, afterForm.type, afterForm.reason)
+  afterVisible.value = false
+  ElMessage.success('售后单已创建，已进入「售后待处理」')
 }
 </script>
 
