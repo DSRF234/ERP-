@@ -1,9 +1,15 @@
 import { defineStore } from 'pinia'
+import { tickets as sharedTickets } from '@/data/aftersale'
 
 /**
- * 售后工单
- * 已完结订单可以发起售后，工单通过 orderNo 关联订单。
- * 注：退款暂不进入财务对账（按业务确认，财务模块保持独立）。
+ * 售后工单 store —— 数据源与售后管理页共用 src/data/aftersale 的 tickets 数组。
+ *
+ * 为什么不在这里另存一份 SEED：
+ * 售后管理三页（待处理 / 处理中 / 处理完成）的列表、审核、退款、换货、库存判断
+ * 全部围绕 data/aftersale 那份数据展开。若 store 独立维护一份数组，就会出现
+ * 「菜单角标 2 单、列表 7 单」「订单页发起售后后在售后页看不到」这类自相矛盾。
+ * 因此这里直接把同一个 reactive 数组挂到 state 上，任何一处 push / 改 status
+ * 都会立刻在另一处可见。
  */
 const now = () => {
   const d = new Date()
@@ -16,34 +22,21 @@ const addHours = h => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-let seq = 1
-const genTicket = () => 'AS' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + String(seq++).padStart(3, '0')
+/** 申请售后类型：与「待处理」页「申请售后类型」列同一口径 */
+const APPLY_TYPE = { '退货': '退货退款', '仅退款': '仅退款', '换货': '换货', '补发': '补发', '补差价': '补差价' }
 
-const SEED = [
-  { ticket: 'AS20261116001', orderNo: 'TM20261116001', channel: '天猫', type: '退货', reason: '商品破损',
-    applyTime: '2026-11-16 09:20', sla: addHours(-6), logistics: '已签收', goods: '雅诗兰黛小棕瓶 50ml ×1',
-    sku: 'SKU-100231', qty: 1, customer: '陈**', orderTime: '2026-11-14 10:22',
-    orderAmount: 1286, amount: 1286, expressNo: 'ZT7788990011', result: '—', queue: '', status: 'wait' },
-  { ticket: 'AS20261116002', orderNo: 'XC20261115003', channel: '小程序', type: '补发', reason: '少件',
-    applyTime: '2026-11-16 08:10', sla: addHours(5), logistics: '已签收', goods: '星野香薰礼盒 ×3',
-    sku: 'SKU-300045', qty: 1, customer: '赵**', orderTime: '2026-11-13 16:12',
-    orderAmount: 199, amount: 0, expressNo: 'SF1122334455', result: '—', queue: '', status: 'wait' },
-  { ticket: 'AS20261114004', orderNo: 'JD20261115012', channel: '京东', type: '换货', reason: '规格不符',
-    applyTime: '2026-11-14 11:00', sla: addHours(-30), logistics: '运输中', goods: '兰蔻小黑瓶 30ml ×1',
-    sku: 'SKU-100188', qty: 1, customer: '周**', orderTime: '2026-11-13 21:40',
-    orderAmount: 899, amount: 0, expressNo: 'YZ5566778899', result: '—', queue: 'exchange', status: 'doing' },
-  { ticket: 'AS20261113005', orderNo: 'TM20261112008', channel: '天猫', type: '退货', reason: '不喜欢',
-    applyTime: '2026-11-13 10:15', sla: addHours(-24), logistics: '退回在途', goods: '雅诗兰黛小棕瓶 50ml ×2',
-    sku: 'SKU-100231', qty: 2, customer: '吴**', orderTime: '2026-11-12 18:12',
-    orderAmount: 2340, amount: 2340, expressNo: 'ZT1122334455', result: '—', queue: 'transit', status: 'doing' },
-  { ticket: 'AS20261110007', orderNo: 'TM20261108021', channel: '天猫', type: '退货', reason: '商品破损',
-    applyTime: '2026-11-10 15:20', sla: addHours(-90), logistics: '已签收', goods: '雅诗兰黛小棕瓶 50ml ×1',
-    sku: 'SKU-100231', qty: 1, customer: '刘**', orderTime: '2026-11-08 09:30',
-    orderAmount: 1080, amount: 1080, expressNo: 'ZT5544332211', result: '同意', queue: '', status: 'done' }
-]
+/* 单号 AS + 年月日 + 三位流水，避开已存在的单号 */
+let seq = 1
+const genTicket = () => {
+  const day = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const used = new Set(sharedTickets.map(t => t.ticket))
+  let no
+  do { no = 'AS' + day + String(seq++).padStart(3, '0') } while (used.has(no))
+  return no
+}
 
 export const useAfterStore = defineStore('aftersale', {
-  state: () => ({ tickets: SEED.map(t => ({ ...t })) }),
+  state: () => ({ tickets: sharedTickets }),
   getters: {
     byStatus: s => st => s.tickets.filter(t => t.status === st),
     counts: s => ({
@@ -53,43 +46,73 @@ export const useAfterStore = defineStore('aftersale', {
     })
   },
   actions: {
-    /** 从已完结订单发起售后 */
+    /** 从已完结订单发起售后：字段按售后管理页所需补齐，创建后直接出现在「待处理」 */
     createFromOrder(order, type, reason) {
-      const g = order.goods[0] || {}
+      const g = (order.goods && order.goods[0]) || {}
       const ticket = {
         ticket: genTicket(),
         orderNo: order.no,
         channel: order.platform,
-        type, reason,
+        applyType: APPLY_TYPE[type] || type,
+        type,
+        reason,
+        proofs: [],
         applyTime: now(),
-        sla: addHours(24),
+        sla: addHours(48),
         logistics: '已签收',
-        goods: `${g.name || '商品'} ${g.spec || ''} ×${g.qty || 1}`,
+        expressNo: order.expressNo || '—',
+        goods: `${g.name || '商品'} ${g.spec || ''} ×${g.qty || 1}`.replace(/\s+/g, ' ').trim(),
         sku: g.sku || '—',
         qty: g.qty || 1,
-        customer: order.receiver,
-        orderTime: order.orderTime || order.payTime,
-        orderAmount: order.amount,
+        orderTime: order.orderTime || order.payTime || now(),
+        orderAmount: order.amount || 0,
         amount: 0,
-        expressNo: order.expressNo || '—',
-        result: '—', queue: '', status: 'wait'
+        customer: {
+          name: order.receiver || '',
+          phone: order.phone || '',
+          addr: order.address || ''
+        },
+        message: reason,
+        status: 'wait',
+        queue: '',
+        result: '—',
+        duty: '',
+        auditRemark: '',
+        auditor: '',
+        auditTime: '',
+        who: '',
+        finishedAt: '',
+        workOrder: '',
+        refundWay: '',
+        addressSync: '',
+        syncTime: '',
+        repeat: false
       }
       this.tickets.unshift(ticket)
       return ticket
     },
 
-    /** 审核：按结论分流 */
+    /** 审核：按结论分流（口径与 data/aftersale 的 auditTicket 一致） */
     approve(ticket, form) {
       const t = this.tickets.find(x => x.ticket === ticket.ticket)
       if (!t) return
       t.type = form.type
-      t.amount = form.amount
+      t.applyType = APPLY_TYPE[form.type] || form.type
+      if (form.amount != null) t.amount = form.amount
       if (form.result === 'reject') {
         t.status = 'done'; t.result = '拒绝'; t.queue = ''
+        t.finishedAt = now(); t.who = form.who || t.who
         return
       }
       if (form.type === '更改地址') {
         t.status = 'done'; t.result = '同意'; t.amount = 0; t.queue = ''
+        t.finishedAt = now(); t.who = form.who || t.who
+        return
+      }
+      /* 仅退款 / 部分仅退款 / 补差价：审核后直达「处理完成」，不进处理中 */
+      if (['仅退款', '部分仅退款', '补差价'].includes(form.type)) {
+        t.status = 'done'; t.result = '同意'; t.queue = ''
+        t.finishedAt = now(); t.who = form.who || t.who
         return
       }
       t.status = 'doing'
@@ -101,6 +124,7 @@ export const useAfterStore = defineStore('aftersale', {
       const t = this.tickets.find(x => x.ticket === ticket.ticket)
       if (!t) return
       t.status = 'done'; t.result = '同意'; t.queue = ''
+      t.finishedAt = now()
     }
   }
 })
