@@ -41,19 +41,31 @@
 
       <el-table v-else :data="view" size="small" max-height="600">
         <el-table-column prop="no" label="平台单号" width="150" fixed />
+        <el-table-column v-if="status === 'done'" label="订单状态" width="110">
+          <template #default="{ row }">
+            <el-tag size="small" :type="afterTag(row.afterStatus)">{{ row.afterStatus || '已完结' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="status === 'done'" label="财务" width="118">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain" :type="row.financePushed ? 'success' : 'info'">
+              {{ row.financePushed ? '已推送对账' : '未推送' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column v-if="status === 'review'" label="剩余发货时间" width="140">
           <template #default="{ row }">
             <span :class="'tl ' + tl(row.deadline).type">{{ tl(row.deadline).text }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="货品明细" min-width="210">
+        <el-table-column label="货品明细" min-width="180">
           <template #default="{ row }">
             <div v-for="(g, i) in row.goods" :key="i" class="goods">{{ g.name }} · {{ g.spec }} ×{{ g.qty }}</div>
           </template>
         </el-table-column>
         <el-table-column prop="receiver" label="收件人" width="86" />
         <el-table-column prop="phone" label="手机号" width="118" />
-        <el-table-column prop="address" label="收件地址" min-width="210" show-overflow-tooltip />
+        <el-table-column prop="address" label="收件地址" min-width="170" show-overflow-tooltip />
         <el-table-column prop="note" label="买家留言" width="110" show-overflow-tooltip>
           <template #default="{ row }">{{ row.note || '—' }}</template>
         </el-table-column>
@@ -80,11 +92,6 @@
         <el-table-column v-if="status === 'shipped' || status === 'done'" prop="shippedAt"
           label="发货时间" width="136" />
         <el-table-column prop="platformGoods" label="平台商品信息" min-width="170" show-overflow-tooltip />
-        <el-table-column v-if="status === 'done'" label="财务" width="110">
-          <template #default="{ row }">
-            <el-tag size="small" type="success">已推送对账</el-tag>
-          </template>
-        </el-table-column>
 
         <el-table-column label="操作" :width="status === 'review' ? 150 : 130" fixed="right">
           <template #default="{ row }">
@@ -248,6 +255,10 @@ const view = computed(() => rows.value.filter(r => {
 
 const reset = () => { kw.value = ''; Object.assign(f, { carrier: '', left: '', platform: '', warehouse: '' }) }
 const tl = v => timeLeft(v)
+
+/* 售后状态配色：已完结（绿）/ 售后中（橙）/ 已退款（红） */
+const AFTER_TAG = { '已完结': 'success', '售后中': 'warning', '已退款': 'danger' }
+const afterTag = v => AFTER_TAG[v] || 'info'
 
 /* 审核 */
 const reviewVisible = ref(false)

@@ -557,6 +557,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { money } from '@/utils/format'
 import { useUserStore } from '@/stores/user'
+import { useOrderStore } from '@/stores/order'
 import {
   tickets, STEPS, QUEUE_TEXT, QUEUE_ORDER, progressOf,
   companyOf, trackOf, auditTicket, confirmRefund, createWorkOrder, workOrderNo,
@@ -565,6 +566,7 @@ import {
 
 const props = defineProps({ status: { type: String, default: 'wait' } })
 const store = useUserStore()
+const orderStore = useOrderStore()
 const who = computed(() => store.name || '张丽珊')
 
 const CONFIG = {
@@ -780,7 +782,12 @@ function submitAudit() {
     if (!(form.amount > 0)) return ElMessage.error('退款金额必须大于 0')
     if (form.amount > cur.value.orderAmount) return ElMessage.error('退款金额不能超过实付金额')
   }
+  const no = cur.value.orderNo
   const to = auditTicket(cur.value, { ...form, result: form.result }, who.value)
+  /* 同步订单售后状态：拒绝／改址＝无售后占用，退款＝已退款，其余＝售后中 */
+  if (to === 'rejected' || to === 'address') orderStore.setAfterStatus(no, '已完结')
+  else if (to === 'refunded') orderStore.setAfterStatus(no, '已退款')
+  else orderStore.setAfterStatus(no, '售后中')
   auditVisible.value = false
   const msg = {
     rejected: '已拒绝，单据进入「售后处理完成」',
@@ -861,6 +868,7 @@ function submitRefund() {
   if (!(rf.amount > 0)) return ElMessage.error('退款金额必须大于 0')
   if (rf.amount > t.orderAmount) return ElMessage.error('退款金额不能超过实付金额')
   confirmRefund(t, { ...rf }, who.value)
+  orderStore.setAfterStatus(t.orderNo, '已退款')
   refundVisible.value = false
   detailVisible.value = false
   ElMessage.success(`退款 ${money(rf.amount)} 已提交（${rf.way}），预计 1—3 个工作日到账`)
@@ -910,6 +918,8 @@ function pathPick(k) {
 }
 function submitWo() {
   const no = createWorkOrder(cur.value, wo.kind, wo.wh, who.value)
+  /* 换货单／补发单已生成、工单完结 → 订单回到「已完结」，恢复推送财务 */
+  orderStore.setAfterStatus(cur.value.orderNo, '已完结')
   woVisible.value = false
   detailVisible.value = false
   ElMessage.success(`${wo.kind === 'exchange' ? '换货单' : '补发单'} ${no} 已生成，待仓库出库`)

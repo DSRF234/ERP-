@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { tickets as sharedTickets } from '@/data/aftersale'
+import { useOrderStore } from '@/stores/order'
 
 /**
  * 售后工单 store —— 数据源与售后管理页共用 src/data/aftersale 的 tickets 数组。
@@ -10,6 +11,9 @@ import { tickets as sharedTickets } from '@/data/aftersale'
  * 「菜单角标 2 单、列表 7 单」「订单页发起售后后在售后页看不到」这类自相矛盾。
  * 因此这里直接把同一个 reactive 数组挂到 state 上，任何一处 push / 改 status
  * 都会立刻在另一处可见。
+ *
+ * 订单联动：售后状态变化时同步写回订单（售后中 / 已退款 / 已完结），
+ * 只有「已完结」的订单才推送财务对账。
  */
 const now = () => {
   const d = new Date()
@@ -46,7 +50,7 @@ export const useAfterStore = defineStore('aftersale', {
     })
   },
   actions: {
-    /** 从已完结订单发起售后：字段按售后管理页所需补齐，创建后直接出现在「待处理」 */
+    /** 从已完结订单发起售后：创建后订单变为「售后中」，并停止推送财务 */
     createFromOrder(order, type, reason) {
       const g = (order.goods && order.goods[0]) || {}
       const ticket = {
@@ -89,6 +93,7 @@ export const useAfterStore = defineStore('aftersale', {
         repeat: false
       }
       this.tickets.unshift(ticket)
+      useOrderStore().setAfterStatus(order.no, '售后中')
       return ticket
     },
 
@@ -96,35 +101,50 @@ export const useAfterStore = defineStore('aftersale', {
     approve(ticket, form) {
       const t = this.tickets.find(x => x.ticket === ticket.ticket)
       if (!t) return
+      const order = useOrderStore()
       t.type = form.type
       t.applyType = APPLY_TYPE[form.type] || form.type
       if (form.amount != null) t.amount = form.amount
       if (form.result === 'reject') {
         t.status = 'done'; t.result = '拒绝'; t.queue = ''
         t.finishedAt = now(); t.who = form.who || t.who
+        order.setAfterStatus(t.orderNo, '已完结')     /* 拒绝＝无售后占用，恢复推送财务 */
         return
       }
       if (form.type === '更改地址') {
         t.status = 'done'; t.result = '同意'; t.amount = 0; t.queue = ''
         t.finishedAt = now(); t.who = form.who || t.who
+        order.setAfterStatus(t.orderNo, '已完结')
         return
       }
       /* 仅退款 / 部分仅退款 / 补差价：审核后直达「处理完成」，不进处理中 */
       if (['仅退款', '部分仅退款', '补差价'].includes(form.type)) {
         t.status = 'done'; t.result = '同意'; t.queue = ''
         t.finishedAt = now(); t.who = form.who || t.who
+        order.setAfterStatus(t.orderNo, '已退款')
         return
       }
       t.status = 'doing'
       t.queue = { '退货': 'back', '换货': 'exchange', '补发': 'resend' }[form.type] || 'refund'
+      order.setAfterStatus(t.orderNo, '售后中')
     },
 
-    /** 处理中：退款 */
+    /** 处理中：退款完成 → 订单「已退款」，不再推送财务 */
     refund(ticket) {
       const t = this.tickets.find(x => x.ticket === ticket.ticket)
       if (!t) return
       t.status = 'done'; t.result = '同意'; t.queue = ''
       t.finishedAt = now()
+      useOrderStore().setAfterStatus(t.orderNo, '已退款')
+    },
+
+    /** 处理中：换货 / 补发完成 → 订单「已完结」，恢复推送财务 */
+    completeExchange(ticket) {
+      const t = this.tickets.find(x => x.ticket === ticket.ticket)
+      if (!t) return
+      t.status = 'done'; t.result = '同意'; t.queue = ''
+      t.finishedAt = now()
+      useOrderStore().setAfterStatus(t.orderNo, '已完结')
     }
   }
 })
