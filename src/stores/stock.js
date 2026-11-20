@@ -66,10 +66,21 @@ export const useStockStore = defineStore('stock', {
       hit.onHand -= qty
       return true
     },
-    /** 模拟入库（采购入库 / 退货入库），当前页面未调用，接入后由 WMS 回传触发 */
+    /** 模拟入库（采购入库 / 退货入库）；仓库无该 SKU 时自动建行 */
     inbound(sku, warehouse, qty) {
-      const hit = this.items.find(i => i.sku === sku && i.warehouse === warehouse)
-      if (hit) hit.onHand += qty
+      let hit = this.items.find(i => i.sku === sku && i.warehouse === warehouse)
+      if (!hit) {
+        const ref = this.items.find(i => i.sku === sku)
+        hit = {
+          sku, warehouse,
+          name: ref?.name || sku, spec: ref?.spec || '—', type: ref?.type || '未分类',
+          batch: 'B' + new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+          onHand: 0, locked: 0, inTransit: 0, warnValue: 100
+        }
+        this.items.push(hit)
+      }
+      hit.onHand += qty
+      return hit
     },
     /** TODO: 接入 WMS 后替换为真实同步 */
     syncFromWms() { /* noop */ }
