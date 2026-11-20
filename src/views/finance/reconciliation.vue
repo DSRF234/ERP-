@@ -8,7 +8,7 @@
       <div class="kpi"><div class="k">订单金额合计</div><div class="v">{{ money(sum.order) }}</div></div>
       <div class="kpi"><div class="k">平台结算金额合计</div><div class="v">{{ money(sum.settle) }}</div></div>
       <div class="kpi"><div class="k">实际到账合计</div><div class="v">{{ money(sum.actual) }}</div></div>
-      <div class="kpi warn"><div class="k">未核对单据</div><div class="v">{{ unchecked }}<i>笔</i></div></div>
+      <div class="kpi warn"><div class="k">待核对单据</div><div class="v">{{ unchecked }}<i>笔</i></div></div>
     </div>
 
     <div class="filters">
@@ -26,14 +26,14 @@
     <div class="card">
       <div class="card-head">
         <h3>平台账单</h3>
-        <span class="extra">核对后单据收录，不可再修改</span>
+        <span class="extra">订单完结后自动汇入，核对后收录不可修改</span>
       </div>
-      <el-table :data="view" size="small" max-height="560">
+      <el-table :data="view" size="small" max-height="540">
         <el-table-column prop="no" label="单据编号" width="160" />
-        <el-table-column prop="shop" label="店铺" min-width="160" />
+        <el-table-column prop="shop" label="店铺" min-width="170" />
         <el-table-column prop="goods" label="商品名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="time" label="下单时间" width="150" />
-        <el-table-column prop="type" label="单据类型" width="110" />
+        <el-table-column prop="time" label="下单时间" width="145" />
+        <el-table-column prop="type" label="单据类型" width="105" />
         <el-table-column prop="qty" label="商品数量" width="90" align="right" />
         <el-table-column label="订单金额" width="110" align="right">
           <template #default="{ row }"><span class="mono">{{ money(row.amount) }}</span></template>
@@ -46,10 +46,12 @@
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag size="small" :type="row.checked ? 'success' : 'warning'">{{ row.checked ? '已核对' : '待核对' }}</el-tag>
+            <el-tag size="small" :type="row.checked ? 'success' : 'warning'">
+              {{ row.checked ? '已核对' : '待核对' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" width="90" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" :disabled="row.checked" @click="check(row)">核对</el-button>
           </template>
@@ -68,22 +70,38 @@ import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { money } from '@/utils/format'
+import { useOrderStore } from '@/stores/order'
 
+const store = useOrderStore()
 const kw = ref('')
 const f = reactive({ type: '' })
 
-const rows = ref([
-  { no: 'DZ20261116001', shop: '天猫 · 星野优选旗舰店', goods: '雅诗兰黛小棕瓶 50ml', time: '2026-11-16 10:22',
-    type: '销售出库', qty: 2, amount: 1286, settle: 64.30, actual: 1221.70, checked: false },
-  { no: 'DZ20261116002', shop: '抖音 · 官方旗舰店', goods: '星野纯棉四件套', time: '2026-11-16 09:41',
-    type: '销售出库', qty: 1, amount: 459, settle: 0, actual: 459, checked: false },
-  { no: 'DZ20261116003', shop: '小程序 · 商城', goods: '星野香薰礼盒', time: '2026-11-16 08:05',
-    type: '销售出库', qty: 1, amount: 168, settle: 0, actual: 168, checked: true },
-  { no: 'DZ20261115008', shop: '天猫 · 星野优选旗舰店', goods: '兰蔻小黑瓶 30ml', time: '2026-11-15 21:40',
-    type: '销售出库', qty: 1, amount: 899, settle: 26.97, actual: 872.03, checked: false },
-  { no: 'DZ20261115011', shop: '抖音 · 官方旗舰店', goods: '星野收纳箱 大号', time: '2026-11-15 18:12',
-    type: '退货入库', qty: 1, amount: -528, settle: 0, actual: -528, checked: true }
-])
+/** 已核对状态用本地 Map 记录，避免污染订单 store */
+const checkedMap = ref({})
+
+const rows = computed(() => {
+  const fromOrders = store.financeToCheck.map(o => ({
+    no: 'DZ' + o.no.slice(2),
+    shop: o.platform + ' · ' + o.shop,
+    goods: o.goods.map(g => g.name).join('、'),
+    time: o.orderTime || o.payTime,
+    type: '销售出库',
+    qty: o.goods.reduce((s, g) => s + g.qty, 0),
+    amount: o.amount,
+    settle: o.settle,
+    actual: o.actual,
+    checked: !!checkedMap.value[o.no]
+  }))
+
+  const demo = [
+    { no: 'DZ20261106003', shop: '小程序 · 商城', goods: '星野香薰礼盒', time: '2026-11-06 08:05',
+      type: '销售出库', qty: 1, amount: 168, settle: 0, actual: 168, checked: true },
+    { no: 'DZ20261105011', shop: '抖音 · 官方旗舰店', goods: '星野收纳箱 大号', time: '2026-11-05 18:12',
+      type: '退货入库', qty: 1, amount: -528, settle: 0, actual: -528, checked: true }
+  ]
+
+  return [...fromOrders, ...demo]
+})
 
 const view = computed(() => rows.value.filter(r => {
   const k = kw.value.trim()
@@ -99,7 +117,9 @@ const sum = computed(() => view.value.reduce((s, r) => ({
 const unchecked = computed(() => rows.value.filter(r => !r.checked).length)
 
 function check(row) {
-  row.checked = true
+  const key = row.no.startsWith('DZ') ? row.no.replace(/^DZ/, '') : row.no
+  const hit = store.orders.find(o => o.no === key || 'DZ' + o.no.slice(2) === row.no)
+  if (hit) checkedMap.value = { ...checkedMap.value, [hit.no]: true }
   ElMessage.success(`单据 ${row.no} 已核对收录`)
 }
 </script>

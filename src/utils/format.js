@@ -25,3 +25,10 @@ export function dt(v) {
   if (!v) return '—'
   return String(v).replace('T', ' ').slice(0, 16)
 }
+
+/** 相对当前时间生成时间串：offsetHours(-4) = 4 小时前 */
+export function offsetHours(h) {
+  const d = new Date(Date.now() + h * 3600000)
+  const p = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}

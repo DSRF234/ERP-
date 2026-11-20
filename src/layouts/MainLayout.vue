@@ -100,14 +100,15 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import { tickets } from '@/data/aftersale'
+import { useAfterStore } from '@/stores/aftersale'
 
 const route = useRoute()
 const router = useRouter()
 const store = useUserStore()
+const afterStore = useAfterStore()
 
 const initial = computed(() => (store.name || '星').slice(0, 1))
-const waitCount = computed(() => tickets.filter(t => t.status === 'wait').length)
+const waitCount = computed(() => afterStore.counts.wait)
 
 async function onCommand(cmd) {
   if (cmd !== 'logout') return

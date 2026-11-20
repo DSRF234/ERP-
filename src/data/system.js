@@ -22,7 +22,8 @@ export const PERM_TREE = [
   M('m-order', '订单管理', [
     PG('p-order-review', '订单审核', [
       ['b-order-review-view', '查看'], ['b-order-review-pass', '审核'],
-      ['b-order-review-reject', '驳回'], ['b-order-review-export', '导出']
+      ['b-order-review-reject', '驳回'], ['b-order-review-edit', '编辑'],
+      ['b-order-review-add', '新建订单'], ['b-order-review-export', '导出']
     ]),
     PG('p-order-pending', '待发货', [
       ['b-order-pending-view', '查看'], ['b-order-pending-edit', '编辑'],
@@ -31,11 +32,11 @@ export const PERM_TREE = [
     ]),
     PG('p-order-shipped', '已发货', [
       ['b-order-shipped-view', '查看'], ['b-order-shipped-edit', '编辑'],
-      ['b-order-shipped-export', '导出']
+      ['b-order-shipped-print', '打印面单'], ['b-order-shipped-export', '导出']
     ]),
     PG('p-order-done', '已完结', [
       ['b-order-done-view', '查看'], ['b-order-done-export', '导出'],
-      ['b-order-done-copy', '复制信息']
+      ['b-order-done-copy', '复制信息'], ['b-order-done-aftersale', '申请售后']
     ])
   ]),
   M('m-purchase', '采购管理', [
