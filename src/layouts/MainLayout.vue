@@ -35,7 +35,7 @@
         <el-sub-menu index="aftersale">
           <template #title><el-icon><Service /></el-icon><span>售后管理</span></template>
           <el-menu-item index="/aftersale/wait">
-            售后待处理<span class="badge">3</span>
+            售后待处理<span v-if="waitCount" class="badge">{{ waitCount }}</span>
           </el-menu-item>
           <el-menu-item index="/aftersale/doing">售后处理中</el-menu-item>
           <el-menu-item index="/aftersale/done">售后处理完成</el-menu-item>
@@ -100,12 +100,14 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { tickets } from '@/data/aftersale'
 
 const route = useRoute()
 const router = useRouter()
 const store = useUserStore()
 
 const initial = computed(() => (store.name || '星').slice(0, 1))
+const waitCount = computed(() => tickets.filter(t => t.status === 'wait').length)
 
 async function onCommand(cmd) {
   if (cmd !== 'logout') return

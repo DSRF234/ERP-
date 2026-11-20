@@ -14,7 +14,7 @@
         <el-option :label="f.label" value="" />
         <el-option v-for="o in f.options" :key="o" :label="o" :value="o" />
       </el-select>
-      <el-button size="small" type="primary" @click="noop">查找</el-button>
+      <el-button size="small" type="primary" @click="noop">查询</el-button>
       <el-button size="small" @click="reset">重置</el-button>
       <span class="count">共 {{ view.length }} 条</span>
     </div>

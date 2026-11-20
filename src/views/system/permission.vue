@@ -1,42 +1,59 @@
 <template>
   <div>
-    <PageHeader title="权限管理" sub="按职位分配，粒度到模块 / 页面 / 按钮三级">
+    <PageHeader title="权限管理" sub="以「职位」为单位分配权限，粒度到模块 → 页面 → 按钮三级。勾选或取消任意一项后点「保存分配」即生效，职位下所有账号自动继承；系统共 71 项按钮级权限。">
       <el-button size="small" @click="restore">恢复默认</el-button>
-      <el-button size="small" type="primary" @click="save">保存分配</el-button>
+      <el-button size="small" type="primary" :plain="!dirty" :disabled="!dirty" @click="save">
+        {{ dirty ? '保存分配' : '已保存' }}
+      </el-button>
     </PageHeader>
 
     <div class="layout">
       <div class="card posts">
         <div class="card-head"><h3>职位</h3><span class="extra">{{ posts.length }} 个</span></div>
         <div class="plist">
-          <div v-for="p in posts" :key="p.name" class="pitem" :class="{ on: current === p.name }" @click="current = p.name">
-            <span class="pn">{{ p.name }}</span>
-            <span class="pc">{{ p.count }} 项</span>
+          <div v-for="p in posts" :key="p.id" class="pitem" :class="{ on: current === p.id }" @click="selectPost(p.id)">
+            <div class="pi-l">
+              <span class="pn">{{ p.name }}<em v-if="p.builtin" class="bi">内置</em><em v-if="p.status === '停用'" class="bi off">停用</em></span>
+              <span class="pd">{{ p.dept }}</span>
+            </div>
+            <span class="pc">{{ p.perms.length }} 项</span>
           </div>
         </div>
+        <div class="p-note">共 {{ TOTAL_PERMS }} 项按钮级权限，未勾选的页面与按钮该职位不可见。</div>
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h3>{{ current }} · 权限树</h3>
-          <span class="extra">已勾选 {{ checkedCount }} / {{ totalCount }} 项</span>
+          <h3>{{ curPost?.name }} · 权限树</h3>
+          <el-tag v-if="curPost?.status === '停用'" size="small" type="warning" effect="plain" style="margin-left:6px">职位已停用，账号无法登录</el-tag>
+          <span class="meta">{{ curPost?.dept }} · {{ curPost?.scope }}</span>
+          <span class="extra">
+            已勾选 <b>{{ checkedCount }}</b> / {{ TOTAL_PERMS }} 项
+            <el-button link type="primary" size="small" @click="checkAll">全选</el-button>
+            <el-button link type="primary" size="small" @click="clearAll">清空</el-button>
+          </span>
         </div>
         <div class="tree">
           <el-tree
             ref="treeRef"
-            :data="tree"
+            :data="PERM_TREE"
             show-checkbox
             node-key="id"
             default-expand-all
-            :default-checked-keys="defaultKeys"
+            :props="{ label: 'label', children: 'children' }"
             @check="onCheck">
             <template #default="{ data }">
               <span class="node">
-                <span class="label">{{ data.label }}</span>
-                <span v-if="data.children" class="badge">{{ data.label.includes('管理') || data.label.includes('看板') || data.label.includes('设置') ? '' : '' }}</span>
+                <span class="label" :class="{ mod: isModule(data), page: isPage(data) }">{{ data.label }}</span>
+                <span v-if="data.children" class="badge" :class="{ full: stat(data).c === stat(data).t }">
+                  {{ stat(data).c }} / {{ stat(data).t }}
+                </span>
               </span>
             </template>
           </el-tree>
+        </div>
+        <div class="t-foot">
+          勾模块则其下全部页面与按钮一并勾选；取消任一子项模块变半选。按钮级权限同时管「看不看得见」与「点不点得动」。老板职位默认拥有全部 71 项，同样可勾选或取消。
         </div>
       </div>
     </div>
@@ -44,92 +61,116 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
+import { posts, accountsOfPost, PERM_TREE, TOTAL_PERMS, ALL_BUTTON_IDS, DEFAULT_PERMS } from '@/data/system'
 
-const posts = [
-  { name: '老板', count: 71 },
-  { name: '运营', count: 24 },
-  { name: '采购', count: 15 },
-  { name: '仓管', count: 18 },
-  { name: '售后', count: 12 },
-  { name: '财务', count: 14 }
-]
-const current = ref('运营')
+const route = useRoute()
 const treeRef = ref(null)
+const current = ref(posts.find(p => !p.builtin)?.id || posts[0].id)
+const checkedKeys = ref([])
 
-const P = (label, id) => ({ id, label })
-const M = (label, id, children) => ({ id, label, children })
+const curPost = computed(() => posts.find(p => p.id === current.value) || posts[0])
+const isBoss = computed(() => curPost.value?.builtin === true)
+const checkedCount = computed(() => checkedKeys.value.filter(k => k.startsWith('b-')).length)
+/* 与已保存的职位权限是否一致 */
+const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x))
+const dirty = computed(() => !sameSet(checkedKeys.value, curPost.value.perms || []))
 
-const tree = [
-  M('订单管理', 'm-order', [
-    M('订单审核', 'p-review', [P('查看', 'b-review-view'), P('审核', 'b-review-pass'), P('驳回', 'b-review-reject'), P('导出', 'b-review-export')]),
-    M('待发货', 'p-pending', [P('查看', 'b-pending-view'), P('编辑', 'b-pending-edit'), P('撤回订单', 'b-pending-back')]),
-    M('已发货', 'p-shipped', [P('查看', 'b-shipped-view'), P('编辑', 'b-shipped-edit')]),
-    M('已完结', 'p-done', [P('查看', 'b-done-view'), P('导出', 'b-done-export')])
-  ]),
-  M('采购管理', 'm-purchase', [
-    M('采购订单', 'p-po', [P('查看', 'b-po-view'), P('新建', 'b-po-add'), P('提交', 'b-po-submit')]),
-    M('历史采购单', 'p-poh', [P('查看', 'b-poh-view'), P('导出', 'b-poh-export')]),
-    M('供应商管理', 'p-sup', [P('查看', 'b-sup-view'), P('新增', 'b-sup-add'), P('删除', 'b-sup-del')])
-  ]),
-  M('库存管理', 'm-inv', [
-    M('库存记录', 'p-stock', [P('查看', 'b-stock-view'), P('设置预警', 'b-stock-warn')]),
-    M('仓库盘点', 'p-take', [P('查看', 'b-take-view'), P('创建任务', 'b-take-add'), P('盘点', 'b-take-do')])
-  ]),
-  M('售后管理', 'm-after', [
-    M('售后待处理', 'p-wait', [P('查看', 'b-wait-view'), P('审核', 'b-wait-audit'), P('导出', 'b-wait-export')]),
-    M('售后处理中', 'p-doing', [P('查看', 'b-doing-view'), P('退款', 'b-doing-refund'), P('换货', 'b-doing-exchange'), P('补发', 'b-doing-resend')]),
-    M('售后处理完成', 'p-adone', [P('查看', 'b-adone-view'), P('导出', 'b-adone-export')])
-  ]),
-  M('财务管理', 'm-fin', [
-    M('对账中心', 'p-rec', [P('查看', 'b-rec-view'), P('核对', 'b-rec-check')]),
-    M('发货数据', 'p-ship', [P('查看', 'b-ship-view')]),
-    M('商品信息', 'p-goods', [P('查看', 'b-goods-view')]),
-    M('库存积压', 'p-aging', [P('查看', 'b-aging-view')]),
-    M('应付账款台账', 'p-pay', [P('查看', 'b-pay-view'), P('审核', 'b-pay-audit')])
-  ]),
-  M('数据看板', 'm-dash', [M('经营数据看板', 'p-dash', [P('查看', 'b-dash-view'), P('导出', 'b-dash-export')])]),
-  M('系统设置', 'm-sys', [
-    M('职位管理', 'p-post', [P('查看', 'b-post-view'), P('新建', 'b-post-add'), P('编辑', 'b-post-edit')]),
-    M('账号管理', 'p-acc', [P('查看', 'b-acc-view'), P('新建', 'b-acc-add'), P('重置密码', 'b-acc-pwd')]),
-    M('权限管理', 'p-perm', [P('查看', 'b-perm-view'), P('保存分配', 'b-perm-save')]),
-    M('发货仓设置', 'p-wh', [P('查看', 'b-wh-view'), P('更改地区', 'b-wh-edit')])
-  ])
-]
+/* 叶子节点集合，用于统计模块 / 页面已选数 */
+const leafIdsOf = node => node.children
+  ? node.children.flatMap(c => c.children ? leafIdsOf(c) : [c.id])
+  : [node.id]
+const isModule = d => !!d.children && d.children.some(c => c.children)
+const isPage = d => !!d.children && !d.children.some(c => c.children)
+const stat = d => {
+  const ids = leafIdsOf(d)
+  return { c: ids.filter(i => checkedKeys.value.includes(i)).length, t: ids.length }
+}
 
-const defaultKeys = [
-  'b-review-view', 'b-review-pass', 'b-review-reject', 'b-pending-view', 'b-pending-edit',
-  'b-shipped-view', 'b-done-view', 'b-stock-view', 'b-stock-warn', 'b-dash-view'
-]
+/* 切换职位：把该职位已存的权限回填到树；老板职位默认全集，但同样可编辑 */
+function syncFromPost() {
+  const keys = (curPost.value.perms || []).filter(k => k.startsWith('b-'))
+  checkedKeys.value = keys
+  nextTick(() => {
+    treeRef.value?.setCheckedKeys(checkedKeys.value)
+    checkedKeys.value = (treeRef.value?.getCheckedKeys(true) || checkedKeys.value).filter(k => k.startsWith('b-'))
+  })
+}
+watch(current, syncFromPost, { immediate: true })
 
-const totalCount = 71
-const checkedCount = ref(defaultKeys.length)
+function selectPost(id) {
+  if (id === current.value) return
+  if (dirty.value) ElMessage.warning('已放弃「' + curPost.value.name + '」未保存的修改')
+  current.value = id
+}
 
+/* 任一复选框勾选 / 取消后同步计数 */
 function onCheck() {
-  const checked = treeRef.value.getCheckedKeys(true)
-  checkedCount.value = checked.filter(k => k.startsWith('b-')).length
+  checkedKeys.value = (treeRef.value?.getCheckedKeys(true) || []).filter(k => k.startsWith('b-'))
 }
+
+function checkAll() {
+  checkedKeys.value = [...ALL_BUTTON_IDS]
+  treeRef.value?.setCheckedKeys([...ALL_BUTTON_IDS])
+}
+
+function clearAll() {
+  checkedKeys.value = []
+  treeRef.value?.setCheckedKeys([])
+}
+
 function restore() {
-  treeRef.value.setCheckedKeys(defaultKeys)
-  checkedCount.value = defaultKeys.length
-  ElMessage.success('已恢复该职位的默认权限')
+  const def = DEFAULT_PERMS[current.value] || []
+  checkedKeys.value = [...def]
+  treeRef.value?.setCheckedKeys(def)
+  ElMessage.success(`已恢复「${curPost.value.name}」的默认权限（${def.length} 项），点「保存分配」后生效`)
 }
+
 function save() {
-  ElMessage.success(`权限已保存，${current.value} 职位下 3 个账号已同步`)
+  if (!dirty.value) return
+  curPost.value.perms = [...checkedKeys.value]
+  const n = accountsOfPost(current.value).length
+  const tail = isBoss.value ? '，未勾选的菜单与按钮老板账号也将不可见' : ''
+  ElMessage.success(`权限已保存（${checkedKeys.value.length} 项），${curPost.value.name} 职位下 ${n} 个账号已同步${tail}`)
 }
+
+onMounted(() => {
+  const id = route.query.post
+  if (id && posts.some(p => p.id === id)) current.value = id
+})
 </script>
 
 <style scoped>
-.layout { display: grid; grid-template-columns: 220px 1fr; gap: 12px; }
+.layout { display: grid; grid-template-columns: 232px 1fr; gap: 12px; align-items: start; }
+.posts { position: sticky; top: 0; }
 .plist { padding: 6px 0; }
-.pitem { display: flex; align-items: center; padding: 9px 16px; cursor: pointer; font-size: 13px; }
+.pitem { display: flex; align-items: center; padding: 8px 16px; cursor: pointer; }
 .pitem:hover { background: var(--fill); }
-.pitem.on { background: var(--brand-l); color: var(--brand-d); font-weight: 600; border-right: 3px solid var(--brand); }
-.pitem .pc { margin-left: auto; font-size: 11.5px; color: var(--ink-3); }
-.pitem.on .pc { color: var(--brand-d); }
-.tree { padding: 12px 16px 18px; max-height: 640px; overflow: auto; }
-.node .label { font-size: 13px; }
+.pitem.on { background: var(--brand-l); border-right: 3px solid var(--brand); }
+.pitem.on .pn, .pitem.on .pc { color: var(--brand-d); font-weight: 600; }
+.pi-l { display: flex; flex-direction: column; line-height: 1.35; }
+.pn { font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
+.bi { font-style: normal; font-size: 10px; line-height: 14px; padding: 0 4px; border-radius: 3px; background: var(--fill); color: var(--ink-3); font-weight: 400; }
+.bi.off { background: #FFF3E6; color: #B26B00; }
+.pd { font-size: 10.5px; color: var(--ink-3); }
+.pc { margin-left: auto; font-size: 11.5px; color: var(--ink-3); }
+.p-note { font-size: 11.5px; line-height: 1.7; color: var(--ink-3); padding: 10px 16px 14px; border-top: 1px dashed var(--line-2); margin-top: 6px; }
+.meta { margin-left: 10px; font-size: 11.5px; color: var(--ink-3); }
+.card-head .extra { display: inline-flex; align-items: center; gap: 8px; }
+.card-head .extra b { color: var(--brand-d); font-weight: 600; }
+.tree { padding: 12px 16px 6px; max-height: 600px; overflow: auto; }
+.node { display: flex; align-items: center; gap: 8px; }
+.label { font-size: 13px; }
+.label.mod { font-size: 13px; font-weight: 600; }
+.label.page { color: var(--ink-2); }
+.badge {
+  font-size: 10.5px; line-height: 16px; padding: 0 6px; border-radius: 8px;
+  background: var(--fill); color: var(--ink-3); font-variant-numeric: tabular-nums;
+}
+.badge.full { background: var(--ok-l); color: var(--ok); }
+.t-foot { font-size: 11.5px; color: var(--ink-3); line-height: 1.7; padding: 10px 16px 14px; border-top: 1px dashed var(--line-2); }
 :deep(.el-tree-node__content) { height: 30px; }
 </style>
