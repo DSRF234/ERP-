@@ -82,11 +82,6 @@
       </el-table>
     </div>
 
-    <div class="tip">
-      <b>说明</b>　账号权限从职位继承，职位变更后权限随之变更。职位停用时，其下账号会<b>同步停用</b>、立即无法登录；
-      职位重新启用后账号不会自动恢复，需在本页单独启用。老板账号为系统内置，不可停用或删除。
-    </div>
-
     <!-- 新建 / 编辑 -->
     <el-dialog v-model="dlgVisible" :title="editing ? '编辑账号' : '新建账号'" width="520px">
       <div class="field"><label>姓名</label>

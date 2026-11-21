@@ -16,6 +16,11 @@ export const nowStr = () => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 export const todayStr = () => nowStr().slice(0, 10)
+const offsetH = h => {
+  const d = new Date(Date.now() + h * 3600000)
+  const p = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
 export const stampStr = () => nowStr().replace(/[-: ]/g, '').slice(0, 8)
 
 /* 六节点流程条 */
@@ -52,9 +57,9 @@ const C = (name, phone, addr) => ({ name, phone, addr })
 export const tickets = reactive([
   /* ===== 待处理（客服尚未审核） ===== */
   {
-    ticket: 'AS20261116001', orderNo: 'TM20261116001', channel: '天猫',
+    ticket: 'AS20261116001', orderNo: 'TM20261116002', channel: '天猫',
     applyType: '退货退款', type: '退货', reason: '商品破损', proofs: ['破损外箱.jpg', '瓶身裂纹.jpg', '开箱.mp4'],
-    applyTime: '2026-11-16 09:20', sla: '2026-11-17 09:20', logistics: '已签收',
+    applyTime: '2026-11-16 09:20', sla: offsetH(6), logistics: '已签收',
     expressNo: 'ZT7788990011', goods: '雅诗兰黛小棕瓶 50ml ×1', sku: 'SKU-100231', qty: 1,
     orderTime: '2026-11-14 10:22', orderAmount: 1286, amount: 0,
     customer: C('陈**', '138****6621', '浙江省杭州市余杭区 ******'),
@@ -65,7 +70,7 @@ export const tickets = reactive([
   {
     ticket: 'AS20261116002', orderNo: 'XC20261115003', channel: '小程序',
     applyType: '补发', type: '补发', reason: '少件', proofs: ['包裹称重.jpg'],
-    applyTime: '2026-11-16 08:10', sla: '2026-11-18 04:00', logistics: '已签收',
+    applyTime: '2026-11-16 08:10', sla: offsetH(-4), logistics: '已签收',
     expressNo: 'SF1122334455', goods: '星野香薰礼盒 ×3', sku: 'SKU-300045', qty: 1,
     orderTime: '2026-11-13 16:12', orderAmount: 199, amount: 0,
     customer: C('赵**', '139****3308', '江苏省南京市鼓楼区 ******'),
@@ -74,9 +79,9 @@ export const tickets = reactive([
     who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '', syncTime: '', repeat: false
   },
   {
-    ticket: 'AS20261115003', orderNo: 'DY20261114022', channel: '抖音',
+    ticket: 'AS20261115003', orderNo: 'DY20261114023', channel: '抖音',
     applyType: '仅退款', type: '仅退款', reason: '未按约定时间发货', proofs: ['聊天记录.jpg'],
-    applyTime: '2026-11-15 14:30', sla: '2026-11-19 14:30', logistics: '待签收',
+    applyTime: '2026-11-15 14:30', sla: offsetH(30), logistics: '待签收',
     expressNo: 'YT9988776655', goods: '星野收纳箱 大号 ×2', sku: 'SKU-400011', qty: 2,
     orderTime: '2026-11-14 12:30', orderAmount: 528, amount: 0,
     customer: C('郑**', '137****9920', '广东省深圳市南山区 ******'),
@@ -88,7 +93,7 @@ export const tickets = reactive([
   {
     ticket: 'AS20261118015', orderNo: 'TM20261117009', channel: '天猫',
     applyType: '部分仅退款', type: '部分仅退款', reason: '部分商品破损', proofs: ['外箱照片.jpg', '内件破损.jpg'],
-    applyTime: '2026-11-18 09:40', sla: '2026-11-21 09:40', logistics: '已签收',
+    applyTime: '2026-11-18 09:40', sla: offsetH(-11), logistics: '已签收',
     expressNo: 'ZT8899001122', goods: '雅诗兰黛小棕瓶 50ml ×2', sku: 'SKU-100231', qty: 2,
     orderTime: '2026-11-15 20:10', orderAmount: 2572, amount: 0,
     customer: C('施**', '138****4419', '江苏省无锡市滨湖区 ******'),
@@ -99,7 +104,7 @@ export const tickets = reactive([
   {
     ticket: 'AS20261118016', orderNo: 'DY20261116012', channel: '抖音',
     applyType: '补差价', type: '补差价', reason: '同款降价', proofs: ['降价页截图.jpg', '订单截图.jpg'],
-    applyTime: '2026-11-18 08:25', sla: '2026-11-21 08:25', logistics: '已签收',
+    applyTime: '2026-11-18 08:25', sla: offsetH(3), logistics: '已签收',
     expressNo: 'YT4455667788', goods: '星野纯棉四件套 ×1', sku: 'SKU-200118', qty: 1,
     orderTime: '2026-11-16 21:05', orderAmount: 359, amount: 0,
     customer: C('罗**', '137****6620', '湖南省长沙市岳麓区 ******'),
@@ -110,7 +115,7 @@ export const tickets = reactive([
   {
     ticket: 'AS20261117017', orderNo: 'JD20261117005', channel: '京东',
     applyType: '更改地址', type: '更改地址', reason: '收货地址填错', proofs: [],
-    applyTime: '2026-11-17 16:10', sla: '2026-11-19 16:10', logistics: '运输中',
+    applyTime: '2026-11-17 16:10', sla: offsetH(-20), logistics: '运输中',
     expressNo: 'YZ7788112233', goods: '星野收纳箱 大号 ×2', sku: 'SKU-400011', qty: 2,
     orderTime: '2026-11-17 09:30', orderAmount: 528, amount: 0,
     customer: C('唐**', '135****9908', '重庆市渝北区 ******'),
@@ -121,7 +126,7 @@ export const tickets = reactive([
   {
     ticket: 'AS20261117018', orderNo: 'XC20261116004', channel: '小程序',
     applyType: '换货', type: '换货', reason: '外盒破损', proofs: ['外盒压痕.jpg', '内件完好.jpg'],
-    applyTime: '2026-11-17 10:35', sla: '2026-11-20 10:35', logistics: '已签收',
+    applyTime: '2026-11-17 10:35', sla: offsetH(22), logistics: '已签收',
     expressNo: 'SF3344551177', goods: '兰蔻小黑瓶 30ml ×1', sku: 'SKU-100188', qty: 1,
     orderTime: '2026-11-15 18:50', orderAmount: 899, amount: 0,
     customer: C('贺**', '136****7782', '辽宁省大连市中山区 ******'),
@@ -132,7 +137,7 @@ export const tickets = reactive([
 
   /* ===== 处理中（五个队列） ===== */
   {
-    ticket: 'AS20261114004', orderNo: 'JD20261115012', channel: '京东',
+    ticket: 'AS20261114004', orderNo: 'JD20261115013', channel: '京东',
     applyType: '换货', type: '换货', reason: '规格不符', proofs: ['实物对比.jpg'],
     applyTime: '2026-11-14 11:00', sla: '2026-11-16 11:00', logistics: '运输中',
     expressNo: 'YZ5566778899', goods: '兰蔻小黑瓶 30ml ×1', sku: 'SKU-100188', qty: 1,
@@ -144,7 +149,7 @@ export const tickets = reactive([
     who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '', syncTime: '', repeat: false
   },
   {
-    ticket: 'AS20261113005', orderNo: 'TM20261112008', channel: '天猫',
+    ticket: 'AS20261113005', orderNo: 'TM20261112009', channel: '天猫',
     applyType: '退货退款', type: '退货', reason: '不喜欢', proofs: ['商品实拍.jpg'],
     applyTime: '2026-11-13 10:15', sla: '2026-11-16 10:15', logistics: '退回在途',
     expressNo: 'ZT1122334455', goods: '雅诗兰黛小棕瓶 50ml ×2', sku: 'SKU-100231', qty: 2,

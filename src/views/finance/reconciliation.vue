@@ -59,9 +59,6 @@
       </el-table>
     </div>
 
-    <div class="tip">
-      <b>约束</b>　只有财务人员能操作财务板块，其他业务人员及领导无权操作，财务部门领导只能查看。
-    </div>
   </div>
 </template>
 

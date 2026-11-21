@@ -222,12 +222,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { money, timeLeft } from '@/utils/format'
 import { useOrderStore } from '@/stores/order'
-import { useAfterStore } from '@/stores/aftersale'
 import { useStockStore, WAREHOUSES } from '@/stores/stock'
+import { tickets as afterTickets, nowStr } from '@/data/aftersale'
 
 const props = defineProps({ status: { type: String, default: 'review' } })
 const store = useOrderStore()
-const afterStore = useAfterStore()
 const stockStore = useStockStore()
 const warehouses = WAREHOUSES
 
@@ -339,11 +338,52 @@ function openAfter(row) {
   afterForm.reason = ''
   afterVisible.value = true
 }
+const pad = n => String(n).padStart(2, '0')
+function plusHours(h) {
+  const d = new Date(Date.now() + h * 3600000)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+function genTicketNo() {
+  const d = new Date()
+  return 'AS' + `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
+    String(afterTickets.length + 1).padStart(3, '0')
+}
+
+/** 申请售后：写入售后共享数据层（售后页读取的就是这份） */
 function submitAfter() {
   if (!afterForm.reason) return ElMessage.error('请填写售后原因')
-  afterStore.createFromOrder(cur.value, afterForm.type, afterForm.reason)
+  const o = cur.value
+  const g = o.goods[0] || {}
+  const APPLY_TYPE = { '退货': '退货退款', '仅退款': '仅退款', '换货': '换货', '补发': '补发', '补差价': '补差价' }
+
+  afterTickets.unshift({
+    ticket: genTicketNo(),
+    orderNo: o.no,
+    channel: o.platform,
+    applyType: APPLY_TYPE[afterForm.type] || afterForm.type,
+    type: afterForm.type,
+    reason: afterForm.reason,
+    proofs: [],
+    applyTime: nowStr(),
+    sla: plusHours(24),
+    logistics: '已签收',
+    expressNo: o.expressNo || '—',
+    goods: `${g.name || '商品'} ${g.spec || ''} ×${g.qty || 1}`,
+    sku: g.sku || '—',
+    qty: g.qty || 1,
+    orderTime: o.orderTime || o.payTime,
+    orderAmount: o.amount,
+    amount: 0,
+    customer: { name: o.receiver, phone: o.phone, addr: o.address },
+    message: afterForm.reason,
+    status: 'wait', queue: '', result: '—', duty: '', auditRemark: '', auditor: '', auditTime: '',
+    who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '', syncTime: '', repeat: false
+  })
+
+  store.setAfterStatus(o.no, '售后中')
   afterVisible.value = false
-  ElMessage.success('售后单已创建，已进入「售后待处理」')
+  const t = afterTickets[0].ticket
+  ElMessage.success(`售后单 ${t} 已创建，已进入「售后待处理」，订单状态改为「售后中」`)
 }
 </script>
 

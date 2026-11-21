@@ -51,12 +51,6 @@
       </el-table>
     </div>
 
-    <div class="tip">
-      <b>说明</b>　仓库清单在系统初始化时写入，本页不提供新建、删除和改名；一个地区只能归一个仓，
-      各仓地区数之和恒等于已覆盖数（{{ warehouses.map(w => w.areas.length).join(' + ') }} = {{ coveredCount }}）。
-      负责地区不能为空；未分配地区不做兜底——地区无人负责时订单默认发货仓为空，需客服在下单或发货环节手工指定。
-    </div>
-
     <!-- 更改地区 -->
     <el-dialog v-model="dlgVisible" :title="cur ? cur.name + ' · 更改负责地区' : ''" width="760px">
       <template v-if="cur">

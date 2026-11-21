@@ -82,8 +82,756 @@ const SEED = [
     expressNo: 'SF1122334455', shippedAt: '2026-11-10 15:20', doneAt: '2026-11-13 09:40' }
 ]
 
+/* 历史已完结订单：与售后预置单一一对应 */
+const HIST = [
+  {
+    "no": "TM20261116002",
+    "platform": "天猫",
+    "shop": "天猫店铺",
+    "receiver": "陈**",
+    "phone": "138****6621",
+    "address": "浙江省杭州市余杭区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 1286.0,
+    "settle": 64.3,
+    "actual": 1221.7,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-14 10:22",
+    "orderTime": "2026-11-14 10:22",
+    "platformGoods": "雅诗兰黛小棕瓶 50ml",
+    "goods": [
+      {
+        "name": "雅诗兰黛小棕瓶",
+        "spec": "50ml",
+        "qty": 1,
+        "sku": "SKU-100231"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261116002",
+    "shippedAt": "2026-11-14 10:22",
+    "doneAt": "2026-11-14 10:22",
+    "financePushed": false
+  },
+  {
+    "no": "XC20261115003",
+    "platform": "小程序",
+    "shop": "小程序店铺",
+    "receiver": "李**",
+    "phone": "139****3308",
+    "address": "广东省广州市白云区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 199.0,
+    "settle": 9.95,
+    "actual": 189.05,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-13 16:12",
+    "orderTime": "2026-11-13 16:12",
+    "platformGoods": "星野香薰礼盒",
+    "goods": [
+      {
+        "name": "星野香薰礼盒",
+        "spec": "—",
+        "qty": 1,
+        "sku": "SKU-300045"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261115003",
+    "shippedAt": "2026-11-13 16:12",
+    "doneAt": "2026-11-13 16:12",
+    "financePushed": false
+  },
+  {
+    "no": "DY20261114023",
+    "platform": "抖音",
+    "shop": "抖音店铺",
+    "receiver": "王**",
+    "phone": "137****9012",
+    "address": "江苏省南京市鼓楼区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 528.0,
+    "settle": 26.4,
+    "actual": 501.6,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-14 12:30",
+    "orderTime": "2026-11-14 12:30",
+    "platformGoods": "星野收纳箱 大号",
+    "goods": [
+      {
+        "name": "星野收纳箱",
+        "spec": "大号",
+        "qty": 2,
+        "sku": "SKU-400011"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261114023",
+    "shippedAt": "2026-11-14 12:30",
+    "doneAt": "2026-11-14 12:30",
+    "financePushed": false
+  },
+  {
+    "no": "TM20261117009",
+    "platform": "天猫",
+    "shop": "天猫店铺",
+    "receiver": "赵**",
+    "phone": "136****4477",
+    "address": "上海市浦东新区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 2572.0,
+    "settle": 128.6,
+    "actual": 2443.4,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-15 20:10",
+    "orderTime": "2026-11-15 20:10",
+    "platformGoods": "雅诗兰黛小棕瓶 50ml",
+    "goods": [
+      {
+        "name": "雅诗兰黛小棕瓶",
+        "spec": "50ml",
+        "qty": 2,
+        "sku": "SKU-100231"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261117009",
+    "shippedAt": "2026-11-15 20:10",
+    "doneAt": "2026-11-15 20:10",
+    "financePushed": false
+  },
+  {
+    "no": "DY20261116012",
+    "platform": "抖音",
+    "shop": "抖音店铺",
+    "receiver": "周**",
+    "phone": "135****2089",
+    "address": "北京市朝阳区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 359.0,
+    "settle": 17.95,
+    "actual": 341.05,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-16 21:05",
+    "orderTime": "2026-11-16 21:05",
+    "platformGoods": "星野纯棉四件套",
+    "goods": [
+      {
+        "name": "星野纯棉四件套",
+        "spec": "—",
+        "qty": 1,
+        "sku": "SKU-200118"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261116012",
+    "shippedAt": "2026-11-16 21:05",
+    "doneAt": "2026-11-16 21:05",
+    "financePushed": false
+  },
+  {
+    "no": "JD20261117005",
+    "platform": "京东",
+    "shop": "京东店铺",
+    "receiver": "吴**",
+    "phone": "134****7731",
+    "address": "四川省成都市武侯区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 528.0,
+    "settle": 26.4,
+    "actual": 501.6,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-17 09:30",
+    "orderTime": "2026-11-17 09:30",
+    "platformGoods": "星野收纳箱 大号",
+    "goods": [
+      {
+        "name": "星野收纳箱",
+        "spec": "大号",
+        "qty": 2,
+        "sku": "SKU-400011"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261117005",
+    "shippedAt": "2026-11-17 09:30",
+    "doneAt": "2026-11-17 09:30",
+    "financePushed": false
+  },
+  {
+    "no": "XC20261116004",
+    "platform": "小程序",
+    "shop": "小程序店铺",
+    "receiver": "郑**",
+    "phone": "133****5590",
+    "address": "湖北省武汉市洪山区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 899.0,
+    "settle": 44.95,
+    "actual": 854.05,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-15 18:50",
+    "orderTime": "2026-11-15 18:50",
+    "platformGoods": "兰蔻小黑瓶 30ml",
+    "goods": [
+      {
+        "name": "兰蔻小黑瓶",
+        "spec": "30ml",
+        "qty": 1,
+        "sku": "SKU-100188"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261116004",
+    "shippedAt": "2026-11-15 18:50",
+    "doneAt": "2026-11-15 18:50",
+    "financePushed": false
+  },
+  {
+    "no": "JD20261115013",
+    "platform": "京东",
+    "shop": "京东店铺",
+    "receiver": "孙**",
+    "phone": "132****6642",
+    "address": "陕西省西安市雁塔区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 899.0,
+    "settle": 44.95,
+    "actual": 854.05,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-13 21:40",
+    "orderTime": "2026-11-13 21:40",
+    "platformGoods": "兰蔻小黑瓶 30ml",
+    "goods": [
+      {
+        "name": "兰蔻小黑瓶",
+        "spec": "30ml",
+        "qty": 1,
+        "sku": "SKU-100188"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261115013",
+    "shippedAt": "2026-11-13 21:40",
+    "doneAt": "2026-11-13 21:40",
+    "financePushed": false
+  },
+  {
+    "no": "TM20261112009",
+    "platform": "天猫",
+    "shop": "天猫店铺",
+    "receiver": "刘**",
+    "phone": "131****8803",
+    "address": "福建省厦门市思明区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 2340.0,
+    "settle": 117.0,
+    "actual": 2223.0,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-12 18:12",
+    "orderTime": "2026-11-12 18:12",
+    "platformGoods": "雅诗兰黛小棕瓶 50ml",
+    "goods": [
+      {
+        "name": "雅诗兰黛小棕瓶",
+        "spec": "50ml",
+        "qty": 2,
+        "sku": "SKU-100231"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261112009",
+    "shippedAt": "2026-11-12 18:12",
+    "doneAt": "2026-11-12 18:12",
+    "financePushed": false
+  },
+  {
+    "no": "XC20261110002",
+    "platform": "小程序",
+    "shop": "小程序店铺",
+    "receiver": "黄**",
+    "phone": "130****2214",
+    "address": "山东省济南市历下区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 76.0,
+    "settle": 3.8,
+    "actual": 72.2,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-10 11:00",
+    "orderTime": "2026-11-10 11:00",
+    "platformGoods": "星野香薰蜡烛",
+    "goods": [
+      {
+        "name": "星野香薰蜡烛",
+        "spec": "—",
+        "qty": 1,
+        "sku": "SKU-300052"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已退款",
+    "expressNo": "ZT0261110002",
+    "shippedAt": "2026-11-10 11:00",
+    "doneAt": "2026-11-10 11:00",
+    "financePushed": false
+  },
+  {
+    "no": "TM20261109004",
+    "platform": "天猫",
+    "shop": "天猫店铺",
+    "receiver": "徐**",
+    "phone": "138****6621",
+    "address": "浙江省杭州市余杭区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 359.0,
+    "settle": 17.95,
+    "actual": 341.05,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-09 14:05",
+    "orderTime": "2026-11-09 14:05",
+    "platformGoods": "星野纯棉四件套",
+    "goods": [
+      {
+        "name": "星野纯棉四件套",
+        "spec": "—",
+        "qty": 1,
+        "sku": "SKU-200118"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261109004",
+    "shippedAt": "2026-11-09 14:05",
+    "doneAt": "2026-11-09 14:05",
+    "financePushed": false
+  },
+  {
+    "no": "JD20261106003",
+    "platform": "京东",
+    "shop": "京东店铺",
+    "receiver": "马**",
+    "phone": "139****3308",
+    "address": "广东省广州市白云区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 899.0,
+    "settle": 44.95,
+    "actual": 854.05,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-06 20:15",
+    "orderTime": "2026-11-06 20:15",
+    "platformGoods": "兰蔻小黑瓶 30ml",
+    "goods": [
+      {
+        "name": "兰蔻小黑瓶",
+        "spec": "30ml",
+        "qty": 1,
+        "sku": "SKU-100188"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261106003",
+    "shippedAt": "2026-11-06 20:15",
+    "doneAt": "2026-11-06 20:15",
+    "financePushed": false
+  },
+  {
+    "no": "XC20261108001",
+    "platform": "小程序",
+    "shop": "小程序店铺",
+    "receiver": "朱**",
+    "phone": "137****9012",
+    "address": "江苏省南京市鼓楼区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 398.0,
+    "settle": 19.9,
+    "actual": 378.1,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-08 15:40",
+    "orderTime": "2026-11-08 15:40",
+    "platformGoods": "星野香薰礼盒",
+    "goods": [
+      {
+        "name": "星野香薰礼盒",
+        "spec": "—",
+        "qty": 2,
+        "sku": "SKU-300045"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261108001",
+    "shippedAt": "2026-11-08 15:40",
+    "doneAt": "2026-11-08 15:40",
+    "financePushed": false
+  },
+  {
+    "no": "TM20261114015",
+    "platform": "天猫",
+    "shop": "天猫店铺",
+    "receiver": "胡**",
+    "phone": "136****4477",
+    "address": "上海市浦东新区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 76.0,
+    "settle": 3.8,
+    "actual": 72.2,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-13 15:40",
+    "orderTime": "2026-11-13 15:40",
+    "platformGoods": "星野香薰蜡烛",
+    "goods": [
+      {
+        "name": "星野香薰蜡烛",
+        "spec": "—",
+        "qty": 1,
+        "sku": "SKU-300052"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "expressNo": "ZT0261114015",
+    "shippedAt": "2026-11-13 15:40",
+    "doneAt": "2026-11-13 15:40",
+    "financePushed": false
+  },
+  {
+    "no": "TM20261108021",
+    "platform": "天猫",
+    "shop": "天猫店铺",
+    "receiver": "郭**",
+    "phone": "135****2089",
+    "address": "北京市朝阳区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 1080.0,
+    "settle": 54.0,
+    "actual": 1026.0,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-08 09:30",
+    "orderTime": "2026-11-08 09:30",
+    "platformGoods": "雅诗兰黛小棕瓶 50ml",
+    "goods": [
+      {
+        "name": "雅诗兰黛小棕瓶",
+        "spec": "50ml",
+        "qty": 1,
+        "sku": "SKU-100231"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已退款",
+    "expressNo": "ZT0261108021",
+    "shippedAt": "2026-11-08 09:30",
+    "doneAt": "2026-11-08 09:30",
+    "financePushed": false
+  },
+  {
+    "no": "DY20261107015",
+    "platform": "抖音",
+    "shop": "抖音店铺",
+    "receiver": "林**",
+    "phone": "134****7731",
+    "address": "四川省成都市武侯区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 359.0,
+    "settle": 17.95,
+    "actual": 341.05,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-07 14:00",
+    "orderTime": "2026-11-07 14:00",
+    "platformGoods": "星野纯棉四件套",
+    "goods": [
+      {
+        "name": "星野纯棉四件套",
+        "spec": "—",
+        "qty": 1,
+        "sku": "SKU-200118"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已退款",
+    "expressNo": "ZT0261107015",
+    "shippedAt": "2026-11-07 14:00",
+    "doneAt": "2026-11-07 14:00",
+    "financePushed": false
+  },
+  {
+    "no": "DY20261105009",
+    "platform": "抖音",
+    "shop": "抖音店铺",
+    "receiver": "何**",
+    "phone": "133****5590",
+    "address": "湖北省武汉市洪山区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 264.0,
+    "settle": 13.2,
+    "actual": 250.8,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-05 19:40",
+    "orderTime": "2026-11-05 19:40",
+    "platformGoods": "星野收纳箱 大号",
+    "goods": [
+      {
+        "name": "星野收纳箱",
+        "spec": "大号",
+        "qty": 1,
+        "sku": "SKU-400011"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已完结",
+    "expressNo": "ZT0261105009",
+    "shippedAt": "2026-11-05 19:40",
+    "doneAt": "2026-11-05 19:40",
+    "financePushed": true
+  },
+  {
+    "no": "TM20261104007",
+    "platform": "天猫",
+    "shop": "天猫店铺",
+    "receiver": "高**",
+    "phone": "132****6642",
+    "address": "陕西省西安市雁塔区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 152.0,
+    "settle": 7.6,
+    "actual": 144.4,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-01 10:10",
+    "orderTime": "2026-11-01 10:10",
+    "platformGoods": "星野香薰蜡烛",
+    "goods": [
+      {
+        "name": "星野香薰蜡烛",
+        "spec": "—",
+        "qty": 2,
+        "sku": "SKU-300052"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已完结",
+    "expressNo": "ZT0261104007",
+    "shippedAt": "2026-11-01 10:10",
+    "doneAt": "2026-11-01 10:10",
+    "financePushed": true
+  },
+  {
+    "no": "JD20261103008",
+    "platform": "京东",
+    "shop": "京东店铺",
+    "receiver": "罗**",
+    "phone": "131****8803",
+    "address": "福建省厦门市思明区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 359.0,
+    "settle": 17.95,
+    "actual": 341.05,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-03 16:30",
+    "orderTime": "2026-11-03 16:30",
+    "platformGoods": "星野纯棉四件套",
+    "goods": [
+      {
+        "name": "星野纯棉四件套",
+        "spec": "—",
+        "qty": 1,
+        "sku": "SKU-200118"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已完结",
+    "expressNo": "ZT0261103008",
+    "shippedAt": "2026-11-03 16:30",
+    "doneAt": "2026-11-03 16:30",
+    "financePushed": true
+  },
+  {
+    "no": "JD20261112021",
+    "platform": "京东",
+    "shop": "京东店铺",
+    "receiver": "梁**",
+    "phone": "130****2214",
+    "address": "山东省济南市历下区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 718.0,
+    "settle": 35.9,
+    "actual": 682.1,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-11 10:20",
+    "orderTime": "2026-11-11 10:20",
+    "platformGoods": "星野纯棉四件套",
+    "goods": [
+      {
+        "name": "星野纯棉四件套",
+        "spec": "—",
+        "qty": 2,
+        "sku": "SKU-200118"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已退款",
+    "expressNo": "ZT0261112021",
+    "shippedAt": "2026-11-11 10:20",
+    "doneAt": "2026-11-11 10:20",
+    "financePushed": false
+  },
+  {
+    "no": "DY20261111018",
+    "platform": "抖音",
+    "shop": "抖音店铺",
+    "receiver": "宋**",
+    "phone": "138****6621",
+    "address": "浙江省杭州市余杭区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 152.0,
+    "settle": 7.6,
+    "actual": 144.4,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-10 20:30",
+    "orderTime": "2026-11-10 20:30",
+    "platformGoods": "星野香薰蜡烛",
+    "goods": [
+      {
+        "name": "星野香薰蜡烛",
+        "spec": "—",
+        "qty": 2,
+        "sku": "SKU-300052"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已完结",
+    "expressNo": "ZT0261111018",
+    "shippedAt": "2026-11-10 20:30",
+    "doneAt": "2026-11-10 20:30",
+    "financePushed": true
+  },
+  {
+    "no": "XC20261110007",
+    "platform": "小程序",
+    "shop": "小程序店铺",
+    "receiver": "谢**",
+    "phone": "139****3308",
+    "address": "广东省广州市白云区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 199.0,
+    "settle": 9.95,
+    "actual": 189.05,
+    "warehouse": "华东主仓",
+    "payTime": "2026-10-28 19:15",
+    "orderTime": "2026-10-28 19:15",
+    "platformGoods": "星野香薰礼盒",
+    "goods": [
+      {
+        "name": "星野香薰礼盒",
+        "spec": "—",
+        "qty": 1,
+        "sku": "SKU-300045"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已完结",
+    "expressNo": "ZT0261110007",
+    "shippedAt": "2026-10-28 19:15",
+    "doneAt": "2026-10-28 19:15",
+    "financePushed": true
+  },
+  {
+    "no": "TM20261109016",
+    "platform": "天猫",
+    "shop": "天猫店铺",
+    "receiver": "唐**",
+    "phone": "137****9012",
+    "address": "江苏省南京市鼓楼区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 1286.0,
+    "settle": 64.3,
+    "actual": 1221.7,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-09 12:00",
+    "orderTime": "2026-11-09 12:00",
+    "platformGoods": "雅诗兰黛小棕瓶 50ml",
+    "goods": [
+      {
+        "name": "雅诗兰黛小棕瓶",
+        "spec": "50ml",
+        "qty": 1,
+        "sku": "SKU-100231"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已完结",
+    "expressNo": "ZT0261109016",
+    "shippedAt": "2026-11-09 12:00",
+    "doneAt": "2026-11-09 12:00",
+    "financePushed": true
+  },
+  {
+    "no": "XC20261108014",
+    "platform": "小程序",
+    "shop": "小程序店铺",
+    "receiver": "许**",
+    "phone": "136****4477",
+    "address": "上海市浦东新区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 1798.0,
+    "settle": 89.9,
+    "actual": 1708.1,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-08 21:10",
+    "orderTime": "2026-11-08 21:10",
+    "platformGoods": "兰蔻小黑瓶 30ml",
+    "goods": [
+      {
+        "name": "兰蔻小黑瓶",
+        "spec": "30ml",
+        "qty": 2,
+        "sku": "SKU-100188"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "已完结",
+    "expressNo": "ZT0261108014",
+    "shippedAt": "2026-11-08 21:10",
+    "doneAt": "2026-11-08 21:10",
+    "financePushed": true
+  }
+]
+
 export const useOrderStore = defineStore('order', {
-  state: () => ({ orders: SEED.map(o => ({ ...o })) }),
+  state: () => ({ orders: [...SEED, ...HIST].map(o => ({ ...o })) }),
 
   getters: {
     /** 按状态取列表 */

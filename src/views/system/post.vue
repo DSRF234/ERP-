@@ -175,7 +175,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <div class="tip" style="margin-top:12px">移除后该账号失去本职位全部权限，所属职位显示「未分配」，需在账号管理中重新指派。</div>
+
     </el-dialog>
   </div>
 </template>
