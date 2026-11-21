@@ -1,6 +1,6 @@
 <template>
   <TablePage
-    title="库存积压" sub="库存剩余价值 · 按仓库查看" card-title="库存剩余价值" hint="可按仓库筛选查看积压货品" note="财务关心的是压了多少钱、压了多久，不是件数。"
+    title="库存积压" sub="库存剩余价值 · 按仓库查看" card-title="库存剩余价值" hint="可按仓库筛选查看积压货品"
     :columns="columns" :rows="rows" :filters="filters" :search-keys="searchKeys"
     search-placeholder="输入关键字查找" />
 </template>

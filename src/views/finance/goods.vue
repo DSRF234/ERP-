@@ -1,6 +1,6 @@
 <template>
   <TablePage
-    title="商品信息" sub="商品毛利表 · 收入 / 成本 / 毛利率" card-title="商品毛利表" hint="毛利额 = 收入 − 成本；毛利率 = 毛利额 ÷ 收入" note="成本按发货仓批次成本计算，不能取全仓平均，否则渠道毛利会失真。"
+    title="商品信息" sub="商品毛利表 · 收入 / 成本 / 毛利率" card-title="商品毛利表" hint="毛利额 = 收入 − 成本；毛利率 = 毛利额 ÷ 收入"
     :columns="columns" :rows="rows" :filters="filters" :search-keys="searchKeys"
     search-placeholder="输入关键字查找" />
 </template>

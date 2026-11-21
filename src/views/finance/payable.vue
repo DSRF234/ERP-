@@ -1,6 +1,6 @@
 <template>
   <TablePage
-    title="应付账款台账" sub="采购单应付 · 总金额与状态" card-title="应付账款台账" hint="储存所有采购订单与需财务支出的订单" note="总金额 = 采购金额 + 运费；运费由 WMS 按实际同步。"
+    title="应付账款台账" sub="采购单应付 · 总金额与状态" card-title="应付账款台账" hint="储存所有采购订单与需财务支出的订单"
     :columns="columns" :rows="rows" :filters="filters" :search-keys="searchKeys"
     search-placeholder="输入关键字查找" />
 </template>
