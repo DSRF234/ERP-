@@ -134,7 +134,7 @@ export const posts = reactive([
     note: '负责售后受理审核、退款与换补跟进'
   },
   {
-    id: 'post-fin', name: '财务', dept: '财务部', scope: '本部门', status: '停用',
+    id: 'post-fin', name: '财务', dept: '财务部', scope: '本部门', status: '启用',
     perms: pick(id => id.startsWith('b-rec') || id.startsWith('b-ship') || id.startsWith('b-goods') || id.startsWith('b-aging') || id.startsWith('b-pay') || id === 'b-order-done-view'),
     note: '负责对账、赔付与应付账款'
   }
@@ -145,7 +145,7 @@ export const DEFAULT_PERMS = Object.fromEntries(posts.map(p => [p.id, [...p.perm
 
 /* ---------------- 账号 ---------------- */
 export const accounts = reactive([
-  { id: 'acc-1', name: '耿子毅', account: 'genziyi', phone: '13800138001', postId: 'post-fin', status: '停用', lastLogin: '2026-11-16 18:22', remark: '所属职位「财务」停用，账号同步停用' },
+  { id: 'acc-1', name: '耿子毅', account: 'genziyi', phone: '13800138001', postId: 'post-fin', status: '启用', lastLogin: '2026-11-16 18:22', remark: '' },
   { id: 'acc-2', name: '王佳丽', account: 'wangjl', phone: '13900139002', postId: 'post-ops', status: '启用', lastLogin: '2026-11-16 09:12', remark: '' },
   { id: 'acc-3', name: '李丽霞', account: 'lilx', phone: '13700137003', postId: 'post-wh', status: '启用', lastLogin: '2026-11-16 08:40', remark: '' },
   { id: 'acc-4', name: '张丽珊', account: 'zhangls', phone: '13600136004', postId: 'post-after', status: '启用', lastLogin: '2026-11-18 08:12', remark: '' },
@@ -172,6 +172,14 @@ export const setPostStatus = (postId, status) => {
   return { post: p, affected }
 }
 export const INIT_PASSWORD = 'Xy@2026'
+
+/** 随机初始密码：10 位，去掉 0/O/1/l/I 等易混字符 */
+export const randomPassword = (len = 10) => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+  let out = ''
+  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)]
+  return out
+}
 
 /* ---------------- 省级行政区（34 个） ---------------- */
 export const REGIONS = [

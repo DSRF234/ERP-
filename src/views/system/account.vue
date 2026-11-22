@@ -24,7 +24,7 @@
     <div class="card">
       <div class="card-head">
         <h3>账号列表</h3>
-        <span class="extra">初始密码 {{ INIT_PASSWORD }}，首次登录强制修改</span>
+        <span class="extra">初始密码由系统随机生成，首次登录强制修改</span>
       </div>
       <el-table :data="view" size="small" max-height="580">
         <el-table-column prop="name" label="姓名" width="96" />
@@ -100,15 +100,13 @@
         </el-select>
       </div>
       <div v-if="!editing" class="field"><label>初始密码</label>
-        <el-input v-model="af.password" size="small" style="width:240px" disabled />
-        <span class="hint">首次登录强制改密</span>
+        <el-input v-model="af.password" size="small" style="width:200px" readonly />
+        <el-button link type="primary" size="small" @click="regenPwd">重新生成</el-button>
+        <el-button link size="small" @click="copyPwd">复制</el-button>
       </div>
       <div class="field"><label>状态</label>
-        <el-radio-group v-model="af.status" size="small">
-          <el-radio label="启用" :disabled="formPostDisabled">启用</el-radio>
-          <el-radio label="停用">停用</el-radio>
-        </el-radio-group>
-        <span v-if="formPostDisabled" class="hint">所属职位已停用，账号只能保持停用</span>
+        <el-tag size="small" type="success" effect="plain">{{ editing ? editing.status : '启用' }}</el-tag>
+        <span v-if="!editing" class="hint">新建账号默认启用，需要停用时在列表中手动操作</span>
       </div>
       <div class="field" style="align-items:flex-start">
         <label style="padding-top:5px">备注</label>
@@ -129,7 +127,7 @@ import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import {
-  accounts, posts, INIT_PASSWORD, postById, postName,
+  accounts, posts, INIT_PASSWORD, randomPassword, postById, postName,
   deptOfAccount, accountsOfPost
 } from '@/data/system'
 
@@ -166,9 +164,22 @@ const af = reactive({ name: '', account: '', phone: '', postId: '', password: IN
 const postOptions = computed(() => posts.filter(p => p.status === '启用' || p.id === af.postId))
 const formPostDisabled = computed(() => !!af.postId && postById(af.postId)?.status === '停用')
 
+function regenPwd() {
+  af.password = randomPassword()
+  ElMessage.info('已重新生成初始密码')
+}
+async function copyPwd() {
+  try {
+    await navigator.clipboard.writeText(af.password)
+    ElMessage.success('初始密码已复制')
+  } catch (e) {
+    ElMessage.warning('复制失败，请手动选中复制')
+  }
+}
+
 function openNew() {
   editing.value = null
-  Object.assign(af, { name: '', account: '', phone: '', postId: '', password: INIT_PASSWORD, status: '启用', remark: '' })
+  Object.assign(af, { name: '', account: '', phone: '', postId: '', password: randomPassword(), status: '启用', remark: '' })
   dlgVisible.value = true
 }
 function openEdit(row) {
@@ -185,8 +196,8 @@ function submitAcc() {
   if (af.phone && !/^\d{11}$/.test(af.phone)) return ElMessage.error('手机号须为 11 位数字')
   if (!af.postId) return ElMessage.error('账号必须挂在职位上')
 
-  /* 兜底：给已停用职位配「启用」账号，会立刻制造矛盾态 */
-  const status = formPostDisabled.value ? '停用' : af.status
+  /* 新建一律启用；编辑不改状态 */
+  const status = editing.value ? editing.value.status : '启用'
 
   if (editing.value) {
     Object.assign(editing.value, {
@@ -199,7 +210,11 @@ function submitAcc() {
       id: 'acc-' + Date.now(), name: af.name.trim(), account: af.account.trim(), phone: af.phone,
       postId: af.postId, status, lastLogin: '', remark: af.remark
     })
-    ElMessage.success(`已创建账号 ${af.account.trim()}，初始密码 ${INIT_PASSWORD}`)
+    ElMessage({
+      type: 'success',
+      duration: 6000,
+      message: `已创建账号 ${af.account.trim()}，初始密码：${af.password}（请转告本人，首次登录须修改）`
+    })
   }
   dlgVisible.value = false
 }

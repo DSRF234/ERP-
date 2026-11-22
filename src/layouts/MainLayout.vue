@@ -79,7 +79,8 @@
               <el-dropdown-menu>
                 <el-dropdown-item disabled>账号：{{ store.user?.account }}</el-dropdown-item>
                 <el-dropdown-item disabled>部门：{{ store.user?.dept }}</el-dropdown-item>
-                <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
+                <el-dropdown-item divided command="pwd">修改密码</el-dropdown-item>
+                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -92,11 +93,30 @@
         </router-view>
       </main>
     </div>
+
+    <el-dialog v-model="pwdVisible" title="修改密码" width="420px">
+      <el-form :model="pwd" label-width="92px" size="small">
+        <el-form-item label="原密码">
+          <el-input v-model="pwd.old" type="password" show-password placeholder="请输入当前密码" />
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="pwd.n1" type="password" show-password placeholder="8-20 位，需含字母和数字" />
+        </el-form-item>
+        <el-form-item label="确认新密码">
+          <el-input v-model="pwd.n2" type="password" show-password placeholder="再次输入新密码" />
+        </el-form-item>
+      </el-form>
+      <div class="pwd-tip">修改成功后，下次登录请使用新密码。</div>
+      <template #footer>
+        <el-button @click="pwdVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitPwd">确认修改</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -110,7 +130,27 @@ const afterStore = useAfterStore()
 const initial = computed(() => (store.name || '星').slice(0, 1))
 const waitCount = computed(() => afterStore.counts.wait)
 
+const pwdVisible = ref(false)
+const pwd = reactive({ old: '', n1: '', n2: '' })
+
+function submitPwd() {
+  if (!pwd.old) return ElMessage.error('请输入原密码')
+  if (!/^(?=.*[A-Za-z])(?=.*\d)[\S]{8,20}$/.test(pwd.n1)) {
+    return ElMessage.error('新密码需 8-20 位，且同时包含字母和数字')
+  }
+  if (pwd.n1 !== pwd.n2) return ElMessage.error('两次输入的新密码不一致')
+  try {
+    store.changePassword(pwd.old, pwd.n1)
+    pwdVisible.value = false
+    pwd.old = pwd.n1 = pwd.n2 = ''
+    ElMessage.success('密码已修改，下次登录请使用新密码')
+  } catch (e) {
+    ElMessage.error(e.message || '修改失败')
+  }
+}
+
 async function onCommand(cmd) {
+  if (cmd === 'pwd') { pwdVisible.value = true; return }
   if (cmd !== 'logout') return
   try {
     await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
@@ -148,5 +188,9 @@ const today = computed(() => {
 .uname { font-size: 12.5px; color: var(--ink); }
 .upost { font-size: 11px; color: var(--ink-3); background: var(--fill); border-radius: 3px; padding: 1px 5px; }
 .arrow { font-size: 11px; color: var(--ink-3); }
+
+.pwd-tip {
+  margin: 4px 0 0 92px; font-size: 12px; color: var(--ink-3);
+}
 .content { flex: 1; overflow-y: auto; padding: 18px 20px 40px; }
 </style>
