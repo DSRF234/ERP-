@@ -850,22 +850,32 @@ export const useOrderStore = defineStore('order', {
   },
 
   actions: {
-    /** 审核通过：模拟仓管已发货，随机生成快递公司与单号，直接进入已发货 */
+    /** 审核通过：校验状态与库存，通过后模拟发货并扣减库存 */
     approve(order, warehouse) {
       const target = this.orders.find(o => o.no === order.no)
-      if (!target) return null
+      if (!target) return { ok: false, msg: '订单不存在' }
+      if (target.status !== 'review') return { ok: false, msg: '只有待审核订单可以审核' }
+
+      const stock = useStockStore()
+      const wh = warehouse || target.warehouse
+
+      // 库存校验：任一 SKU 不足直接拒绝，避免「已发货但没扣库存」
+      for (const g of target.goods) {
+        const avail = stock.availableOf(g.sku, wh)
+        if (avail < g.qty) {
+          return { ok: false, msg: `${wh} 的「${g.name}」可用 ${avail} 件，不足 ${g.qty} 件，请换仓或驳回` }
+        }
+      }
+
       const { carrier, expressNo } = genExpress()
-      if (warehouse) target.warehouse = warehouse
+      target.warehouse = wh
       target.status = 'shipped'
       target.carrier = carrier
       target.expressNo = expressNo
       target.shippedAt = now()
 
-      // 无 WMS，本地模拟出库扣减
-      const stock = useStockStore()
-      target.goods.forEach(g => stock.deduct(g.sku, target.warehouse, g.qty))
-
-      return { carrier, expressNo }
+      target.goods.forEach(g => stock.deduct(g.sku, wh, g.qty))
+      return { ok: true, carrier, expressNo }
     },
 
     /** 驳回：移出待审核列表 */
@@ -886,12 +896,14 @@ export const useOrderStore = defineStore('order', {
     /** 确认收货：已发货 → 已完结，同时推送财务 */
     confirmReceive(order) {
       const target = this.orders.find(o => o.no === order.no)
-      if (!target) return
+      if (!target) return { ok: false, msg: '订单不存在' }
+      if (target.status === 'done') return { ok: false, msg: '订单已完结，无需重复确认' }
+      if (target.status !== 'shipped') return { ok: false, msg: '只有已发货订单可以确认收货' }
       target.status = 'done'
       target.doneAt = now()
       target.afterStatus = '已完结'
       target.financePushed = true
-      return target
+      return { ok: true }
     },
 
     /**
@@ -900,10 +912,13 @@ export const useOrderStore = defineStore('order', {
      * 避免「钱退了还在对账表里」。
      */
     setAfterStatus(orderNo, st) {
+      const VALID = ['已完结', '售后中', '已退款']
+      if (!VALID.includes(st)) return { ok: false, msg: `非法的订单售后状态：${st}` }
       const target = this.orders.find(o => o.no === orderNo)
-      if (!target) return
+      if (!target) return { ok: false, msg: '订单不存在' }
       target.afterStatus = st
       target.financePushed = st === '已完结'
+      return { ok: true }
     },
 
     /** 新建订单：直接进入待审核 */

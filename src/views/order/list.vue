@@ -287,14 +287,13 @@ function toReject() { reviewVisible.value = false; rejectVisible.value = true }
 function pass() {
   const wh = !enough.value && altWarehouse.value ? altWarehouse.value : null
   const res = store.approve(cur.value, wh)
+  if (!res.ok) { ElMessage.error(res.msg); return }
   reviewVisible.value = false
-  if (res) {
-    ElMessage({
-      type: 'success',
-      duration: 4200,
-      message: `审核通过，已模拟仓管发货：${res.carrier} ${res.expressNo}`
-    })
-  }
+  ElMessage({
+    type: 'success',
+    duration: 4200,
+    message: `审核通过，已模拟仓管发货：${res.carrier} ${res.expressNo}`
+  })
 }
 
 function doReject() {
@@ -314,7 +313,8 @@ function receive(row) {
     `确认订单 ${row.no} 已由客户签收？确认后订单完结，并自动推送至财务管理（对账中心 / 发货数据）。`,
     '确认收货', { type: 'info', confirmButtonText: '确认收货' }
   ).then(() => {
-    store.confirmReceive(row)
+    const res = store.confirmReceive(row)
+    if (!res.ok) { ElMessage.error(res.msg); return }
     ElMessage.success('订单已完结，已推送财务管理')
   }).catch(() => {})
 }
