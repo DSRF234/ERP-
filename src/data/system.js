@@ -150,6 +150,12 @@ export const posts = reactive([
       'b-sys-wh-view', 'b-sys-wh-edit', 'b-sys-wh-export'
     ],
     note: '负责账号、职位与权限分配，以及发货仓维护；不参与业务单据处理'
+  },
+  {
+    id: 'post-demo', name: '全局演示', dept: '演示', scope: '全部数据', status: '启用',
+    /* 权限留空，由 perm.js 的 defaultsFor 统一发放全量，避免在此重复维护 80 条 id */
+    perms: [],
+    note: '会议演示专用：拥有全部页面与全部操作权限，可完整走通任意业务流程'
   }
 ])
 
@@ -163,7 +169,8 @@ export const accounts = reactive([
   { id: 'acc-3', name: '李丽霞', account: 'lilx', phone: '13700137003', postId: 'post-wh', status: '启用', lastLogin: '2026-11-16 08:40', remark: '' },
   { id: 'acc-4', name: '张丽珊', account: 'zhangls', phone: '13600136004', postId: 'post-after', status: '启用', lastLogin: '2026-11-18 08:12', remark: '' },
   { id: 'acc-5', name: '齐田', account: 'qitian', phone: '13500135005', postId: 'post-boss', status: '启用', lastLogin: '2026-11-18 08:05', remark: '老板账号' },
-  { id: 'acc-6', name: '管理员', account: 'sysadmin', phone: '13400134006', postId: 'post-sys', status: '启用', lastLogin: '2026-11-20 09:30', remark: '系统管理员演示账号' }
+  { id: 'acc-6', name: '管理员', account: 'sysadmin', phone: '13400134006', postId: 'post-sys', status: '启用', lastLogin: '2026-11-20 09:30', remark: '系统管理员演示账号' },
+  { id: 'acc-7', name: '演示', account: 'demo', phone: '13300133007', postId: 'post-demo', status: '启用', lastLogin: '2026-11-23 09:00', remark: '全局演示账号，拥有全部权限' }
 ])
 
 export const postById = id => posts.find(p => p.id === id)

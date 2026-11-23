@@ -214,6 +214,8 @@ const singleViewIds = () => PAGES.map(p => p.children[0].id)
 export function defaultsFor(post) {
   const n = `${post?.name || ''}${post?.dept || ''}`
   if (/老板|总经理|管理层|总监/.test(n)) return [...ALL_BUTTON_IDS]
+  /* 全局演示职位：会议演示用，开放全部页面与操作 */
+  if (/演示/.test(n)) return [...ALL_BUTTON_IDS]
 
   const ids = new Set()
   const op = id => {

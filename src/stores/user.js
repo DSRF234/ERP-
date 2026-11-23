@@ -6,6 +6,7 @@ import { defineStore } from 'pinia'
  * TODO: 接入后端后改为登录接口，这里仅作演示
  */
 export const ACCOUNTS = [
+  { account: 'demo',    password: 'Xy@2026', name: '演示',   post: '全局演示', dept: '演示' },
   { account: 'genziyi', password: 'Xy@2026', name: '耿子毅', post: '财务', dept: '财务部' },
   { account: 'wangjl',  password: 'Xy@2026', name: '王佳丽', post: '运营', dept: '电商运营部' },
   { account: 'lilx',    password: 'Xy@2026', name: '李丽霞', post: '仓管', dept: '仓储部' },

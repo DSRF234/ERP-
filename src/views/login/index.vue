@@ -73,7 +73,7 @@ const store = useUserStore()
 const formRef = ref(null)
 const loading = ref(false)
 const form = reactive({ account: '', password: '', remember: true })
-const demo = ACCOUNTS.slice(0, 5)
+const demo = ACCOUNTS.slice(0, 6)
 
 const rules = {
   account: [{ required: true, message: '请输入登录账号', trigger: 'blur' }],
