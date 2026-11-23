@@ -199,7 +199,7 @@
           <template #default="{ row }">
             <div v-if="status === 'doing'" class="ops">
               <el-button link type="primary" size="small" @click="openDetail(row)">详情</el-button>
-              <el-tooltip v-for="a in OPS" :key="a.k" :content="opTip(row, a.k)" placement="top">
+              <el-tooltip v-for="a in opsOf(row)" :key="a.k" :content="opTip(row, a.k)" placement="top">
                 <span class="op-wrap">
                   <el-button link size="small" :type="opOn(row, a.k) ? 'primary' : 'info'"
                     :disabled="!opOn(row, a.k)" @click="doAction(row, a.k)">{{ a.label }}</el-button>
@@ -542,7 +542,9 @@
             <template v-if="cur.amount > 0"> · 待退 <b class="mono">{{ money(cur.amount) }}</b></template>
           </span>
           <el-button size="small" @click="detailVisible = false">关闭</el-button>
-          <el-button v-if="status === 'doing'" size="small" type="primary" :disabled="cur?.queue !== 'refund'"
+          <el-button v-if="status === 'doing' && cur?.queue === 'address'" size="small" type="primary"
+            @click="finishAddress(cur)">完成改址</el-button>
+          <el-button v-else-if="status === 'doing'" size="small" type="primary" :disabled="cur?.queue !== 'refund'"
             :title="cur?.queue !== 'refund' ? '仅「待退款」队列可发起退款' : ''" @click="startRefund">退款</el-button>
           <el-button v-if="status === 'done'" size="small" type="primary" @click="copyInfo">复制信息</el-button>
         </div>
@@ -559,8 +561,8 @@ import { money } from '@/utils/format'
 import { useUserStore } from '@/stores/user'
 import { useOrderStore } from '@/stores/order'
 import {
-  tickets, STEPS, QUEUE_TEXT, QUEUE_ORDER, progressOf,
-  companyOf, trackOf, auditTicket, confirmRefund, createWorkOrder, workOrderNo,
+  tickets, STEPS, QUEUE_TEXT, QUEUE_ORDER, progressOf, REFUND_ONLY,
+  companyOf, trackOf, auditTicket, confirmRefund, completeAddress, createWorkOrder, workOrderNo,
   stockOf, WAREHOUSE_OPTIONS, todayStr
 } from '@/data/aftersale'
 
@@ -577,12 +579,12 @@ const CONFIG = {
   },
   doing: {
     title: '售后处理中',
-    sub: '审核已通过、尚未完结的售后单。按 6 个处理节点分队列：待客户退回 → 退回在途 → 已收货待质检 → 待退款 / 换货待发货 / 待补发。质检由仓储部在 WMS 执行，售后端不设质检操作。',
+    sub: '审核结论为「同意」、尚未完结的售后单。按 7 个处理节点分队列：待客户退回 → 退回在途 → 已收货待质检 → 待退款 / 换货待发货 / 待补发 / 地址变更待生效。仅退款、部分仅退款、补差价审核同意后直接打款完结，不进入本页。',
     cardTitle: '处理中售后单', hint: '队列计数之和等于全部处理中'
   },
   done: {
     title: '售后处理完成',
-    sub: '已给出终态（同意或拒绝）的售后单，用于复盘与对账；换货 / 补发 / 退货单号与审核意见在该页可追溯。',
+    sub: '已给出终态（同意或拒绝）的售后单。仅退款 / 部分仅退款 / 补差价的同意与拒绝、其余方式被拒绝的单据都在本页；同意打款的记录退款金额与路径，拒绝的金额为 0。',
     cardTitle: '已完成售后单', hint: '终态只读，可复制信息与导出'
   }
 }
@@ -672,40 +674,45 @@ function sla(v) {
   return { text: `剩余 ${txt}`, type: h <= 8 ? 'warning' : 'info' }
 }
 
-/* 操作列与队列强绑定 */
-const OPS = [{ k: 'refund', label: '退款' }, { k: 'exchange', label: '换货' }, { k: 'resend', label: '补货' }]
+/* 操作列只渲染该单「处理方式」对应的那一个动作，避免一行堆四个灰按钮 */
+const OPS = [
+  { k: 'refund', label: '退款' },
+  { k: 'exchange', label: '换货' },
+  { k: 'resend', label: '补货' },
+  { k: 'address', label: '改址' }
+]
 const OP_UNLOCK = {
   back: [], transit: [], qc: [],
   refund: ['refund'],
   exchange: ['exchange'],
-  resend: ['resend']
+  resend: ['resend'],
+  address: ['address']
 }
 const OP_WHY = {
   back: '待客户寄回，收到货并完成质检后才能操作',
   transit: '退回件在途，签收入仓后才能操作',
   qc: '已收货待质检，需等 WMS 回传质检结论'
 }
-const OP_DO = { refund: '按审核确认金额原路退回', exchange: '生成换货单，待仓库换新发货', resend: '生成补发单，待仓库补发出库' }
+const OP_DO = {
+  refund: '按审核确认金额原路退回给客户',
+  exchange: '生成换货单，待仓库换新发货',
+  resend: '生成补发单，待仓库补发出库',
+  address: '确认新地址已同步至订单与承运商，单据完结'
+}
 
-/* 动作互斥：一张单只允许它处理方式对应的那一个动作，其余一律置灰 */
+/* 动作互斥：一张单只允许它处理方式对应的那一个动作，其余不显示 */
 const TYPE_ACTION = {
   退货: 'refund', 仅退款: 'refund', 部分仅退款: 'refund', 补差价: 'refund',
-  换货: 'exchange', 补发: 'resend'
+  换货: 'exchange', 补发: 'resend', 更改地址: 'address'
 }
-const ACTION_TEXT = { refund: '退款', exchange: '换货', resend: '补发' }
+const ACTION_TEXT = { refund: '退款', exchange: '换货', resend: '补发', address: '改址' }
 const actionOf = row => TYPE_ACTION[row.type] || ''
+const opsOf = row => OPS.filter(a => a.k === actionOf(row))
 const opOn = (row, k) => actionOf(row) === k && (OP_UNLOCK[row.queue] || []).includes(k)
-const opTip = (row, k) => {
-  if (opOn(row, k)) return OP_DO[k]
-  const a = actionOf(row)
-  if (a !== k) {
-    return a
-      ? `该单处理方式为「${row.type}」，只支持${ACTION_TEXT[a]}`
-      : '该单为更改地址，不涉及退款／换货／补发'
-  }
-  return OP_WHY[row.queue] || '当前环节不支持该操作'
-}
-const opWidth = computed(() => props.status === 'wait' ? 108 : props.status === 'doing' ? 176 : 76)
+const opTip = (row, k) => opOn(row, k)
+  ? OP_DO[k]
+  : (OP_WHY[row.queue] || `该单处理方式为「${row.type}」，当前环节不支持${ACTION_TEXT[k] || '该操作'}`)
+const opWidth = computed(() => props.status === 'wait' ? 108 : props.status === 'doing' ? 150 : 76)
 
 /* ---------------- 审核 ---------------- */
 const auditVisible = ref(false)
@@ -741,7 +748,7 @@ const amountHint = computed(() => {
 })
 const flowHint = computed(() => {
   if (form.result === 'reject') return '提交后：拒绝 → 直接进入「售后处理完成」，不进入处理中；退款金额记 0。'
-  if (form.type === '更改地址') return '提交后：同意 → 订单收货地址直接更新为新地址，单据直接完结，不进入处理中。'
+  if (form.type === '更改地址') return '提交后：同意 → 进入「地址变更待生效」队列，客服确认新地址已同步至订单与承运商后单据完结；拒绝 → 直接进入「售后处理完成」。'
   if (form.type === '退货') return form.back === 'yes'
     ? '提交后：同意 → 进入「待客户退回」，同时生成退回地址与 TH 退货单；收货、质检由仓储部完成。'
     : '提交后：同意 → 无需寄回，进入「待退款」，可直接确认退款。'
@@ -749,8 +756,8 @@ const flowHint = computed(() => {
     if (stockShort.value) return '四仓均无可用库存：同意后无法生成换货单，建议改为「仅退款」，或先转采购补货后再审核。'
     return `提交后：同意 → 进入「换货待发货」，需创建换货单（HH），建议从${shipWhs.value[0].name}换新（可用 ${shipWhs.value[0].stock} 件）。`
   }
-  if (['仅退款', '部分仅退款', '补差价'].includes(form.type)) {
-    return '提交后：同意 → 按退款金额原路退回并直接进入「售后处理完成」，不进入售后处理中；拒绝 → 同样直接完结。'
+  if (REFUND_ONLY.includes(form.type)) {
+    return '提交后：同意 → 立即按退款金额原路退回客户原支付渠道，并直接进入「售后处理完成」，不进入售后处理中；拒绝 → 同样直接进入「售后处理完成」，不打款、退款金额记 0。'
   }
   if (form.type === '补发') {
     if (stockShort.value) return '四仓均无可用库存：同意后无法生成补发单，建议改为「仅退款」，或先转采购补货后再审核。'
@@ -783,17 +790,18 @@ function submitAudit() {
     if (form.amount > cur.value.orderAmount) return ElMessage.error('退款金额不能超过实付金额')
   }
   const no = cur.value.orderNo
-  const to = auditTicket(cur.value, { ...form, result: form.result }, who.value)
-  /* 同步订单售后状态：拒绝／改址＝无售后占用，退款＝已退款，其余＝售后中 */
-  if (to === 'rejected' || to === 'address') orderStore.setAfterStatus(no, '已完结')
+  const t = cur.value
+  const to = auditTicket(t, { ...form, result: form.result }, who.value)
+  /* 同步订单售后状态：只有「拒绝」和「仅退款类同意」是终态，其余同意都仍占用售后 */
+  if (to === 'rejected') orderStore.setAfterStatus(no, '已完结')
   else if (to === 'refunded') orderStore.setAfterStatus(no, '已退款')
   else orderStore.setAfterStatus(no, '售后中')
   auditVisible.value = false
   const msg = {
-    rejected: '已拒绝，单据进入「售后处理完成」',
-    address: '审核通过，收货地址已同步至订单，单据已完结',
-    refunded: `审核通过，已按 ${money(cur.value.amount)} 原路退款，单据已完结（未进入处理中）`
-  }[to] || `审核通过，单据已进入「${QUEUE_TEXT[to]}」队列`
+    rejected: '已拒绝，单据直接进入「售后处理完成」，不打款、退款金额记 0',
+    refunded: `已同意，${money(t.amount)} 已原路退回客户原支付渠道，单据进入「售后处理完成」`,
+    address: '已同意，单据进入「地址变更待生效」，确认改址后完结'
+  }[to] || `已同意，单据进入「${QUEUE_TEXT[to]}」队列`
   ElMessage.success(msg)
 }
 
@@ -874,6 +882,21 @@ function submitRefund() {
   ElMessage.success(`退款 ${money(rf.amount)} 已提交（${rf.way}），预计 1—3 个工作日到账`)
 }
 
+/* ---------------- 地址变更 ---------------- */
+async function finishAddress(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确认订单 ${row.orderNo} 的新收货地址已同步至订单与承运商？确认后单据完结，不涉及任何退款。`,
+      '完成地址变更',
+      { confirmButtonText: '确认已同步', cancelButtonText: '取消', type: 'info' }
+    )
+  } catch { return }
+  completeAddress(row, who.value)
+  orderStore.setAfterStatus(row.orderNo, '已完结')
+  detailVisible.value = false
+  ElMessage.success('地址变更已完成，单据进入「售后处理完成」')
+}
+
 /* ---------------- 换货单 / 补发单 ---------------- */
 const woVisible = ref(false)
 const wo = reactive({ kind: 'exchange', no: '', wh: '' })
@@ -891,6 +914,7 @@ function doAction(row, k) {
   if (!opOn(row, k)) return
   cur.value = row
   if (k === 'refund') { startRefund(); return }
+  if (k === 'address') { finishAddress(row); return }
   if (row.workOrder && !row.workOrder.startsWith('TH')) {
     return ElMessage.warning('该售后单已生成过换货单 / 补发单，不能重复建单')
   }
@@ -1000,6 +1024,7 @@ const refresh = () => ElMessage.success('已刷新待处理队列')
 .pill.q-refund { background: var(--danger-l); color: var(--danger); }
 .pill.q-exchange { background: #EEF0FE; color: #4B54C6; }
 .pill.q-resend { background: var(--ok-l); color: var(--ok); }
+.pill.q-address { background: #EEF6F3; color: #1E7A63; }
 .pill.q-none { color: var(--ink-3); }
 
 /* 操作列 */

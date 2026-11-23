@@ -2,10 +2,12 @@
  * 售后管理 · 共享数据层
  * 口径来源：《erpPRD.docx》2.3 售后管理 + 《Map1.pdf》字段清单 + 《ERP系统流程》泳道图
  *
- * 单据流转：
- *   wait --审核同意(退货/换货/补发/退款/改地址)--> doing(队列入列) / done(改地址直接完结)
- *   wait --审核拒绝--> done
- *   doing --确认退款 / 生成换货单 / 生成补发单--> done
+ * 单据流转（口径：审核结论决定去「处理中」还是「处理完成」）：
+ *   仅退款 / 部分仅退款 / 补差价：同意与拒绝都**直达 done**（同意=按原支付路径打款，拒绝=不打款、金额记 0）
+ *   其他所有方式（退货 / 换货 / 补发 / 更改地址）：
+ *     同意 --> doing（进入对应队列，等后续动作）
+ *     拒绝 --> 直接 done（不产生任何后续作业）
+ *   doing --确认退款 / 生成换货单 / 生成补发单 / 地址变更完成--> done
  */
 import { reactive } from 'vue'
 import { WAREHOUSE_NAMES } from './system'
@@ -27,13 +29,19 @@ export const stampStr = () => nowStr().replace(/[-: ]/g, '').slice(0, 8)
 export const STEPS = ['申请提交', '售后审核', '客户寄回', '仓库质检', '退款/换货/补发', '完成']
 export const ADDR_STEPS = ['申请提交', '售后审核', '地址变更', '完成']
 
-/* 队列 → 所处节点下标 */
-export const QUEUE_STEP = { back: 2, transit: 2, qc: 3, refund: 4, exchange: 4, resend: 4 }
+/* 队列 → 所处节点下标（address 对应 ADDR_STEPS 的「地址变更」节点） */
+export const QUEUE_STEP = { back: 2, transit: 2, qc: 3, refund: 4, exchange: 4, resend: 4, address: 2 }
 export const QUEUE_TEXT = {
   back: '待客户退回', transit: '退回在途', qc: '已收货待质检',
-  refund: '待退款', exchange: '换货待发货', resend: '待补发'
+  refund: '待退款', exchange: '换货待发货', resend: '待补发', address: '地址变更待生效'
 }
-export const QUEUE_ORDER = ['back', 'transit', 'qc', 'refund', 'exchange', 'resend']
+export const QUEUE_ORDER = ['back', 'transit', 'qc', 'refund', 'exchange', 'resend', 'address']
+
+/**
+ * 唯一「审核同意后直接打款完结、不进处理中」的三类。
+ * 其余处理方式（退货 / 换货 / 补发 / 更改地址）同意后一律进处理中。
+ */
+export const REFUND_ONLY = ['仅退款', '部分仅退款', '补差价']
 
 /* 各仓可用库存（演示数据，换货/补发建单时校验） */
 export const STOCK = {
@@ -135,7 +143,7 @@ export const tickets = reactive([
     who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '', syncTime: '', repeat: false
   },
 
-  /* ===== 处理中（五个队列） ===== */
+  /* ===== 处理中（七个队列：待退回 / 在途 / 待质检 / 待退款 / 待换货 / 待补发 / 地址变更） ===== */
   {
     ticket: 'AS20261114004', orderNo: 'JD20261115013', channel: '京东',
     applyType: '换货', type: '换货', reason: '规格不符', proofs: ['实物对比.jpg'],
@@ -220,6 +228,19 @@ export const tickets = reactive([
     status: 'doing', queue: 'refund', result: '同意', duty: '物流破损',
     auditRemark: '货值低，免寄回，同意直接退款', auditor: '张丽珊', auditTime: '2026-11-15 13:50',
     who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '', syncTime: '', repeat: false
+  },
+
+  {
+    ticket: 'AS20261118020', orderNo: 'DY20261117018', channel: '抖音',
+    applyType: '更改地址', type: '更改地址', reason: '收货地址填错', proofs: ['新地址截图.jpg'],
+    applyTime: '2026-11-18 09:20', sla: offsetH(6), logistics: '运输中',
+    expressNo: 'ZT9900112233', goods: '星野收纳箱 大号 ×1', sku: 'SKU-400011', qty: 1,
+    orderTime: '2026-11-17 19:05', orderAmount: 264, amount: 0,
+    customer: C('袁**', '136****2215', '江苏省南京市建邺区 ******'),
+    message: '刚下单地址选成家里了，件还在路上，麻烦改到公司地址。',
+    status: 'doing', queue: 'address', result: '同意', duty: '客户原因',
+    auditRemark: '同意改址，需同步至承运商改派后再完结', auditor: '张丽珊', auditTime: '2026-11-18 10:05',
+    who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '待同步至订单与承运商', syncTime: '', repeat: false
   },
 
   /* ===== 处理完成 ===== */
@@ -621,34 +642,39 @@ export const auditTicket = (t, f, who) => {
   t.auditTime = nowStr()
   t.result = f.result === 'reject' ? '拒绝' : f.result === 'partial' ? '部分同意' : '同意'
 
+  /* 拒绝：任何处理方式都直接完结，不产生后续作业，也不打款 */
   if (f.result === 'reject') {
     t.status = 'done'
     t.queue = ''
     t.amount = 0
+    t.refundWay = ''
+    t.addressSync = ''
+    t.syncTime = ''
     t.who = who
     t.finishedAt = nowStr()
     return 'rejected'
   }
-  if (f.type === '更改地址') {
+  /* 仅退款 / 部分仅退款 / 补差价：不涉及寄回与仓储作业，同意即按原支付路径打款，直接完结 */
+  if (REFUND_ONLY.includes(f.type)) {
+    t.amount = Number(f.amount) || 0
     t.status = 'done'
     t.queue = ''
-    t.amount = 0
     t.who = who
     t.finishedAt = nowStr()
-    t.addressSync = '已同步至订单'
-    t.syncTime = nowStr()
+    t.refundWay = '原路退回（原支付渠道）'
+    return 'refunded'
+  }
+  /* 更改地址：属于「其他处理方式」，同意后先进处理中的「地址变更待生效」，同步完成再完结 */
+  if (f.type === '更改地址') {
+    t.amount = 0
+    t.status = 'doing'
+    t.queue = 'address'
+    t.who = who
+    t.addressSync = '待同步至订单与承运商'
+    t.syncTime = ''
     return 'address'
   }
   t.amount = Number(f.amount) || 0
-  /* 仅退款 / 部分仅退款 / 补差价：不涉及寄回与仓储作业，审核通过即退款完结，不进处理中 */
-  if (['仅退款', '部分仅退款', '补差价'].includes(f.type)) {
-    t.status = 'done'
-    t.queue = ''
-    t.who = who
-    t.finishedAt = nowStr()
-    t.refundWay = '原路退回'
-    return 'refunded'
-  }
   if (f.type === '退货') {
     t.queue = f.back === 'yes' ? 'back' : 'refund'
     if (f.back === 'yes') t.workOrder = 'TH' + stampStr() + '0' + (Math.floor(Math.random() * 9) + 1)
@@ -667,6 +693,19 @@ export const confirmRefund = (t, { amount, way, remark }, who) => {
   t.amount = Number(amount) || 0
   t.refundWay = way
   if (remark) t.auditRemark = t.auditRemark ? `${t.auditRemark}；${remark}` : remark
+  t.result = '同意'
+  t.who = who
+  t.finishedAt = nowStr()
+  t.status = 'done'
+  t.queue = ''
+}
+
+/** 处理中：地址变更同步完成 → 完结（不退款） */
+export const completeAddress = (t, who) => {
+  t.addressSync = '已同步至订单与承运商'
+  t.syncTime = nowStr()
+  t.amount = 0
+  t.refundWay = ''
   t.result = '同意'
   t.who = who
   t.finishedAt = nowStr()
@@ -698,6 +737,8 @@ export const progressOf = t => {
       const rejected = t.result === '拒绝'
       return { steps: ADDR_STEPS, idx: rejected ? 2 : 3, rejected }
     }
+    /* doing：审核已过，停留在「地址变更」节点等客服同步 */
+    if (t.status === 'doing') return { steps: ADDR_STEPS, idx: 2, rejected: false }
     return { steps: ADDR_STEPS, idx: 1, rejected: false }
   }
   if (t.status === 'wait') return { steps: STEPS, idx: 1, rejected: false }

@@ -107,25 +107,22 @@ export const useAfterStore = defineStore('aftersale', {
       if (form.amount != null) t.amount = form.amount
       if (form.result === 'reject') {
         t.status = 'done'; t.result = '拒绝'; t.queue = ''
+        t.amount = 0; t.refundWay = ''; t.addressSync = ''
         t.finishedAt = now(); t.who = form.who || t.who
         order.setAfterStatus(t.orderNo, '已完结')     /* 拒绝＝无售后占用，恢复推送财务 */
         return
       }
-      if (form.type === '更改地址') {
-        t.status = 'done'; t.result = '同意'; t.amount = 0; t.queue = ''
-        t.finishedAt = now(); t.who = form.who || t.who
-        order.setAfterStatus(t.orderNo, '已完结')
-        return
-      }
-      /* 仅退款 / 部分仅退款 / 补差价：审核后直达「处理完成」，不进处理中 */
+      /* 仅退款 / 部分仅退款 / 补差价：同意即按原支付渠道打款，直达「处理完成」 */
       if (['仅退款', '部分仅退款', '补差价'].includes(form.type)) {
         t.status = 'done'; t.result = '同意'; t.queue = ''
+        t.refundWay = '原路退回（原支付渠道）'
         t.finishedAt = now(); t.who = form.who || t.who
         order.setAfterStatus(t.orderNo, '已退款')
         return
       }
+      /* 其余（退货 / 换货 / 补发 / 更改地址）：同意后一律进「处理中」 */
       t.status = 'doing'
-      t.queue = { '退货': 'back', '换货': 'exchange', '补发': 'resend' }[form.type] || 'refund'
+      t.queue = { '退货': 'back', '换货': 'exchange', '补发': 'resend', '更改地址': 'address' }[form.type] || 'refund'
       order.setAfterStatus(t.orderNo, '售后中')
     },
 
