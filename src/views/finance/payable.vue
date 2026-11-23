@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="应付账款台账" sub="采购单应付 · 总金额与状态">
-      <el-button size="small">导出</el-button>
+      <el-button v-can="'b-fin-payable-export'" size="small">导出</el-button>
     </PageHeader>
 
     <div class="filters">
@@ -10,7 +10,7 @@
         <el-option label="全部状态" value="" />
         <el-option v-for="s in STATUS" :key="s" :label="s" :value="s" />
       </el-select>
-      <el-button size="small" type="primary">查找</el-button>
+      <el-button v-can="'b-fin-payable-query'" size="small" type="primary">查找</el-button>
       <el-button size="small" @click="reset">重置</el-button>
       <span class="count">共 {{ view.length }} 条 · 应付合计 {{ money(sumTotal) }}</span>
     </div>
@@ -47,7 +47,7 @@
         </el-table-column>
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openAudit(row)">审核</el-button>
+            <el-button v-can="'b-fin-payable-audit'" link type="primary" size="small" @click="openAudit(row)">审核</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -96,7 +96,7 @@
 
       <template #footer>
         <el-button @click="drawer = false">关闭</el-button>
-        <el-button type="primary" :disabled="!cur || cur.checked" @click="confirmPayable">
+        <el-button v-can="'b-fin-payable-confirm'" type="primary" :disabled="!cur || cur.checked" @click="confirmPayable">
           {{ cur && cur.checked ? '已确认应付' : '确认应付' }}
         </el-button>
       </template>

@@ -135,7 +135,11 @@ export const PERM_TREE = [
         { id: 'b-fin-aging-view', label: '查看页面' }
       ] },
       { id: 'p-fin-payable', label: '应付账款台账', path: '/finance/payable', children: [
-        { id: 'b-fin-payable-view', label: '查看页面' }
+        { id: 'b-fin-payable-view', label: '查看页面' },
+        { id: 'b-fin-payable-query', label: '查询应付台账' },
+        { id: 'b-fin-payable-audit', label: '审核应付单' },
+        { id: 'b-fin-payable-confirm', label: '确认应付' },
+        { id: 'b-fin-payable-export', label: '导出应付台账' }
       ] }
     ]
   },
@@ -233,8 +237,8 @@ export function defaultsFor(post) {
   }
 
   if (/财务/.test(n)) {
-    pageAll('fin-recon'); pageAll('fin-shipment')
-    pageView('fin-goods'); pageView('fin-aging'); pageView('fin-payable')
+    pageAll('fin-recon'); pageAll('fin-shipment'); pageAll('fin-payable')
+    pageView('fin-goods'); pageView('fin-aging')
     pageView('order-done'); pageView('purchase')
   } else if (/仓|物流/.test(n)) {
     pageAll('stock'); pageAll('stocktake')
