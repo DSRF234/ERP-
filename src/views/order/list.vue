@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader :title="cfg.title" :sub="cfg.sub">
-      <el-button v-if="status === 'review'" size="small" type="primary" @click="batchReview">批量审核</el-button>
+      <el-button v-if="status === 'review' && !batchMode" size="small" type="primary" @click="enterBatch">批量审核</el-button>
       <el-button v-if="status === 'review'" size="small" @click="createVisible = true">新建订单</el-button>
       <el-button size="small">导出</el-button>
     </PageHeader>
@@ -37,10 +37,24 @@
         <span class="extra">{{ cfg.hint }}</span>
       </div>
 
-      <el-empty v-if="status === 'pending'" description="当前无 WMS 系统，审核通过后订单直接模拟发货并进入「已发货」" />
+      <div v-if="batchMode" class="batch-bar">
+        <span class="sel">已选 <b>{{ selected.length }}</b> 条</span>
+        <span class="batch-tip">勾选订单后统一选择快递公司，库存充足的直接通过进入待发货</span>
+        <div class="batch-acts">
+          <el-button size="small" type="primary" :disabled="!selected.length" @click="openBatch">确认批量审核</el-button>
+          <el-button size="small" @click="exitBatch">退出批量</el-button>
+        </div>
+      </div>
 
-      <el-table v-else :data="view" size="small" max-height="600">
-        <el-table-column prop="no" label="平台单号" width="150" fixed />
+      <el-table ref="tableRef" :data="view" size="small" max-height="600" row-key="no"
+        :row-class-name="rowClass" :empty-text="emptyText" @selection-change="onSelectionChange">
+        <el-table-column v-if="batchMode" type="selection" width="44" fixed="left" />
+        <el-table-column prop="no" label="平台单号" width="150" fixed>
+          <template #default="{ row }">
+            <div class="mono">{{ row.no }}</div>
+            <span v-if="row.deferredAt" class="defer-tag">待处理</span>
+          </template>
+        </el-table-column>
         <el-table-column v-if="status === 'done'" label="订单状态" width="110">
           <template #default="{ row }">
             <el-tag size="small" :type="afterTag(row.afterStatus)">{{ row.afterStatus || '已完结' }}</el-tag>
@@ -53,7 +67,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column v-if="status === 'review'" label="剩余发货时间" width="140">
+        <el-table-column v-if="status === 'review' || status === 'pending'" label="剩余发货时间" width="140">
           <template #default="{ row }">
             <span :class="'tl ' + tl(row.deadline).type">{{ tl(row.deadline).text }}</span>
           </template>
@@ -72,7 +86,8 @@
         <el-table-column label="平台类型" min-width="140">
           <template #default="{ row }">{{ row.platform }} · {{ row.shop }}</template>
         </el-table-column>
-        <el-table-column v-if="status === 'shipped' || status === 'done'" prop="carrier" label="快递公司" width="96" />
+        <el-table-column v-if="status === 'pending' || status === 'shipped' || status === 'done'" prop="carrier"
+          label="快递公司" width="96" />
         <el-table-column v-if="status === 'shipped' || status === 'done'" prop="expressNo"
           label="快递单号" width="140">
           <template #default="{ row }"><span class="mono">{{ row.expressNo }}</span></template>
@@ -93,15 +108,19 @@
           label="发货时间" width="136" />
         <el-table-column prop="platformGoods" label="平台商品信息" min-width="170" show-overflow-tooltip />
 
-        <el-table-column label="操作" :width="status === 'review' ? 150 : 130" fixed="right">
+        <el-table-column label="操作" :width="status === 'review' ? 150 : (status === 'pending' ? 168 : 130)" fixed="right">
           <template #default="{ row }">
             <template v-if="status === 'review'">
               <el-button link type="primary" size="small" @click="openReview(row)">审核</el-button>
               <el-button link type="danger" size="small" @click="openReject(row)">驳回</el-button>
+              <el-button link size="small" @click="edit(row)">编辑</el-button>
+            </template>
+            <template v-else-if="status === 'pending'">
+              <el-button link type="primary" size="small" @click="shipOut(row)">模拟出库回传</el-button>
+              <el-button link size="small" @click="edit(row)">编辑</el-button>
             </template>
             <el-button v-if="status === 'shipped'" link type="primary" size="small"
               @click="receive(row)">确认收货</el-button>
-            <el-button v-if="status === 'review'" link size="small" @click="edit(row)">编辑</el-button>
             <el-button v-if="status === 'done'" link type="primary" size="small" @click="openAfter(row)">申请售后</el-button>
             <el-button v-if="status === 'done'" link size="small" @click="viewDetail(row)">查看</el-button>
           </template>
@@ -130,7 +149,7 @@
         </div>
 
         <el-alert v-if="enough" type="success" :closable="false" show-icon
-          :title="`库存充足。审核通过后系统将模拟仓管发货并生成快递单号，订单直接进入「已发货」。`" />
+          :title="`库存充足。审核通过后订单进入「待发货」，由 WMS 出库回传后转为「已发货」。`" />
 
         <template v-else-if="altWarehouse">
           <el-alert type="warning" :closable="false" show-icon
@@ -155,7 +174,7 @@
       <template #footer>
         <el-button @click="reviewVisible = false">取消</el-button>
         <el-button type="danger" plain @click="toReject">驳回</el-button>
-        <el-button type="primary" :disabled="!canPass" @click="pass">确认审核通过并发货</el-button>
+        <el-button type="primary" :disabled="!canPass" @click="pass">确认审核通过</el-button>
       </template>
     </el-dialog>
 
@@ -170,6 +189,123 @@
       <template #footer>
         <el-button @click="rejectVisible = false">取消</el-button>
         <el-button type="danger" @click="doReject">确认驳回</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量审核 -->
+    <el-dialog v-model="batchVisible" title="批量审核" width="840px">
+      <div class="dlg-hint">
+        已选 <b>{{ batchRows.length }}</b> 条订单：库存充足 <b>{{ batchCount.ok }}</b> 条，需变更发货仓
+        <b>{{ batchCount.transfer }}</b> 条，库存不足 <b>{{ batchCount.lack }}</b> 条。
+        <div style="margin-top:6px">
+          确认后库存充足的订单直接通过进入「待发货」；
+          <template v-if="batchCount.hold > 0">其余 <b>{{ batchCount.hold }}</b> 条将单独列出，按单条审核的规则逐条处理。</template>
+          <template v-else>本批全部可正常通过。</template>
+        </div>
+      </div>
+
+      <el-form label-width="96px" size="small" class="batch-form">
+        <el-form-item label="统一快递公司" required>
+          <el-select v-model="batchCarrier" placeholder="请选择本批订单的快递公司" style="width: 240px">
+            <el-option v-for="c in CARRIERS" :key="c.name" :label="c.name" :value="c.name" />
+          </el-select>
+          <span class="form-tip">审核通过后按该快递公司生成运单号</span>
+        </el-form-item>
+      </el-form>
+
+      <div class="sub-t">本批订单校验结果</div>
+      <el-table :data="batchRows" size="small" max-height="320" border>
+        <el-table-column type="index" label="序号" width="52" align="center" />
+        <el-table-column label="平台单号" width="140">
+          <template #default="{ row }"><span class="mono">{{ row.o.no }}</span></template>
+        </el-table-column>
+        <el-table-column label="商品" min-width="160">
+          <template #default="{ row }">
+            <div>{{ row.chk.good.name }}<span v-if="row.o.goods.length > 1" class="muted"> 等{{ row.o.goods.length }}件</span></div>
+            <div class="muted sub">{{ row.chk.good.spec }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="数量" width="60" align="right">
+          <template #default="{ row }">{{ row.chk.needQty }}</template>
+        </el-table-column>
+        <el-table-column label="发货仓库" width="96">
+          <template #default="{ row }">{{ row.o.warehouse }}</template>
+        </el-table-column>
+        <el-table-column label="本仓可用" width="86" align="right">
+          <template #default="{ row }">{{ row.chk.curStock }}</template>
+        </el-table-column>
+        <el-table-column label="校验结果" width="150">
+          <template #default="{ row }">
+            <el-tag v-if="row.chk.state === 'ok'" size="small" type="success">可发货</el-tag>
+            <el-tag v-else-if="row.chk.state === 'transfer'" size="small" type="warning">
+              需变更至{{ row.chk.altWh }}
+            </el-tag>
+            <el-tag v-else size="small" type="danger">库存不足</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="picker-note">库存按 WMS 实时数据校验；同一订单含多个商品时取最严格结果。</div>
+
+      <template #footer>
+        <el-button @click="batchLater">稍后处理</el-button>
+        <el-button type="primary" @click="confirmBatch">确认审核</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 库存不足订单 -->
+    <el-dialog v-model="holdVisible" title="库存不足订单" width="940px">
+      <div class="dlg-hint">
+        <template v-if="lastPassed > 0">本次已通过 <b>{{ lastPassed }}</b> 条订单。</template>
+        以下 <b>{{ holdList.length }}</b> 条订单库存不足，未完成审核。
+        <div style="margin-top:6px">
+          点「处理」按单条审核规则操作（可变更发货仓或驳回）；也可直接整体驳回，驳回原因统一为「商品数量不足」。
+        </div>
+      </div>
+
+      <el-table :data="holdRows" size="small" max-height="340" border>
+        <el-table-column type="index" label="序号" width="52" align="center" />
+        <el-table-column label="平台单号" width="126">
+          <template #default="{ row }"><span class="mono">{{ row.o.no }}</span></template>
+        </el-table-column>
+        <el-table-column label="商品" min-width="140">
+          <template #default="{ row }">
+            <div>{{ row.chk.good.name }}<span v-if="row.o.goods.length > 1" class="muted"> 等{{ row.o.goods.length }}件</span></div>
+            <div class="muted sub">{{ row.chk.good.spec }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="需求" width="52" align="right">
+          <template #default="{ row }">{{ row.chk.needQty }}</template>
+        </el-table-column>
+        <el-table-column label="本仓可用" width="72" align="right">
+          <template #default="{ row }">{{ row.chk.curStock }}</template>
+        </el-table-column>
+        <el-table-column label="各仓可用" width="180">
+          <template #default="{ row }">
+            <div class="wh-stock">
+              <span v-for="(v, w) in stockMap(row.o)" :key="w">
+                {{ w }} <b :class="v >= row.chk.good.qty ? 'enough' : 'short'">{{ v }}</b>
+              </span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="结论" width="160">
+          <template #default="{ row }">
+            <span v-if="row.chk.state === 'transfer'" class="bad">
+              本仓不足，{{ row.chk.altWh }}可满足
+            </span>
+            <span v-else class="bad">各仓均不足</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="70" align="center">
+          <template #default="{ row }">
+            <el-button size="small" @click="handleHold(row.o)">处理</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <template #footer>
+        <el-button type="danger" plain @click="rejectAllHold">全部驳回</el-button>
+        <el-button @click="holdLater">稍后处理</el-button>
       </template>
     </el-dialog>
 
@@ -217,11 +353,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { money, timeLeft } from '@/utils/format'
-import { useOrderStore } from '@/stores/order'
+import { useOrderStore, CARRIERS } from '@/stores/order'
 import { useStockStore, WAREHOUSES } from '@/stores/stock'
 import { tickets as afterTickets, nowStr } from '@/data/aftersale'
 
@@ -231,12 +367,21 @@ const stockStore = useStockStore()
 const warehouses = WAREHOUSES
 
 const CONFIG = {
-  review:  { title: '订单审核', sub: '对接平台与小程序的订单，审核通过后自动模拟发货', hint: '需校验发货仓库存，不足时提示换仓或驳回' },
-  pending: { title: '待发货', sub: '暂无真实 WMS，审核通过后直接模拟发货', hint: '接入 WMS 后该页才会出现待出库订单' },
+  review:  { title: '订单审核', sub: '对接平台与小程序的订单，审核通过后进入待发货，由 WMS 出库回传', hint: '需校验发货仓库存，不足时提示换仓或驳回' },
+  pending: { title: '待发货', sub: '审核通过待出库，WMS 出库回传后进入「已发货」', hint: '当前无真实 WMS，可用每行「模拟出库回传」推进订单' },
   shipped: { title: '已发货', sub: '已生成快递公司与运单号，等待确认收货', hint: '确认收货后订单完结并自动推送财务管理' },
   done:    { title: '已完结', sub: '已确认收货，已推送财务管理', hint: '可在对账中心与发货数据中查看' }
 }
-const cfg = CONFIG[props.status]
+// 同一个组件复用在四个状态路由上，标题/提示必须跟着 props.status 变，不能只取一次
+const cfg = computed(() => CONFIG[props.status] || CONFIG.review)
+
+const EMPTY_TEXT = {
+  review: '暂无待审核订单',
+  pending: '暂无待发货订单，审核通过后订单进入此处',
+  shipped: '暂无已发货订单',
+  done: '暂无已完结订单'
+}
+const emptyText = computed(() => EMPTY_TEXT[props.status] || '暂无数据')
 
 const kw = ref('')
 const f = reactive({ carrier: '', left: '', platform: '', warehouse: '' })
@@ -269,16 +414,145 @@ const rejectReason = ref('')
 const form = reactive({ platform: '天猫', shop: '', receiver: '', phone: '', address: '', note: '',
   goodsName: '', qty: 1, amount: 0 })
 
+/* 库存校验（单条 / 批量共用） */
 const stockOf = (wh, sku) => stockStore.availableOf(sku, wh)
+const stockMap = order => {
+  const g = order.goods[0]
+  return stockStore.warehousesFor(g.sku, g.qty)
+}
+
+/** 找出能整单满足的换仓目标：同一订单所有商品都要够，不支持拆单 */
+function altWarehouseOf(order) {
+  return WAREHOUSES.find(w => w !== order.warehouse &&
+    order.goods.every(g => stockOf(w, g.sku) >= g.qty)) || null
+}
+
+/** 单条库存校验：ok 本仓可发 / transfer 需换仓 / lack 各仓均不足 */
+function stockCheck(order) {
+  const details = order.goods.map(g => ({
+    ...g,
+    need: g.qty,
+    cur: stockOf(order.warehouse, g.sku)
+  }))
+  const enoughAll = details.every(d => d.cur >= d.need)
+  const altWh = enoughAll ? null : altWarehouseOf(order)
+  return {
+    state: enoughAll ? 'ok' : (altWh ? 'transfer' : 'lack'),
+    details,
+    altWh,
+    needQty: details.reduce((s, d) => s + d.need, 0),
+    curStock: details[0].cur,
+    good: order.goods[0]
+  }
+}
+
 const enough = computed(() =>
   !!cur.value && cur.value.goods.every(g => stockOf(cur.value.warehouse, g.sku) >= g.qty))
-const altWarehouse = computed(() => {
-  if (!cur.value) return null
-  const need = cur.value.goods[0]
-  const map = stockStore.warehousesFor(need.sku, need.qty)
-  return Object.entries(map).find(([wh, v]) => wh !== cur.value.warehouse && v >= need.qty)?.[0] || null
-})
+const altWarehouse = computed(() => (cur.value ? altWarehouseOf(cur.value) : null))
 const canPass = computed(() => enough.value || (altWarehouse.value && useAlt.value))
+
+/* 批量审核 */
+const batchMode = ref(false)
+const selected = ref([])
+const tableRef = ref(null)
+const batchVisible = ref(false)
+const batchCarrier = ref('')
+const batchRows = ref([])
+const holdVisible = ref(false)
+const holdList = ref([])
+const lastPassed = ref(0)
+const holdRows = computed(() => holdList.value.map(o => ({ o, chk: stockCheck(o) })))
+const batchCount = computed(() => {
+  const ok = batchRows.value.filter(r => r.chk.state === 'ok').length
+  const transfer = batchRows.value.filter(r => r.chk.state === 'transfer').length
+  const lack = batchRows.value.filter(r => r.chk.state === 'lack').length
+  return { ok, transfer, lack, hold: transfer + lack }
+})
+
+const rowClass = ({ row }) => (row.deferredAt ? 'row-defer' : '')
+const onSelectionChange = rows => { selected.value = rows }
+
+// 筛选条件变化后行可能被隐藏，清空勾选，避免批量操作到看不见的订单
+watch([kw, () => f.carrier, () => f.left, () => f.platform, () => f.warehouse], () => {
+  if (batchMode.value) tableRef.value?.clearSelection()
+})
+
+function enterBatch() {
+  batchMode.value = true
+  selected.value = []
+}
+function exitBatch() {
+  tableRef.value?.clearSelection()
+  batchMode.value = false
+  selected.value = []
+}
+
+// 四个状态页复用同一个组件，切页时退出批量模式，避免复选列残留到待发货等页面
+watch(() => props.status, () => {
+  if (batchMode.value) exitBatch()
+  batchVisible.value = false
+  holdVisible.value = false
+})
+function openBatch() {
+  const list = [...selected.value]
+  if (!list.length) return ElMessage.warning('请先勾选待审核的订单')
+  batchRows.value = list.map(o => ({ o, chk: stockCheck(o) }))
+  batchCarrier.value = ''
+  batchVisible.value = true
+}
+
+/** 批量弹窗「稍后处理」：整批标红待处理 */
+function batchLater() {
+  const list = batchRows.value.map(r => r.o)
+  store.defer(list)
+  batchVisible.value = false
+  exitBatch()
+  ElMessage.success(`已将 ${list.length} 条订单标记为待处理，列表中整行标红`)
+}
+
+/** 确认审核：本仓充足的直接进待发货，其余进「库存不足订单」 */
+function confirmBatch() {
+  if (!batchCarrier.value) return ElMessage.warning('请先选择快递公司')
+  const passRows = batchRows.value.filter(r => r.chk.state === 'ok')
+  const hold = batchRows.value.filter(r => r.chk.state !== 'ok').map(r => r.o)
+  const passed = []
+  const failed = []
+  passRows.forEach(r => {
+    const res = store.approve(r.o, null, batchCarrier.value)
+    if (res.ok) passed.push(r.o)
+    else failed.push({ no: r.o.no, msg: res.msg })
+  })
+  lastPassed.value = passed.length
+  batchVisible.value = false
+  exitBatch()
+  if (failed.length) {
+    ElMessage.warning(`${failed.length} 条订单审核失败（${failed[0].no}）：${failed[0].msg}`)
+  } else if (!hold.length) {
+    ElMessage.success(`批量审核完成，${passed.length} 条订单已进入待发货`)
+  }
+  if (hold.length) {
+    holdList.value = hold
+    holdVisible.value = true
+  }
+}
+
+/** 库存不足订单 → 按单条审核规则处理 */
+function handleHold(o) {
+  holdVisible.value = false
+  setTimeout(() => openReview(o), 60)
+}
+function rejectAllHold() {
+  const n = holdList.value.length
+  holdList.value.forEach(o => store.reject(o))
+  holdVisible.value = false
+  ElMessage.success(`${n} 条订单已驳回：商品数量不足`)
+}
+function holdLater() {
+  const n = holdList.value.length
+  store.defer(holdList.value)
+  holdVisible.value = false
+  ElMessage.success(`已将 ${n} 条订单标记为待处理，列表中整行标红`)
+}
 
 function openReview(row) { cur.value = row; useAlt.value = true; reviewVisible.value = true }
 function openReject(row) { cur.value = row; rejectReason.value = '商品数量不足'; rejectVisible.value = true }
@@ -292,7 +566,7 @@ function pass() {
   ElMessage({
     type: 'success',
     duration: 4200,
-    message: `审核通过，已模拟仓管发货：${res.carrier} ${res.expressNo}`
+    message: `审核通过，订单已进入「待发货」（承运：${res.carrier}）`
   })
 }
 
@@ -303,9 +577,15 @@ function doReject() {
   ElMessage.success('已驳回：' + rejectReason.value)
 }
 
-function batchReview() {
-  ElMessageBox.confirm('将对当前列表全部订单执行批量审核，库存不足的订单会单独列出。', '批量审核', { type: 'warning' })
-    .then(() => ElMessage.success('批量审核完成，异常订单已标红待处理')).catch(() => {})
+/** 待发货 → 已发货：模拟 WMS 出库回传 */
+function shipOut(row) {
+  ElMessageBox.confirm(
+    `模拟 WMS 出库回传：将为订单 ${row.no} 生成运单号并转入「已发货」，确认继续？`,
+    '模拟出库回传', { type: 'info', confirmButtonText: '确认回传' }
+  ).then(() => {
+    const res = store.ship(row)
+    if (res) ElMessage.success(`已回传：${res.carrier} ${res.expressNo}，订单进入「已发货」`)
+  }).catch(() => {})
 }
 
 function receive(row) {
@@ -401,4 +681,37 @@ function submitAfter() {
 .check-row .bad { color: var(--danger); }
 .alt { margin-top: 12px; }
 .stock-list { margin-top: 10px; display: flex; gap: 16px; font-size: 12.5px; color: var(--ink-2); }
+
+/* 批量审核工具条 */
+.batch-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 14px; background: var(--brand-l); border-bottom: 1px solid #BFE3F2;
+  font-size: 12.5px; color: var(--ink-2);
+}
+.batch-bar .sel b { color: var(--brand-d); font-size: 14px; }
+.batch-bar .batch-tip { font-size: 11.5px; color: var(--ink-3); }
+.batch-acts { margin-left: auto; display: flex; gap: 8px; }
+
+/* 稍后处理：整行标红 + 待处理标签 */
+.defer-tag {
+  display: inline-block; margin-top: 3px; padding: 0 6px;
+  height: 18px; line-height: 18px; border-radius: 3px;
+  background: var(--danger-l); color: var(--danger); font-size: 11px; white-space: nowrap;
+}
+:deep(.el-table__row.row-defer > td.el-table__cell) { background: #fff2f0; }
+:deep(.el-table__row.row-defer:hover > td.el-table__cell) { background: #ffe9e5 !important; }
+
+/* 批量审核 / 库存不足订单弹窗 */
+.batch-form { margin-top: 14px; }
+.batch-form .form-tip { margin-left: 10px; font-size: 11.5px; color: var(--ink-3); }
+.sub-t { margin: 16px 0 6px; font-size: 12px; color: var(--ink-2); }
+.sub { font-size: 11px; line-height: 1.4; }
+.picker-note { margin-top: 8px; font-size: 11.5px; color: var(--ink-3); }
+.bad { color: var(--danger); }
+.wh-stock {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px;
+  font-size: 11.5px; color: var(--ink-2);
+}
+.wh-stock .enough { color: var(--ok); font-weight: 600; }
+.wh-stock .short { color: var(--danger); }
 </style>
