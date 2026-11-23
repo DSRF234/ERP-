@@ -309,6 +309,9 @@
       </template>
     </el-dialog>
 
+    <!-- 编辑订单 -->
+    <OrderEditDialog v-model="editVisible" :order="editingOrder" @submit="saveEdit" />
+
     <!-- 申请售后 -->
     <el-dialog v-model="afterVisible" title="申请售后" width="480px">
       <el-form label-width="86px" size="small">
@@ -356,6 +359,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
+import OrderEditDialog from '@/components/order/OrderEditDialog.vue'
 import { money, timeLeft } from '@/utils/format'
 import { useOrderStore, CARRIERS } from '@/stores/order'
 import { useStockStore, WAREHOUSES } from '@/stores/stock'
@@ -408,6 +412,8 @@ const afterTag = v => AFTER_TAG[v] || 'info'
 const reviewVisible = ref(false)
 const rejectVisible = ref(false)
 const createVisible = ref(false)
+const editVisible = ref(false)
+const editingOrder = ref(null)
 const cur = ref(null)
 const useAlt = ref(true)
 const rejectReason = ref('')
@@ -599,7 +605,20 @@ function receive(row) {
   }).catch(() => {})
 }
 
-function edit() { ElMessage.info('打开编辑弹窗（待实现）') }
+/** 编辑订单：打开完整表单，保存时整体写回订单字段 */
+function edit(row) {
+  editingOrder.value = row
+  editVisible.value = true
+}
+
+function saveEdit(payload) {
+  if (!editingOrder.value) return
+  const res = store.update(editingOrder.value.no, payload)
+  if (!res.ok) return ElMessage.error(res.msg)
+  editVisible.value = false
+  ElMessage.success('订单已更新')
+}
+
 function viewDetail() { ElMessage.info('查看订单详情（待实现）') }
 function createOrder() {
   if (!form.receiver || !form.address) return ElMessage.error('请填写收件人与地址')
