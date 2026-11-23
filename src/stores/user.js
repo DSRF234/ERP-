@@ -14,10 +14,16 @@ export const ACCOUNTS = [
 ]
 
 const KEY = 'xy_erp_user'
+const PWD_KEY = 'xy_erp_pwd_map'
+
+const readMap = () => {
+  try { return JSON.parse(localStorage.getItem(PWD_KEY) || '{}') } catch (e) { return {} }
+}
 
 export const useUserStore = defineStore('user', {
   state: () => ({
-    user: JSON.parse(localStorage.getItem(KEY) || 'null')
+    user: JSON.parse(localStorage.getItem(KEY) || 'null'),
+    pwdMap: readMap()
   }),
   getters: {
     isLogin: s => !!s.user,
@@ -28,7 +34,8 @@ export const useUserStore = defineStore('user', {
     login(account, password) {
       const hit = ACCOUNTS.find(a => a.account === account.trim())
       if (!hit) throw new Error('账号不存在')
-      if (hit.password !== password) throw new Error('密码错误')
+      const expected = this.pwdMap[hit.account] || hit.password
+      if (expected !== password) throw new Error('密码错误')
       const { password: _, ...safe } = hit
       this.user = safe
       localStorage.setItem(KEY, JSON.stringify(safe))
@@ -37,6 +44,18 @@ export const useUserStore = defineStore('user', {
     logout() {
       this.user = null
       localStorage.removeItem(KEY)
+    },
+
+    /** 修改当前登录账号的密码 */
+    changePassword(oldPwd, newPwd) {
+      const acc = this.user?.account
+      if (!acc) throw new Error('未登录')
+      const hit = ACCOUNTS.find(a => a.account === acc)
+      const expected = this.pwdMap[acc] || hit?.password
+      if (expected !== oldPwd) throw new Error('原密码不正确')
+      if (newPwd === expected) throw new Error('新密码不能与原密码相同')
+      this.pwdMap = { ...this.pwdMap, [acc]: newPwd }
+      localStorage.setItem(PWD_KEY, JSON.stringify(this.pwdMap))
     }
   }
 })

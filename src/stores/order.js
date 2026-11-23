@@ -6,12 +6,12 @@ import { useStockStore } from '@/stores/stock'
  * 订单全局状态
  *
  * 当前没有真实 WMS 与财务系统，中间环节按以下方式模拟：
- *   审核通过 → 系统自动"仓管已发货"，随机生成快递公司与运单号
- *   → 状态直接进入「已发货」
+ *   审核通过 → 生成出库单号，订单进入「待发货」（此时扣减可用库存）
+ *   → 待发货页点「模拟出库回传」代替 WMS 回传，生成运单号进入「已发货」
  *   → 点「确认收货」进入「已完结」
  *   → 已完结订单自动推送到财务管理（发货数据 / 对账中心）
  *
- * 接入真实 WMS 后：把 autoShip() 换成调用 WMS 出库接口，其余流程不变。
+ * 接入真实 WMS 后：把 ship() 换成 WMS 出库回传接口，其余流程不变。
  */
 export const CARRIERS = [
   { name: '顺丰', prefix: 'SF', len: 12 },
@@ -21,8 +21,9 @@ export const CARRIERS = [
   { name: '邮政', prefix: 'YZ', len: 13 }
 ]
 
-function genExpress() {
-  const c = CARRIERS[Math.floor(Math.random() * CARRIERS.length)]
+/** 按快递公司生成运单号；不传公司时随机取一家 */
+function genExpress(carrierName) {
+  const c = CARRIERS.find(x => x.name === carrierName) || CARRIERS[Math.floor(Math.random() * CARRIERS.length)]
   let no = c.prefix
   for (let i = 0; i < c.len; i++) no += Math.floor(Math.random() * 10)
   return { carrier: c.name, expressNo: no }
@@ -850,22 +851,61 @@ export const useOrderStore = defineStore('order', {
   },
 
   actions: {
-    /** 审核通过：模拟仓管已发货，随机生成快递公司与单号，直接进入已发货 */
-    approve(order, warehouse) {
+    /**
+     * 审核通过：校验订单状态与库存，通过后进入「待发货」并扣减可用库存。
+     * carrierName 为空时随机取一家快递公司（单条审核沿用此行为）；
+     * 批量审核传入用户选择的统一快递公司。
+     */
+    approve(order, warehouse, carrierName) {
       const target = this.orders.find(o => o.no === order.no)
-      if (!target) return null
-      const { carrier, expressNo } = genExpress()
-      if (warehouse) target.warehouse = warehouse
-      target.status = 'shipped'
-      target.carrier = carrier
-      target.expressNo = expressNo
-      target.shippedAt = now()
+      if (!target) return { ok: false, msg: '订单不存在' }
+      if (target.status !== 'review') return { ok: false, msg: '只有待审核订单可以审核' }
 
-      // 无 WMS，本地模拟出库扣减
       const stock = useStockStore()
-      target.goods.forEach(g => stock.deduct(g.sku, target.warehouse, g.qty))
+      const wh = warehouse || target.warehouse
 
-      return { carrier, expressNo }
+      // 库存校验：任一 SKU 不足直接拒绝，避免「已发货但没扣库存」
+      for (const g of target.goods) {
+        const avail = stock.availableOf(g.sku, wh)
+        if (avail < g.qty) {
+          return { ok: false, msg: `${wh} 的「${g.name}」可用 ${avail} 件，不足 ${g.qty} 件，请换仓或驳回` }
+        }
+      }
+
+      const { carrier } = genExpress(carrierName)
+      target.warehouse = wh
+      target.status = 'pending'
+      target.carrier = carrier
+      target.approvedAt = now()
+      target.outboundNo = 'OUT' + Date.now().toString().slice(-10)
+      // 尚未发货，清掉可能残留的运单信息与待处理标记
+      delete target.expressNo
+      delete target.shippedAt
+      delete target.deferredAt
+
+      target.goods.forEach(g => stock.deduct(g.sku, wh, g.qty))
+      return { ok: true, carrier, outboundNo: target.outboundNo }
+    },
+
+    /** 模拟 WMS 出库回传：待发货 → 已发货，生成运单号 */
+    ship(order, trackingNo) {
+      const target = this.orders.find(o => o.no === order.no)
+      if (!target || target.status !== 'pending') return null
+      const res = genExpress(target.carrier)
+      target.expressNo = trackingNo || res.expressNo
+      target.status = 'shipped'
+      target.shippedAt = now()
+      delete target.outboundNo
+      return { carrier: target.carrier, expressNo: target.expressNo }
+    },
+
+    /** 稍后处理：标记待处理，列表中整行标红并显示「待处理」标签 */
+    defer(orders) {
+      const t = now()
+      orders.forEach(o => {
+        const target = this.orders.find(x => x.no === o.no)
+        if (target && !target.deferredAt) target.deferredAt = t
+      })
     },
 
     /** 驳回：移出待审核列表 */
@@ -886,12 +926,14 @@ export const useOrderStore = defineStore('order', {
     /** 确认收货：已发货 → 已完结，同时推送财务 */
     confirmReceive(order) {
       const target = this.orders.find(o => o.no === order.no)
-      if (!target) return
+      if (!target) return { ok: false, msg: '订单不存在' }
+      if (target.status === 'done') return { ok: false, msg: '订单已完结，无需重复确认' }
+      if (target.status !== 'shipped') return { ok: false, msg: '只有已发货订单可以确认收货' }
       target.status = 'done'
       target.doneAt = now()
       target.afterStatus = '已完结'
       target.financePushed = true
-      return target
+      return { ok: true }
     },
 
     /**
@@ -900,10 +942,13 @@ export const useOrderStore = defineStore('order', {
      * 避免「钱退了还在对账表里」。
      */
     setAfterStatus(orderNo, st) {
+      const VALID = ['已完结', '售后中', '已退款']
+      if (!VALID.includes(st)) return { ok: false, msg: `非法的订单售后状态：${st}` }
       const target = this.orders.find(o => o.no === orderNo)
-      if (!target) return
+      if (!target) return { ok: false, msg: '订单不存在' }
       target.afterStatus = st
       target.financePushed = st === '已完结'
+      return { ok: true }
     },
 
     /** 新建订单：直接进入待审核 */
