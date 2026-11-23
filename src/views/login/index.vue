@@ -73,7 +73,7 @@ const store = useUserStore()
 const formRef = ref(null)
 const loading = ref(false)
 const form = reactive({ account: '', password: '', remember: true })
-const demo = ACCOUNTS.slice(0, 4)
+const demo = ACCOUNTS.slice(0, 5)
 
 const rules = {
   account: [{ required: true, message: '请输入登录账号', trigger: 'blur' }],
@@ -176,8 +176,8 @@ async function submit() {
   font-size: 11.5px; padding: 3px 8px; border-radius: 4px; cursor: pointer;
 }
 .demo-row:hover { background: var(--brand-l); }
-.demo-row .acc { width: 74px; color: var(--ink); font-weight: 500; }
-.demo-row .post { width: 40px; color: var(--ink-2); }
+.demo-row .acc { width: 72px; color: var(--ink); font-weight: 500; }
+.demo-row .post { width: 62px; color: var(--ink-2); white-space: nowrap; }
 .demo-row .pwd { margin-left: auto; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .demo-hint { font-size: 11px; color: var(--ink-3); margin-top: 6px; padding-left: 8px; }
 

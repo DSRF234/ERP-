@@ -10,6 +10,7 @@ export const ACCOUNTS = [
   { account: 'wangjl',  password: 'Xy@2026', name: '王佳丽', post: '运营', dept: '电商运营部' },
   { account: 'lilx',    password: 'Xy@2026', name: '李丽霞', post: '仓管', dept: '仓储部' },
   { account: 'zhangls', password: 'Xy@2026', name: '张丽珊', post: '售后', dept: '售后部' },
+  { account: 'sysadmin', password: 'Xy@2026', name: '管理员', post: '系统管理员', dept: '信息部' },
   { account: 'admin',   password: 'Xy@2026', name: '老板',   post: '老板', dept: '管理层' }
 ]
 
