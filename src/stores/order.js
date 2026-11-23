@@ -887,6 +887,18 @@ export const useOrderStore = defineStore('order', {
       return { ok: true, carrier, outboundNo: target.outboundNo }
     },
 
+    /**
+     * 编辑订单：只允许未完结订单，字段由页面表单校验后整体传入。
+     * 不在这里改状态，避免编辑动作影响审核/发货流转。
+     */
+    update(orderNo, patch) {
+      const target = this.orders.find(o => o.no === orderNo)
+      if (!target) return { ok: false, msg: '订单不存在' }
+      if (target.status === 'done') return { ok: false, msg: '已完结订单不支持编辑' }
+      Object.assign(target, patch)
+      return { ok: true }
+    },
+
     /** 模拟 WMS 出库回传：待发货 → 已发货，生成运单号 */
     ship(order, trackingNo) {
       const target = this.orders.find(o => o.no === order.no)
