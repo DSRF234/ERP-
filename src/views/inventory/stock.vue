@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="库存记录" sub="货品批次库存 · 剩余容量 · 库存预警">
-      <el-button size="small" type="primary" :icon="Bell" @click="openWarn">设置预警</el-button>
+      <el-button v-can="'b-stock-warn'" size="small" type="primary" :icon="Bell" @click="openWarn">设置预警</el-button>
     </PageHeader>
 
     <StatCards :items="stats" />

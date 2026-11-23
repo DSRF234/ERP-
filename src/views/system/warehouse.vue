@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="发货仓设置" sub="按收货地址所在省 / 直辖市 / 自治区匹配唯一负责仓，作为订单默认发货仓，同时是售后换货、补发的可选仓来源。本页只维护仓库基础属性与地区归属，不涉及库存数量、仓库地址与人员。">
-      <el-button size="small" @click="exportCsv">导出</el-button>
+      <el-button v-can="'b-sys-wh-export'" size="small" @click="exportCsv">导出</el-button>
     </PageHeader>
 
     <div class="filters">
@@ -45,7 +45,7 @@
         </el-table-column>
         <el-table-column label="操作" width="96" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">更改</el-button>
+            <el-button v-can="'b-sys-wh-edit'" link type="primary" size="small" @click="openEdit(row)">更改</el-button>
           </template>
         </el-table-column>
       </el-table>

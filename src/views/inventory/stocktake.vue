@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="库存盘点" sub="创建盘点任务 · 录入实盘数 · 差异留痕">
-      <el-button size="small" type="primary" :icon="Plus" @click="openCreate">创建盘点任务</el-button>
+      <el-button v-can="'b-stocktake-create'" size="small" type="primary" :icon="Plus" @click="openCreate">创建盘点任务</el-button>
     </PageHeader>
 
     <StatCards :items="stats" />
@@ -85,7 +85,7 @@
 
       <div class="detail-head">
         <h4>盘点明细</h4>
-        <el-button size="small" :icon="Plus" @click="openPicker">添加货品</el-button>
+        <el-button v-can="'b-stocktake-add'" size="small" :icon="Plus" @click="openPicker">添加货品</el-button>
       </div>
       <el-table :data="pickedGoods" size="small" :max-height="200"
         empty-text="还没有添加商品，点右上角「添加货品」">
@@ -186,7 +186,7 @@
 
       <div class="dlg-act">
         <el-button size="small" @click="chk.visible = false">取消</el-button>
-        <el-button size="small" type="primary" @click="saveCheck">确定</el-button>
+        <el-button v-can="'b-stocktake-submit'" size="small" type="primary" @click="saveCheck">确定</el-button>
       </div>
     </el-dialog>
   </div>

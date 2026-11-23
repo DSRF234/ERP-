@@ -14,7 +14,7 @@
         <el-option v-for="s in CO_STATES" :key="s" :label="s" :value="s" />
       </el-select>
       <span class="grow">共 {{ view.length }} 家 · 合作中 {{ activeCount }} 家</span>
-      <el-button size="small" type="primary" @click="openAdd">添加供应商</el-button>
+      <el-button v-can="'b-supplier-add'" size="small" type="primary" @click="openAdd">添加供应商</el-button>
     </div>
 
     <el-table :data="view" size="small" highlight-current-row :max-height="260"
@@ -35,9 +35,9 @@
       </el-table-column>
       <el-table-column label="操作" width="92">
         <template #default="{ row }">
-          <el-button v-if="row.status === '合作中'" link type="danger" size="small"
+          <el-button v-can="'b-supplier-status'" v-if="row.status === '合作中'" link type="danger" size="small"
             @click.stop="toggle(row)">停用</el-button>
-          <el-button v-else link type="primary" size="small" @click.stop="toggle(row)">复用</el-button>
+          <el-button v-can="'b-supplier-status'" v-else link type="primary" size="small" @click.stop="toggle(row)">复用</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -46,7 +46,7 @@
       <div class="goods-head">
         <h4>供应商货品 · {{ active.name }}</h4>
         <span class="extra">进货单价为供应商报价，最低成交价为历史最低成交记录，用于采购比价</span>
-        <el-button size="small" @click="openGoods">添加货品</el-button>
+        <el-button v-can="'b-supplier-goods'" size="small" @click="openGoods">添加货品</el-button>
       </div>
       <el-table :data="active.goods" size="small" empty-text="该供应商暂未关联货品" :max-height="240">
         <el-table-column label="图片" width="66">

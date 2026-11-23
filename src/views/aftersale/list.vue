@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader :title="cfg.title" :sub="cfg.sub">
-      <el-button v-if="status !== 'doing'" size="small" @click="exportData">导出数据</el-button>
+      <el-button v-can="status === 'done' ? 'b-after-done-export' : 'b-after-wait-export'" v-if="status !== 'doing'" size="small" @click="exportData">导出数据</el-button>
       <el-button v-if="status === 'wait'" size="small" type="primary" @click="refresh">刷新</el-button>
     </PageHeader>
 
@@ -208,7 +208,7 @@
             </div>
             <div v-else class="ops">
               <el-button link type="primary" size="small" @click="openDetail(row)">详情</el-button>
-              <el-button v-if="status === 'wait'" link type="primary" size="small" @click="openAudit(row)">审核</el-button>
+              <el-button v-can="'b-after-wait-audit'" v-if="status === 'wait'" link type="primary" size="small" @click="openAudit(row)">审核</el-button>
             </div>
           </template>
         </el-table-column>
@@ -542,11 +542,11 @@
             <template v-if="cur.amount > 0"> · 待退 <b class="mono">{{ money(cur.amount) }}</b></template>
           </span>
           <el-button size="small" @click="detailVisible = false">关闭</el-button>
-          <el-button v-if="status === 'doing' && cur?.queue === 'address'" size="small" type="primary"
+          <el-button v-can="'b-after-doing-address'" v-if="status === 'doing' && cur?.queue === 'address'" size="small" type="primary"
             @click="finishAddress(cur)">完成改址</el-button>
-          <el-button v-else-if="status === 'doing'" size="small" type="primary" :disabled="cur?.queue !== 'refund'"
+          <el-button v-can="'b-after-doing-refund'" v-else-if="status === 'doing'" size="small" type="primary" :disabled="cur?.queue !== 'refund'"
             :title="cur?.queue !== 'refund' ? '仅「待退款」队列可发起退款' : ''" @click="startRefund">退款</el-button>
-          <el-button v-if="status === 'done'" size="small" type="primary" @click="copyInfo">复制信息</el-button>
+          <el-button v-can="'b-after-done-copy'" v-if="status === 'done'" size="small" type="primary" @click="copyInfo">复制信息</el-button>
         </div>
       </template>
     </el-drawer>
@@ -565,11 +565,13 @@ import {
   companyOf, trackOf, auditTicket, confirmRefund, completeAddress, createWorkOrder, workOrderNo,
   stockOf, WAREHOUSE_OPTIONS, todayStr
 } from '@/data/aftersale'
+import { usePerm } from '@/directives/can'
 
 const props = defineProps({ status: { type: String, default: 'wait' } })
 const store = useUserStore()
 const orderStore = useOrderStore()
 const who = computed(() => store.name || '张丽珊')
+const { can } = usePerm()
 
 const CONFIG = {
   wait: {
@@ -707,7 +709,11 @@ const TYPE_ACTION = {
 }
 const ACTION_TEXT = { refund: '退款', exchange: '换货', resend: '补发', address: '改址' }
 const actionOf = row => TYPE_ACTION[row.type] || ''
-const opsOf = row => OPS.filter(a => a.k === actionOf(row))
+const ACTION_PERM = {
+  refund: 'b-after-doing-refund', exchange: 'b-after-doing-exchange',
+  resend: 'b-after-doing-resend', address: 'b-after-doing-address'
+}
+const opsOf = row => OPS.filter(a => a.k === actionOf(row) && can(ACTION_PERM[a.k]))
 const opOn = (row, k) => actionOf(row) === k && (OP_UNLOCK[row.queue] || []).includes(k)
 const opTip = (row, k) => opOn(row, k)
   ? OP_DO[k]

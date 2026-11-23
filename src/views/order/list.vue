@@ -1,9 +1,9 @@
 <template>
   <div>
     <PageHeader :title="cfg.title" :sub="cfg.sub">
-      <el-button v-if="status === 'review' && !batchMode" size="small" type="primary" @click="enterBatch">批量审核</el-button>
-      <el-button v-if="status === 'review'" size="small" @click="createVisible = true">新建订单</el-button>
-      <el-button size="small">导出</el-button>
+      <el-button v-can="pid.batch" v-if="status === 'review' && !batchMode" size="small" type="primary" @click="enterBatch">批量审核</el-button>
+      <el-button v-can="pid.create" v-if="status === 'review'" size="small" @click="createVisible = true">新建订单</el-button>
+      <el-button v-can="pid.exp" size="small">导出</el-button>
     </PageHeader>
 
     <div class="filters">
@@ -111,17 +111,17 @@
         <el-table-column label="操作" :width="status === 'review' ? 150 : (status === 'pending' ? 168 : 130)" fixed="right">
           <template #default="{ row }">
             <template v-if="status === 'review'">
-              <el-button link type="primary" size="small" @click="openReview(row)">审核</el-button>
-              <el-button link type="danger" size="small" @click="openReject(row)">驳回</el-button>
-              <el-button link size="small" @click="edit(row)">编辑</el-button>
+              <el-button v-can="pid.audit" link type="primary" size="small" @click="openReview(row)">审核</el-button>
+              <el-button v-can="pid.reject" link type="danger" size="small" @click="openReject(row)">驳回</el-button>
+              <el-button v-can="pid.edit" link size="small" @click="edit(row)">编辑</el-button>
             </template>
             <template v-else-if="status === 'pending'">
-              <el-button link type="primary" size="small" @click="shipOut(row)">模拟出库回传</el-button>
-              <el-button link size="small" @click="edit(row)">编辑</el-button>
+              <el-button v-can="pid.outbound" link type="primary" size="small" @click="shipOut(row)">模拟出库回传</el-button>
+              <el-button v-can="pid.edit" link size="small" @click="edit(row)">编辑</el-button>
             </template>
-            <el-button v-if="status === 'shipped'" link type="primary" size="small"
+            <el-button v-can="pid.receive" v-if="status === 'shipped'" link type="primary" size="small"
               @click="receive(row)">确认收货</el-button>
-            <el-button v-if="status === 'done'" link type="primary" size="small" @click="openAfter(row)">申请售后</el-button>
+            <el-button v-can="pid.aftersale" v-if="status === 'done'" link type="primary" size="small" @click="openAfter(row)">申请售后</el-button>
             <el-button v-if="status === 'done'" link size="small" @click="viewDetail(row)">查看</el-button>
           </template>
         </el-table-column>
@@ -366,6 +366,15 @@ import { useStockStore, WAREHOUSES } from '@/stores/stock'
 import { tickets as afterTickets, nowStr } from '@/data/aftersale'
 
 const props = defineProps({ status: { type: String, default: 'review' } })
+
+/* 四个状态页复用同一组件，操作权限 id 也随之切换 */
+const PID = {
+  review: { create: 'b-order-review-create', audit: 'b-order-review-audit', batch: 'b-order-review-batch', reject: 'b-order-review-reject', edit: 'b-order-edit', exp: 'b-order-export' },
+  pending: { outbound: 'b-order-pending-outbound', edit: 'b-order-edit2', exp: 'b-order-export2' },
+  shipped: { receive: 'b-order-shipped-receive', edit: 'b-order-edit3', exp: 'b-order-export3' },
+  done: { aftersale: 'b-order-done-aftersale', edit: 'b-order-edit4', exp: 'b-order-export4' }
+}
+const pid = computed(() => PID[props.status] || {})
 const store = useOrderStore()
 const stockStore = useStockStore()
 const warehouses = WAREHOUSES

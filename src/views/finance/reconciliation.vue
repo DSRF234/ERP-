@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="对账中心" sub="核对平台账单的实际到账金额">
-      <el-button size="small">导出</el-button>
+      <el-button v-can="'b-fin-recon-export'" size="small">导出</el-button>
     </PageHeader>
 
     <div class="kpis">
@@ -18,7 +18,7 @@
         <el-option label="销售出库" value="销售出库" />
         <el-option label="退货入库" value="退货入库" />
       </el-select>
-      <el-button size="small" type="primary">查询</el-button>
+      <el-button v-can="'b-fin-recon-query'" size="small" type="primary">查询</el-button>
       <el-button size="small" @click="reset">重置</el-button>
       <span class="count">共 {{ view.length }} 条</span>
     </div>
@@ -53,7 +53,7 @@
         </el-table-column>
         <el-table-column label="操作" width="90" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" :disabled="row.checked" @click="check(row)">核对</el-button>
+            <el-button v-can="'b-fin-recon-check'" link type="primary" size="small" :disabled="row.checked" @click="check(row)">核对</el-button>
           </template>
         </el-table-column>
       </el-table>

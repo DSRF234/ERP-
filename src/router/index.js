@@ -1,6 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { useUserStore } from '@/stores/user'
+import { canView, permsOfPostName, firstAllowedPath } from '@/data/perm'
 
 /**
  * 路由严格对应《ERP 功能架构》（Map1.pdf）
@@ -85,13 +87,25 @@ export const routes = [
 
 const router = createRouter({ history: createWebHashHistory(), routes })
 
-// 登录守卫：未登录一律回登录页，登录后回跳原地址
+// 登录守卫：未登录一律回登录页；已登录则再校验页面权限
 router.beforeEach(to => {
   const store = useUserStore()
   if (to.meta.public) {
     return store.isLogin && to.path === '/login' ? '/dashboard' : true
   }
   if (!store.isLogin) return { path: '/login', query: { redirect: to.fullPath } }
+
+  /* 页面权限：没有该页「查看页面」权限就进不去，自动跳到有权限的第一页 */
+  const perms = permsOfPostName(store.post)
+  if (!canView(perms, to.path)) {
+    const first = firstAllowedPath(perms)
+    if (first && first !== to.path) {
+      ElMessage.warning(`「${to.meta.title || to.path}」未对「${store.post}」职位开放，已跳到有权限的页面`)
+      return first
+    }
+    ElMessage.error('当前职位还没有任何页面权限，请联系管理员在「权限管理」中分配')
+    return false
+  }
   return true
 })
 

@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="采购订单" sub="采购单全流程：新建 → 审核 → 进行中 → 已完成">
-      <el-button size="small" type="primary" :icon="Plus" @click="router.push('/purchase/create')">新建采购单</el-button>
+      <el-button v-can="'b-purchase-create'" size="small" type="primary" :icon="Plus" @click="router.push('/purchase/create')">新建采购单</el-button>
       <el-button size="small" @click="drawer = true">供应商管理</el-button>
     </PageHeader>
 
@@ -49,10 +49,10 @@
         </el-table-column>
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
-            <el-button v-if="row.status === '待审核'" link type="primary" size="small"
+            <el-button v-can="'b-purchase-delete'" link type="danger" size="small" @click="remove(row)">删除</el-button>
+            <el-button v-can="'b-purchase-audit'" v-if="row.status === '待审核'" link type="primary" size="small"
               @click="openAudit(row)">审批</el-button>
-            <el-button v-if="row.status === '进行中'" link type="success" size="small"
+            <el-button v-can="'b-purchase-inbound'" v-if="row.status === '进行中'" link type="success" size="small"
               @click="warehousing(row)">确认入库</el-button>
           </template>
         </el-table-column>

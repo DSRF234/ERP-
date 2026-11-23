@@ -3,7 +3,7 @@
     <PageHeader title="新建采购单" back="返回采购订单" back-to="/purchase"
       sub="提交后进入「待审核」，审核通过变为「进行中」">
       <el-button size="small" @click="cancel">取消</el-button>
-      <el-button size="small" type="primary" @click="submit">提交审核</el-button>
+      <el-button v-can="'b-purchase-create-submit'" size="small" type="primary" @click="submit">提交审核</el-button>
     </PageHeader>
 
     <div class="card" style="margin-bottom: 16px">
@@ -129,12 +129,12 @@
         </el-table-column>
         <el-table-column label="操作" width="88" fixed="right">
           <template #default="{ row, $index }">
-            <el-button link type="danger" size="small" @click="removeItem(row, $index)">删除</el-button>
+            <el-button v-can="'b-purchase-create-del'" link type="danger" size="small" @click="removeItem(row, $index)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
       <div class="table-foot">
-        <el-button size="small" :icon="Plus" @click="picker = true">添加货品</el-button>
+        <el-button v-can="'b-purchase-create-add'" size="small" :icon="Plus" @click="picker = true">添加货品</el-button>
         <span class="sum" style="margin-left: auto">
           总采购金额（元）　<b>{{ money(total) }}</b>
         </span>

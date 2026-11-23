@@ -7,55 +7,17 @@
       </div>
 
       <el-menu :default-active="route.path" router class="nav">
-        <el-menu-item index="/dashboard">
-          <el-icon><DataLine /></el-icon><span>数据看板</span>
-        </el-menu-item>
-
-        <el-sub-menu index="order">
-          <template #title><el-icon><Document /></el-icon><span>订单管理</span></template>
-          <el-menu-item index="/order/review">订单审核</el-menu-item>
-          <el-menu-item index="/order/pending">待发货</el-menu-item>
-          <el-menu-item index="/order/shipped">已发货</el-menu-item>
-          <el-menu-item index="/order/done">已完结</el-menu-item>
-        </el-sub-menu>
-
-        <el-sub-menu index="purchase">
-          <template #title><el-icon><ShoppingCart /></el-icon><span>采购管理</span></template>
-          <el-menu-item index="/purchase">采购订单</el-menu-item>
-          <el-menu-item index="/purchase/supplier">供应商管理</el-menu-item>
-        </el-sub-menu>
-
-        <el-sub-menu index="inventory">
-          <template #title><el-icon><Box /></el-icon><span>库存管理</span></template>
-          <el-menu-item index="/inventory/stock">库存记录</el-menu-item>
-          <el-menu-item index="/inventory/stocktake">库存盘点</el-menu-item>
-        </el-sub-menu>
-
-        <el-sub-menu index="aftersale">
-          <template #title><el-icon><Service /></el-icon><span>售后管理</span></template>
-          <el-menu-item index="/aftersale/wait">
-            售后待处理<span v-if="waitCount" class="badge">{{ waitCount }}</span>
+        <template v-for="m in menu" :key="m.id">
+          <el-menu-item v-if="m.flat && m.pages.length" :index="m.pages[0].path">
+            <el-icon><component :is="m.icon" /></el-icon><span>{{ m.pages[0].label }}</span>
           </el-menu-item>
-          <el-menu-item index="/aftersale/doing">售后处理中</el-menu-item>
-          <el-menu-item index="/aftersale/done">售后处理完成</el-menu-item>
-        </el-sub-menu>
-
-        <el-sub-menu index="finance">
-          <template #title><el-icon><Money /></el-icon><span>财务管理</span></template>
-          <el-menu-item index="/finance/reconciliation">对账中心</el-menu-item>
-          <el-menu-item index="/finance/shipment">发货数据</el-menu-item>
-          <el-menu-item index="/finance/goods">商品信息</el-menu-item>
-          <el-menu-item index="/finance/aging">库存积压</el-menu-item>
-          <el-menu-item index="/finance/payable">应付账款台账</el-menu-item>
-        </el-sub-menu>
-
-        <el-sub-menu index="system">
-          <template #title><el-icon><Setting /></el-icon><span>系统设置</span></template>
-          <el-menu-item index="/system/post">职位管理</el-menu-item>
-          <el-menu-item index="/system/account">账号管理</el-menu-item>
-          <el-menu-item index="/system/permission">权限管理</el-menu-item>
-          <el-menu-item index="/system/warehouse">发货仓设置</el-menu-item>
-        </el-sub-menu>
+          <el-sub-menu v-else-if="m.pages.length" :index="m.id">
+            <template #title><el-icon><component :is="m.icon" /></el-icon><span>{{ m.label }}</span></template>
+            <el-menu-item v-for="p in m.pages" :key="p.id" :index="p.path">
+              {{ p.label }}<span v-if="p.path === '/aftersale/wait' && waitCount" class="badge">{{ waitCount }}</span>
+            </el-menu-item>
+          </el-sub-menu>
+        </template>
       </el-menu>
     </aside>
 
@@ -121,11 +83,19 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useAfterStore } from '@/stores/aftersale'
+import { MODULES, canView, permsOfPostName } from '@/data/perm'
 
 const route = useRoute()
 const router = useRouter()
 const store = useUserStore()
 const afterStore = useAfterStore()
+
+/* 菜单完全由权限树推导：没有「查看页面」权限的页面不出现，模块下全无可见页面则整块隐藏 */
+const perms = computed(() => permsOfPostName(store.post))
+const menu = computed(() => MODULES.map(m => ({
+  ...m,
+  pages: m.children.filter(p => p.path && p.menu !== false && canView(perms.value, p.path))
+})))
 
 const initial = computed(() => (store.name || '星').slice(0, 1))
 const waitCount = computed(() => afterStore.counts.wait)

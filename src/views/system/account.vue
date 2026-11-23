@@ -1,8 +1,8 @@
 <template>
   <div>
     <PageHeader title="账号管理" sub="员工登录账号，权限完全继承所属职位，不在账号层单独授权。一位员工仅允许一个登录账号，登录账号全局唯一。">
-      <el-button size="small" @click="exportAccounts">导出</el-button>
-      <el-button size="small" type="primary" @click="openNew">新建账号</el-button>
+      <el-button v-can="'b-sys-account-export'" size="small" @click="exportAccounts">导出</el-button>
+      <el-button v-can="'b-sys-account-create'" size="small" type="primary" @click="openNew">新建账号</el-button>
     </PageHeader>
 
     <div class="filters">
@@ -62,8 +62,8 @@
         <el-table-column label="操作" width="212" fixed="right">
           <template #default="{ row }">
             <div class="ops">
-              <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-              <el-button link type="primary" size="small" @click="resetPwd(row)">重置密码</el-button>
+              <el-button v-can="'b-sys-account-edit'" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+              <el-button v-can="'b-sys-account-reset'" link type="primary" size="small" @click="resetPwd(row)">重置密码</el-button>
               <el-tooltip :disabled="!statusTip(row)" :content="statusTip(row)" placement="top">
                 <span class="op-wrap">
                   <el-button link :type="statusLocked(row) ? 'info' : 'primary'" size="small" :disabled="statusLocked(row)"
@@ -72,8 +72,8 @@
               </el-tooltip>
               <el-tooltip :disabled="!isBoss(row)" content="老板账号不可删除" placement="top">
                 <span class="op-wrap">
-                  <el-button link :type="isBoss(row) ? 'info' : 'danger'" size="small" :disabled="isBoss(row)"
-                    @click="removeAcc(row)">删除</el-button>
+                    <el-button v-can="'b-sys-account-delete'" link :type="isBoss(row) ? 'info' : 'danger'" size="small" :disabled="isBoss(row)"
+                      @click="removeAcc(row)">删除</el-button>
                 </span>
               </el-tooltip>
             </div>

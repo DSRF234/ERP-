@@ -1,8 +1,8 @@
 <template>
   <div>
     <PageHeader title="职位管理" sub="职位同时承担「人事岗位」与「权限载体」两个职责：一个职位可关联多个账号，账号的菜单与按钮权限完全继承所属职位。老板职位为系统内置，不可停用、不可删除。">
-      <el-button size="small" @click="exportPosts">导出</el-button>
-      <el-button size="small" type="primary" @click="openNew">新建职位</el-button>
+      <el-button v-can="'b-sys-post-export'" size="small" @click="exportPosts">导出</el-button>
+      <el-button v-can="'b-sys-post-create'" size="small" type="primary" @click="openNew">新建职位</el-button>
     </PageHeader>
 
     <div class="filters">
@@ -61,17 +61,17 @@
             <template #default="{ row }">
               <div class="ops">
                 <el-button link type="primary" size="small" @click="openView(row)">查看</el-button>
-                <el-button link type="primary" size="small" @click="goPerm(row)">编辑权限</el-button>
+                <el-button v-can="'b-sys-post-perm'" link type="primary" size="small" @click="goPerm(row)">编辑权限</el-button>
                 <el-tooltip :disabled="!row.builtin" content="老板职位为系统内置，不可停用" placement="top">
                   <span class="op-wrap">
                     <el-button link :type="row.builtin ? 'info' : 'primary'" size="small" :disabled="row.builtin"
                       @click="toggleStatus(row)">{{ row.status === '启用' ? '停用' : '启用' }}</el-button>
                   </span>
                 </el-tooltip>
-                <el-button link type="primary" size="small" @click="openPeople(row)">人员</el-button>
+                <el-button v-can="'b-sys-post-staff'" link type="primary" size="small" @click="openPeople(row)">人员</el-button>
                 <el-tooltip :disabled="!row.builtin" content="老板职位不可删除" placement="top">
                   <span class="op-wrap">
-                    <el-button link :type="row.builtin ? 'info' : 'danger'" size="small" :disabled="row.builtin"
+                    <el-button v-can="'b-sys-post-delete'" link :type="row.builtin ? 'info' : 'danger'" size="small" :disabled="row.builtin"
                       @click="removePost(row)">删除</el-button>
                   </span>
                 </el-tooltip>
@@ -147,8 +147,8 @@
       </template>
       <template #footer>
         <el-button size="small" @click="viewVisible = false">关闭</el-button>
-        <el-button size="small" @click="exportOne(curPost)">导出</el-button>
-        <el-button size="small" type="primary" @click="goPerm(curPost)">编辑权限</el-button>
+        <el-button v-can="'b-sys-post-export'" size="small" @click="exportOne(curPost)">导出</el-button>
+        <el-button v-can="'b-sys-post-perm'" size="small" type="primary" @click="goPerm(curPost)">编辑权限</el-button>
       </template>
     </el-drawer>
 
@@ -186,9 +186,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import {
-  posts, accounts, DEPTS, SCOPES, PERM_TREE, TOTAL_PERMS,
-  accountsOfPost, DEFAULT_PERMS, setPostStatus
+  posts, accounts, DEPTS, SCOPES,
+  accountsOfPost, setPostStatus
 } from '@/data/system'
+import { PERM_TREE, TOTAL_PERMS } from '@/data/perm'
 
 const router = useRouter()
 const kw = ref('')
