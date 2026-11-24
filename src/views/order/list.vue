@@ -3,7 +3,7 @@
     <PageHeader :title="cfg.title" :sub="cfg.sub">
       <el-button v-can="pid.batch" v-if="status === 'review' && !batchMode" size="small" type="primary" @click="enterBatch">批量审核</el-button>
       <el-button v-can="pid.create" v-if="status === 'review'" size="small" @click="createVisible = true">新建订单</el-button>
-      <el-button v-can="pid.exp" size="small">导出</el-button>
+      <el-button v-can="pid.exp" size="small" @click="exportOrders">导出</el-button>
     </PageHeader>
 
     <div class="filters">
@@ -120,7 +120,7 @@
               @click="receive(row)">确认收货</el-button>
             <el-button v-can="pid.aftersale" v-else-if="status === 'done'" link type="primary" size="small"
               @click="openAfter(row)">申请售后</el-button>
-            <el-button link type="primary" size="small" @click="openDetail(row)">详情</el-button>
+            <el-button v-can="pid.detail" link type="primary" size="small" @click="openDetail(row)">详情</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -171,7 +171,7 @@
 
       <template #footer>
         <el-button @click="reviewVisible = false">取消</el-button>
-        <el-button type="danger" plain @click="toReject">驳回</el-button>
+        <el-button v-can="pid.reject" type="danger" plain @click="toReject">驳回</el-button>
         <el-button type="primary" :disabled="!canPass" @click="pass">确认审核通过</el-button>
       </template>
     </el-dialog>
@@ -302,7 +302,7 @@
       </el-table>
 
       <template #footer>
-        <el-button type="danger" plain @click="rejectAllHold">全部驳回</el-button>
+        <el-button v-can="pid.reject" type="danger" plain @click="rejectAllHold">全部驳回</el-button>
         <el-button @click="holdLater">稍后处理</el-button>
       </template>
     </el-dialog>
@@ -490,10 +490,10 @@ const props = defineProps({ status: { type: String, default: 'review' } })
 
 /* 四个状态页复用同一组件，操作权限 id 也随之切换 */
 const PID = {
-  review: { create: 'b-order-review-create', audit: 'b-order-review-audit', batch: 'b-order-review-batch', reject: 'b-order-review-reject', exp: 'b-order-export' },
-  pending: { outbound: 'b-order-pending-outbound', exp: 'b-order-export2' },
-  shipped: { receive: 'b-order-shipped-receive', exp: 'b-order-export3' },
-  done: { aftersale: 'b-order-done-aftersale', exp: 'b-order-export4' }
+  review: { create: 'b-order-review-create', detail: 'b-order-review-detail', audit: 'b-order-review-audit', batch: 'b-order-review-batch', reject: 'b-order-review-reject', exp: 'b-order-review-export' },
+  pending: { detail: 'b-order-pending-detail', outbound: 'b-order-pending-outbound', exp: 'b-order-pending-export' },
+  shipped: { detail: 'b-order-shipped-detail', receive: 'b-order-shipped-receive', exp: 'b-order-shipped-export' },
+  done: { detail: 'b-order-done-detail', aftersale: 'b-order-done-aftersale', exp: 'b-order-done-export' }
 }
 const pid = computed(() => PID[props.status] || {})
 const store = useOrderStore()
@@ -761,6 +761,26 @@ function openDetail(row) {
   detailOrder.value = row
   detailVisible.value = true
 }
+
+/** 导出当前状态的订单列表（CSV，带 BOM 便于 Excel 打开） */
+function exportOrders() {
+  const list = rows.value
+  if (!list.length) return ElMessage.warning('当前没有可导出的订单')
+  const head = ['订单编号', '平台', '店铺', '收件人', '手机号', '收件地址', '订单金额', '平台结算金额',
+    '实际到账金额', '发货仓库', '快递公司', '快递单号', '付款时间', '最晚发货时间', '发货时间', '状态']
+  const body = list.map(o => [o.no, o.platform, o.shop, o.receiver, o.phone, o.address, o.amount,
+    o.settle, o.actual, o.warehouse, o.carrier || '', o.expressNo || '', o.payTime || '',
+    o.deadline || '', o.shippedAt || '', o.status])
+  const csv = [head, ...body].map(r => r.map(v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `${cfg.value.title}-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(a.href)
+  ElMessage.success(`已导出 ${list.length} 条订单`)
+}
+
 function createOrder() {
   if (!form.receiver || !form.address) return ElMessage.error('请填写收件人与地址')
   if (!form.amount || form.amount <= 0) return ElMessage.error('请填写订单金额')

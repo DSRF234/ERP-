@@ -82,8 +82,8 @@ T('SYS-001', '职位列表字段与内置标识', 'sys', async api => {
   k.eq(JSON.stringify(h), JSON.stringify(['职位名称', '所属部门', '关联账号', '数据范围', '状态', '已有权限', '操作']), '列顺序')
   const boss = await api.rowBy('老板')
   k.is(boss.includes('内置'), '老板带内置标签')
-  /* 基线：22 页 / 80 项（远端移除订单「编辑订单」4 个权限点） */
-  const expect = { 老板: ['1', '80 / 80 项'], 运营: ['1', '20 / 80 项'], 采购: ['0', '16 / 80 项'], 仓管: ['1', '11 / 80 项'], 售后: ['1', '14 / 80 项'], 财务: ['1', '16 / 80 项'], 系统管理员: ['1', '20 / 80 项'], 全局演示: ['1', '80 / 80 项'] }
+  /* 基线：22 页 / 88 项 */
+  const expect = { 老板: ['1', '88 / 88 项'], 运营: ['1', '25 / 88 项'], 采购: ['0', '16 / 88 项'], 仓管: ['1', '14 / 88 项'], 售后: ['1', '19 / 88 项'], 财务: ['1', '14 / 88 项'], 系统管理员: ['1', '22 / 88 项'], 全局演示: ['1', '88 / 88 项'] }
   for (const [name, [acc, perm]] of Object.entries(expect)) {
     const r = await api.rowBy(name)
     k.is(r && r.includes(acc) && r.includes(perm), `${name} 关联账号 ${acc} / 权限 ${perm}（实际 ${r}）`)
@@ -227,11 +227,11 @@ T('SYS-006', '新建职位 · 空白模板', 'sys', async api => {
   k.is(await api.msgHas('请到权限管理分配权限'), '空白模板提示')
   await api.c.sleep(300)
   const r = await api.rowBy('售后二组')
-  k.is(r && r.includes('0') && r.includes('0 / 80 项'), `权限 0/84（${r}）`)
+  k.is(r && r.includes('0') && r.includes('0 / 88 项'), `权限 0/88（${r}）`)
   await api.clickRowBtn('售后二组', '查看')
   await api.c.sleep(500)
   const d = await api.drawerText()
-  k.is(d.includes('0 项 / 共 80 项') && d.includes('未分配'), '详情 0 项且未分配')
+  k.is(d.includes('0 项 / 共 88 项') && d.includes('未分配'), '详情 0 项且未分配')
   /* 复制模板 */
   await api.drawerClose()
   await api.c.sleep(300)
@@ -255,13 +255,13 @@ T('SYS-007', '新建职位 · 复制权限模板', 'sys', async api => {
   await api.dlgField('职位名称', '售后主管')
   await api.dlgPick('权限模板', '复制自 售后')
   await api.dlgFooter('确定')
-  k.is(await api.msgHas('权限复制自「售后」共 14 项'), '复制提示 14 项')
+  k.is(await api.msgHas('权限复制自「售后」共 19 项'), '复制提示 19 项')
   const r = await api.rowBy('售后主管')
-  k.is(r && r.includes('14 / 80 项'), `列表 14/84（${r}）`)
+  k.is(r && r.includes('19 / 88 项'), `列表 19/88（${r}）`)
   await api.clickRowBtn('售后主管', '查看')
   await api.c.sleep(500)
   const d = await api.drawerText()
-  k.is(d.includes('14 项 / 共 80 项'), '详情 14 项')
+  k.is(d.includes('19 项 / 共 88 项'), '详情 19 项')
   k.is(d.includes('审核售后单') && d.includes('确认退款'), '权限明细与售后一致')
   k.is(!d.includes('内置'), '复制得到的职位无内置标识')
   return k.done()
@@ -301,7 +301,7 @@ T('SYS-009', '职位详情抽屉', 'sys', async api => {
   const title = await api.c.eval(`document.querySelector('.el-drawer__title, .el-drawer-header__title, .el-drawer #el-id-2-0')?.innerText || document.querySelector('.el-drawer')?.innerText.slice(0,20)`)
   const d = await api.drawerText()
   k.is(d.includes('售后') && d.includes('售后部'), '基础信息')
-  k.is(d.includes('14 项 / 共 80 项') && d.includes('张丽珊'), '权限与人员')
+  k.is(d.includes('19 项 / 共 88 项') && d.includes('张丽珊'), '权限与人员')
   k.is(d.includes('负责售后受理审核'), '职位说明')
   k.is(d.includes('未分配'), '未分配页面标记')
   const foot = (await api.drawerFootBtns()).map(b => b.label)
@@ -322,11 +322,11 @@ T('SYS-010', '编辑权限跳转的职位预选', 'sys', async api => {
   k.is((await api.c.eval('location.hash')).includes('post-sys'), '预选系统管理员')
   k.is((await api.permHeaderTitle()).includes('系统管理员'), '权限树标题')
   const s = await api.summary()
-  k.eq(s[0]?.n, '20', '已勾选 20 项')
+  k.eq(s[0]?.n, '22', '已勾选 22 项')
   /* 直接打开无 query → 默认运营 */
   await api.navFresh('/system/permission')
   k.is((await api.permHeaderTitle()).includes('运营'), '无 query 默认运营')
-  k.eq((await api.summary())[0]?.n, '20', '运营 20 项')
+  k.eq((await api.summary())[0]?.n, '25', '运营 25 项')
   /* 非法 query */
   await api.navFresh('/system/permission?post=post-xxx')
   k.is((await api.permHeaderTitle()).includes('运营'), '非法 query 回落默认')
@@ -523,7 +523,7 @@ T('SYS-018', '导出职位（列表 CSV / 单职位权限清单）', 'sys', asyn
   const lines = dl.text.replace(/^\ufeff/, '').split('\n')
   k.eq(lines.length, 9, '表头 + 8 行')
   k.eq(lines[0].split(',').length, 7, '7 列')
-  k.is(lines[0].includes('已有权限') && dl.text.includes('14/80'), '含 14/84 形式')
+  k.is(lines[0].includes('已有权限') && dl.text.includes('19/88'), '含 19/88 形式')
   /* 单职位权限清单 */
   await api.hookDownload()
   await api.clickRowBtn('售后', '查看')
@@ -532,8 +532,8 @@ T('SYS-018', '导出职位（列表 CSV / 单职位权限清单）', 'sys', asyn
   k.is(await api.msgHas('权限清单已导出'), '清单导出提示')
   dl = await api.getDownload()
   k.is(dl.name === '售后-权限清单.txt', `清单文件名（${dl.name}）`)
-  k.is(dl.text.includes('职位：售后') && dl.text.includes('权限：14/80'), '清单头部')
-  k.is(dl.text.includes('售后待处理：查看页面、审核售后单、导出售后单'), '售后待处理三项')
+  k.is(dl.text.includes('职位：售后') && dl.text.includes('权限：19/88'), '清单头部')
+  k.is(dl.text.includes('售后待处理：查看页面、查看详情、审核售后单、导出售后单'), '售后待处理四项')
   k.is(dl.text.includes('确') || dl.text.includes('确认退款'), '含处理中动作')
   await api.unhookDownload()
   return k.done()
@@ -1018,24 +1018,24 @@ T('SYS-039', '导出账号 CSV', 'sys', async api => {
 
 /* ============================ 4.3 权限管理 ============================ */
 
-T('SYS-040', '权限树结构与全站计数（22 页面 / 80 权限点）', 'sys', async api => {
+T('SYS-040', '权限树结构与全站计数（22 页面 / 88 权限点）', 'sys', async api => {
   const k = checker()
   await api.reset('demo', '/system/permission')
   const pl = await api.postList()
   k.eq(pl.length, 8, '左栏 8 个职位')
-  /* 基线：22 页 / 80 项 */
-  const expect = { 老板: '22 页 · 80 项', 运营: '9 页 · 20 项', 采购: '5 页 · 16 项', 仓管: '5 页 · 11 项', 售后: '5 页 · 14 项', 财务: '7 页 · 16 项', 系统管理员: '5 页 · 20 项', 全局演示: '22 页 · 80 项' }
+  /* 基线：22 页 / 88 项 */
+  const expect = { 老板: '22 页 · 88 项', 运营: '9 页 · 25 项', 采购: '5 页 · 16 项', 仓管: '5 页 · 14 项', 售后: '5 页 · 19 项', 财务: '7 页 · 14 项', 系统管理员: '5 页 · 22 项', 全局演示: '22 页 · 88 项' }
   for (const [name, c] of Object.entries(expect)) {
     const hit = pl.find(x => x.name.includes(name))
     k.eq(hit?.count, c, `${name} 左栏计数`)
   }
   const note = await api.c.eval(`document.querySelector('.p-note')?.innerText.replace(/\\s+/g,' ').trim()`)
-  k.is(note.includes('22 个页面') && note.includes('80 项'), '左栏统计 22 页/84 项')
+  k.is(note.includes('22 个页面') && note.includes('88 项'), '左栏统计 22 页/88 项')
   const sub = await api.permPageSub()
-  k.is(sub.includes('22 个页面') && sub.includes('80 项'), '副标题口径')
+  k.is(sub.includes('22 个页面') && sub.includes('88 项'), '副标题口径')
   k.is((await api.permHeaderTitle()).includes('运营'), '默认选中运营')
   const s = await api.summary()
-  k.eq(s[0]?.n, '20', '已勾选 20')
+  k.eq(s[0]?.n, '25', '已勾选 25')
   k.eq(s[1]?.n, '9', '可进入 9 页')
   /* 运营 24 项 = 看板 1 + 订单 19（4 页可操作）+ 售后/库存/财务 4 个仅查看 */
   k.eq(s[2]?.n, '4', '可操作 4 页')
@@ -1050,11 +1050,11 @@ T('SYS-040', '权限树结构与全站计数（22 页面 / 80 权限点）', 'sy
   k.eq(Object.keys(counts).length, 22, '文档口径的 22 个页面节点均可定位')
   /* 徽标形如「已勾 / 总数」，默认选中的运营只勾了少数页面，故取斜杠后的总数 */
   const total = t => Number((String(t || '').match(/\/\s*(\d+)/) || [])[1] || 0)
-  k.eq(total(counts['订单审核']), 6, `订单审核 6 项（${counts['订单审核']}）`)
-  k.eq(total(counts['售后待处理']), 3, `售后待处理 3 项（${counts['售后待处理']}）`)
-  k.eq(total(counts['售后处理中']), 5, `售后处理中 5 项（${counts['售后处理中']}）`)
-  k.eq(total(counts['售后处理完成']), 3, `售后处理完成 3 项（${counts['售后处理完成']}）`)
-  k.eq(total(counts['应付账款台账']), 5, `应付台账 5 项（${counts['应付账款台账']}）`)
+  k.eq(total(counts['订单审核']), 7, `订单审核 7 项（${counts['订单审核']}）`)
+  k.eq(total(counts['售后待处理']), 4, `售后待处理 4 项（${counts['售后待处理']}）`)
+  k.eq(total(counts['售后处理中']), 6, `售后处理中 6 项（${counts['售后处理中']}）`)
+  k.eq(total(counts['售后处理完成']), 4, `售后处理完成 4 项（${counts['售后处理完成']}）`)
+  k.eq(total(counts['应付账款台账']), 4, `应付台账 4 项（${counts['应付账款台账']}）`)
   k.eq(total(counts['发货仓设置']), 3, `发货仓 3 项（${counts['发货仓设置']}）`)
   const paths = await api.c.eval(`[...document.querySelectorAll('.el-tree .path')].map(n => n.innerText.trim())`)
   k.is(paths.includes('/aftersale/wait') && paths.includes('/system/permission'), '页面显示真实路径')
@@ -1067,7 +1067,7 @@ T('SYS-041', '页面状态标签与模块徽标', 'sys', async api => {
   k.eq(await api.treePageTag('数据看板'), '只读页', '看板只读页')
   k.eq(await api.treePageTag('商品信息'), '只读页', '商品信息只读页')
   k.eq(await api.treePageTag('订单审核'), '可操作', '订单审核可操作')
-  k.is((await api.treeNode('订单审核'))?.text.includes('6 /'), '订单审核 6 项徽标')
+  k.is((await api.treeNode('订单审核'))?.text.includes('7 /'), '订单审核 7 项徽标')
   k.eq(await api.treePageTag('售后待处理'), '仅查看', '售后待处理仅查看')
   k.eq(await api.treePageTag('权限管理'), '未授权', '权限管理未授权')
   const mods = await api.c.eval(`[...document.querySelectorAll('.el-tree > .el-tree-node')].map(n => ({
@@ -1090,35 +1090,35 @@ T('SYS-042', '勾选操作自动补勾「查看页面」', 'sys', async api => {
   await api.selectPost('售后')
   const before = await api.summary()
   const base42 = Number(before[0].n)
-  k.eq(base42, 14, '售后基线 14 项')
-  /* 1. 取消整个售后模块（3 页 11 项） */
+  k.eq(base42, 19, '售后基线 19 项')
+  /* 1. 取消整个售后模块（3 页 14 项） */
   await api.treeToggle('售后管理')
   await api.c.sleep(500)
-  k.eq(Number((await api.summary())[0].n), base42 - 11, '取消售后模块后 −11')
+  k.eq(Number((await api.summary())[0].n), base42 - 14, '取消售后模块后 −14')
   for (const p of ['售后待处理', '售后处理中', '售后处理完成']) {
     k.eq(await api.treePageTag(p), '未授权', `${p} 变未授权`)
   }
   /* 2. 仅勾「审核售后单」→ 自动补查看，+2 */
   await childToggle(api, '售后待处理', '审核售后单')
   await api.c.sleep(450)
-  k.eq(Number((await api.summary())[0].n), base42 - 11 + 2, '勾审核自动补查看（+2）')
+  k.eq(Number((await api.summary())[0].n), base42 - 14 + 3, '勾审核自动补查看与详情（+3）')
   k.eq(await api.treePageTag('售后待处理'), '可操作', '页面变可操作')
   k.is((await childNode(api, '售后待处理', '查看页面'))?.checked, '「查看页面」被自动勾选')
   /* 3. 再勾「导出售后单」 */
   await childToggle(api, '售后待处理', '导出售后单')
   await api.c.sleep(450)
-  k.eq(Number((await api.summary())[0].n), base42 - 11 + 3, '再加导出（+3）')
+  k.eq(Number((await api.summary())[0].n), base42 - 14 + 4, '再加导出（+4）')
   /* 4. 两个操作都取消 → 查看仍保留，标签回「仅查看」 */
   await childToggle(api, '售后待处理', '审核售后单')
   await childToggle(api, '售后待处理', '导出售后单')
   await api.c.sleep(450)
-  k.eq(Number((await api.summary())[0].n), base42 - 11 + 1, '只剩查看 1 项')
+  k.eq(Number((await api.summary())[0].n), base42 - 14 + 2, '只剩查看+详情 2 项')
   k.eq(await api.treePageTag('售后待处理'), '仅查看', '回到仅查看')
   k.is((await childNode(api, '售后待处理', '查看页面'))?.checked, '查看仍保留')
   /* 5. 取消查看 → 整页归零 */
   await childToggle(api, '售后待处理', '查看页面')
   await api.c.sleep(450)
-  k.eq(Number((await api.summary())[0].n), base42 - 11, '取消查看后本页归零')
+  k.eq(Number((await api.summary())[0].n), base42 - 14, '取消查看后本页归零')
   k.eq(await api.treePageTag('售后待处理'), '未授权', '整页未授权')
   /* 6. 未保存的变更不落盘 */
   const saved = await api.readPerms()
@@ -1131,20 +1131,20 @@ T('SYS-043', '取消「查看页面」时清空该页所有操作', 'sys', async
   await api.reset('demo', '/system/permission')
   await api.pickPost('系统管理员')
   await api.c.sleep(500)
-  k.eq((await api.summary())[0].n, '20', '系统管理员 20 项')
+  k.eq((await api.summary())[0].n, '22', '系统管理员 22 项')
   await childToggle(api, '账号管理', '查看页面')
   await api.c.sleep(450)
   const s = await api.summary()
-  k.eq(s[0].n, '14', '账号管理 6 项全清（20-6=14）')
+  k.eq(s[0].n, '15', '账号管理 7 项全清（22-7=15）')
   k.eq(await api.treePageTag('账号管理'), '未授权', '页面变未授权')
   k.is(!(await childNode(api, '账号管理', '新建账号'))?.checked, '操作也被清空')
   const sysMod = await api.treeNode('系统设置')
-  k.is(sysMod?.text.includes('13 /'), `系统设置模块徽标 13/19（${sysMod?.text}）`)
+  k.is(sysMod?.text.includes('14 /'), `系统设置模块徽标 14/21（${sysMod?.text}）`)
   k.is(sysMod?.indeterminate, '模块变半选')
   /* 再勾回查看只恢复 1 项 */
   await childToggle(api, '账号管理', '查看页面')
   await api.c.sleep(400)
-  k.eq((await api.summary())[0].n, '15', '只恢复查看 1 项')
+  k.eq((await api.summary())[0].n, '16', '只恢复查看 1 项')
   k.eq(await api.treePageTag('账号管理'), '仅查看', '页面为仅查看')
   k.is(!(await childNode(api, '账号管理', '新建账号'))?.checked, '操作不自动恢复')
   return k.done()
@@ -1184,7 +1184,7 @@ T('SYS-045', '「全选」与「清空」', 'sys', async api => {
   await api.c.eval(`(() => { const b = [...document.querySelectorAll('.card-head .extra button')].find(x => (x.innerText||'').trim() === '全选'); b.click(); return true })()`)
   await api.c.sleep(500)
   const s = await api.summary()
-  k.eq(s[0].n, '80', '全选 80')
+  k.eq(s[0].n, '88', '全选 88')
   k.eq(s[1].n, '22', '可进入 22')
   const btn = await saveBtnText(api)
   k.is(btn?.text === '保存分配' && !btn.disabled, '保存按钮可用（dirty）')
@@ -1203,8 +1203,9 @@ T('SYS-045', '「全选」与「清空」', 'sys', async api => {
 T('SYS-046', '「改为仅查看」快捷按钮', 'sys', async api => {
   const k = checker()
   await api.reset('demo', '/system/permission')
-  await api.pickPost('售后')
-  await api.c.sleep(500)
+  await api.selectPost('售后')
+  /* 权限树是逐层渲染的，等左栏计数稳定在售后基线 19 项再取基准，否则会读到中途的 18 */
+  for (let i = 0; i < 24 && (await api.summary())[0].n !== '19'; i++) await api.c.sleep(150)
   k.eq(await api.treeReadOnlyVisible('售后处理中'), 'visible', '处理中显示改为仅查看')
   k.eq(await api.treeReadOnlyVisible('商品信息'), 'no-btn', '商品信息不显示')
   const before = await api.summary()
@@ -1224,7 +1225,7 @@ T('SYS-047', '四个汇总指标的计算', 'sys', async api => {
   await api.pickPost('运营')
   await api.c.sleep(500)
   const s = await api.summary()
-  k.eq(s[0].n, '20', '已勾选 20')
+  k.eq(s[0].n, '25', '已勾选 25')
   k.eq(s[1].n, '9', '可进入 9')
   k.eq(s[2].n, '4', '可操作 4')
   k.eq(s[3].n, '5', '仅查看 5')
@@ -1233,7 +1234,7 @@ T('SYS-047', '四个汇总指标的计算', 'sys', async api => {
   await api.treeToggle('订单管理')
   await api.c.sleep(500)
   const s2 = await api.summary()
-  k.eq(s2[0].n, '5', '20-15=5')
+  k.eq(s2[0].n, '6', '25-19=6')
   k.eq(s2[1].n, '5', '9-4=5')
   k.eq(s2[2].n, '0', '订单 4 个可操作页取消后无可操作页')
   k.eq(s2[3].n, '5', '5 页为仅查看')
@@ -1242,7 +1243,7 @@ T('SYS-047', '四个汇总指标的计算', 'sys', async api => {
   await api.c.eval(`(() => { const b = [...document.querySelectorAll('.card-head .extra button')].find(x => (x.innerText||'').trim() === '全选'); b.click(); return true })()`)
   await api.c.sleep(600)
   const s3 = await api.summary()
-  k.eq(s3[0].n, '80', '全选 80')
+  k.eq(s3[0].n, '88', '全选 88')
   k.eq(s3[1].n, '22', '可进入 22')
   k.eq(s3[3].n, '3', '仅查看 3（看板/商品/积压）')
   k.eq(Number(s3[2].n) + Number(s3[3].n), 22, '恒等式=22')
@@ -1279,10 +1280,10 @@ T('SYS-049', '保存分配的提示与账号同步数', 'sys', async api => {
   k.is(await api.msgHas('权限已保存'), '保存提示')
   const msg = await api.msgText()
   k.is(msg.includes('5 个页面') && msg.includes('4 个可操作'), `提示含页面数（${msg.slice(0, 60)}）`)
-  k.is(msg.includes('13 项'), '提示含 13 项')
+  k.is(msg.includes('18 项'), '提示含 18 项')
   k.is(msg.includes('1 个账号'), '提示含账号同步数')
   await api.c.sleep(400)
-  k.is((await api.postList()).find(p => p.name.includes('售后'))?.count.includes('13 项'), '左栏变 13 项')
+  k.is((await api.postList()).find(p => p.name.includes('售后'))?.count.includes('18 项'), '左栏变 18 项')
   return k.done()
 })
 
@@ -1296,11 +1297,11 @@ T('SYS-050', '权限持久化（刷新 / 重新登录仍生效）', 'sys', async
   await savePerm(api)
   await api.msgHas('权限已保存')
   const saved = (await api.readPerms())['售后']?.length || 0
-  k.eq(saved, 13, 'localStorage 售后 13 项')
+  k.eq(saved, 18, 'localStorage 售后 18 项')
   await api.navFresh('/system/permission', { keepPerms: true })
   await api.pickPost('售后')
   await api.c.sleep(500)
-  k.eq((await api.summary())[0].n, '13', '刷新后仍 13 项')
+  k.eq((await api.summary())[0].n, '18', '刷新后仍 18 项')
   await api.setUser('after')
   await api.navFresh('/aftersale/wait', { keepPerms: true })
   k.eq(await api.rowBtnState('TM20261116002', '审核'), 'no-btn', 'zhangls 无审核按钮')
@@ -1308,7 +1309,7 @@ T('SYS-050', '权限持久化（刷新 / 重新登录仍生效）', 'sys', async
   k.is(head.includes('导出数据'), '导出仍可用')
   /* 清空 localStorage 回基线 */
   await api.navFresh('/aftersale/wait')
-  k.eq(await api.rowBtnState('TM20261116002', '审核'), 'enabled', '清空后回基线 14 项')
+  k.eq(await api.rowBtnState('TM20261116002', '审核'), 'enabled', '清空后回基线 19 项')
   return k.done()
 })
 
@@ -1364,7 +1365,7 @@ T('SYS-052', '切换职位时未保存提示', 'sys', async api => {
 T('SYS-053', '「恢复默认」按职位推导', 'sys', async api => {
   const k = checker()
   await api.reset('demo', '/system/permission')
-  const expect = { 售后: '14', 运营: '20', 财务: '16', 仓管: '11', 采购: '16', 系统管理员: '20', 老板: '80' }
+  const expect = { 售后: '19', 运营: '25', 财务: '14', 仓管: '14', 采购: '16', 系统管理员: '22', 老板: '88' }
   for (const [name, n] of Object.entries(expect)) {
     await api.pickPost(name)
     await api.c.sleep(450)
@@ -1394,7 +1395,7 @@ T('SYS-054', '权限页自身按钮的权限控制（只读态）', 'sys', async
   k.is(!heads.some(t => t.includes('恢复默认')), '无恢复默认按钮')
   k.is(!heads.some(t => t.includes('保存')), '无保存按钮')
   await api.selectPost('系统管理员')
-  k.eq(await api.summary().then(s => s[0].n), '18', '权限树仍可浏览（18 项）')
+  k.eq(await api.summary().then(s => s[0].n), '20', '权限树仍可浏览（20 项）')
   return k.done()
 })
 
@@ -1474,7 +1475,7 @@ T('SYS-057', '权限分配按职位名持久化：跨部门同名冲突', 'sys',
   k.eq(nameKey.length, 0, '同名职位不再写名称键（避免跨部门互相覆盖，BUG-02 已修）')
   const idKeys = Object.keys(map).filter(x => x.startsWith('post-'))
   k.is(idKeys.length >= 8, `按职位 id 分别存储（${idKeys.length} 个 id 键）`)
-  k.eq((map['post-ops'] || []).length, 20, `运营部「运营」快照未被覆盖（${(map['post-ops'] || []).length} 项）`)
+  k.eq((map['post-ops'] || []).length, 25, `运营部「运营」快照未被覆盖（${(map['post-ops'] || []).length} 项）`)
   /* 不刷新（新职位在内存里）：两个同名职位权限各自独立 */
   const ps2 = await api.postList()
   const ops1 = ps2.filter(p => p.name.startsWith('运营'))
@@ -1959,18 +1960,18 @@ T('SYS-074', '持久化与刷新一致性', 'sys', async api => {
   await api.pickPost('仓管')
   await api.c.sleep(500)
   const before = (await api.summary())[0].n
-  k.eq(before, '11', '仓管基线 11')
+  k.eq(before, '13', '仓管基线 13')
   await childToggle(api, '库存记录', '设置库存预警')
   await api.c.sleep(350)
   await savePerm(api)
   await api.msgHas('权限已保存')
   const saved = await api.readPerms()
-  k.eq(saved['仓管']?.length, 10, 'localStorage 存 10 项')
+  k.eq(saved['仓管']?.length, 12, 'localStorage 存 12 项')
   /* 刷新 + 重新登录均保持 */
   await api.navFresh('/system/permission', { keepPerms: true })
   await api.pickPost('仓管')
   await api.c.sleep(500)
-  k.eq((await api.summary())[0].n, '10', '刷新后仍 10')
+  k.eq((await api.summary())[0].n, '12', '刷新后仍 12')
   await api.setUser('wh')
   await api.navFresh('/inventory/stock', { keepPerms: true })
   const head = await api.c.eval(`[...document.querySelectorAll('.page-head button')].filter(x => x.offsetParent !== null).map(b => (b.innerText||'').trim()).filter(Boolean)`)

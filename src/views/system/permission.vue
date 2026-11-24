@@ -20,7 +20,8 @@
           </div>
         </div>
         <div class="p-note">
-          共 {{ PAGES.length }} 个页面、{{ TOTAL_PERMS }} 项权限点。只读职位只勾「查看页面」，操作一项不勾。
+          共 {{ PAGES.length }} 个页面、{{ TOTAL_PERMS }} 项权限点。只读职位只勾「查看页面」，
+          「查看详情 / 查看盘点单」等只读项会自动带上，操作一项不勾。
         </div>
       </div>
 
@@ -117,7 +118,7 @@ const expandedKeys = computed(() => expanded.value
 
 const checkedCount = computed(() => checkedKeys.value.length)
 const viewPages = computed(() => PAGES.filter(p => checkedKeys.value.includes(p.children[0].id)).length)
-const opPages = computed(() => PAGES.filter(p => p.children.slice(1).some(o => checkedKeys.value.includes(o.id))).length)
+const opPages = computed(() => PAGES.filter(p => p.children.slice(1).some(o => !o.read && checkedKeys.value.includes(o.id))).length)
 
 const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x))
 const dirty = computed(() => !sameSet(checkedKeys.value, curPost.value.perms || []))
@@ -131,7 +132,7 @@ const isPage = d => !!d.children && !d.children.some(c => c.children)
 function pageState(page) {
   const viewId = page.children[0].id
   if (page.children.length === 1) return checkedKeys.value.includes(viewId) ? 'readonly' : 'none'
-  if (page.children.slice(1).some(o => checkedKeys.value.includes(o.id))) return 'op'
+  if (page.children.slice(1).some(o => !o.read && checkedKeys.value.includes(o.id))) return 'op'
   if (checkedKeys.value.includes(viewId)) return 'read'
   return 'none'
 }
@@ -194,6 +195,13 @@ function onCheck(data) {
       const page = PAGE_OF_OP[id]
       if (page && id !== page.children[0].id) keys.add(page.children[0].id)
     })
+    /* 只读项（查看详情 / 查看盘点单）跟随「查看页面」：有查看权就必须能打开详情，
+       登录侧 withReadItems 也是这么补的，两边口径必须一致，否则会出现
+       「存 1 项、重新登录变 2 项」。想收回详情能力就整页取消查看权。 */
+    PAGES.forEach(page => {
+      if (!keys.has(page.children[0].id)) return
+      page.children.filter(o => o.read).forEach(o => keys.add(o.id))
+    })
     /* 兜底：没有查看权的页面，残留操作一律清掉 */
     PAGES.forEach(page => {
       const viewId = page.children[0].id
@@ -215,7 +223,8 @@ function onCheck(data) {
 /* 一键把某页改成「仅查看」 */
 function setReadOnly(page) {
   const keys = new Set(checkedKeys.value)
-  page.children.slice(1).forEach(o => keys.delete(o.id))
+  /* 只清可写操作；「查看详情」这类只读项属于查看权的一部分，保留（与登录侧口径一致） */
+  page.children.slice(1).forEach(o => { if (!o.read) keys.delete(o.id) })
   keys.add(page.children[0].id)
   checkedKeys.value = [...keys]
   treeRef.value?.setCheckedKeys([...keys])

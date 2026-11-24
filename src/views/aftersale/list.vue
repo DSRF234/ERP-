@@ -199,7 +199,7 @@
         <el-table-column label="操作" :width="opWidth" fixed="right">
           <template #default="{ row }">
             <div v-if="status === 'doing'" class="ops">
-              <el-button link type="primary" size="small" @click="openDetail(row)">详情</el-button>
+              <el-button v-can="detailPerm" link type="primary" size="small" @click="openDetail(row)">详情</el-button>
               <el-tooltip v-for="a in opsOf(row)" :key="a.k" :content="opTip(row, a.k)" placement="top">
                 <span class="op-wrap">
                   <el-button link size="small" :type="opOn(row, a.k) ? 'primary' : 'info'"
@@ -208,7 +208,7 @@
               </el-tooltip>
             </div>
             <div v-else class="ops">
-              <el-button link type="primary" size="small" @click="openDetail(row)">详情</el-button>
+              <el-button v-can="detailPerm" link type="primary" size="small" @click="openDetail(row)">详情</el-button>
               <el-button v-can="'b-after-wait-audit'" v-if="status === 'wait'" link type="primary" size="small" @click="openAudit(row)">审核</el-button>
             </div>
           </template>
@@ -611,6 +611,9 @@ import {
 import { usePerm } from '@/directives/can'
 
 const props = defineProps({ status: { type: String, default: 'wait' } })
+/* 三个状态页共用一套详情抽屉，操作权限点按页面区分（权限管理里各页各有一条「查看详情」） */
+const detailPerm = computed(() =>
+  props.status === 'wait' ? 'b-after-wait-detail' : props.status === 'doing' ? 'b-after-doing-detail' : 'b-after-done-detail')
 const store = useUserStore()
 const orderStore = useOrderStore()
 const who = computed(() => store.name || '张丽珊')

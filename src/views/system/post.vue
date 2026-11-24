@@ -60,11 +60,11 @@
           <el-table-column label="操作" width="216" fixed="right">
             <template #default="{ row }">
               <div class="ops">
-                <el-button link type="primary" size="small" @click="openView(row)">查看</el-button>
+                <el-button v-can="'b-sys-post-detail'" link type="primary" size="small" @click="openView(row)">查看</el-button>
                 <el-button v-can="'b-sys-post-perm'" link type="primary" size="small" @click="goPerm(row)">编辑权限</el-button>
                 <el-tooltip :disabled="!row.builtin" content="老板职位为系统内置，不可停用" placement="top">
                   <span class="op-wrap">
-                    <el-button link :type="row.builtin ? 'info' : 'primary'" size="small" :disabled="row.builtin"
+                    <el-button v-can="'b-sys-post-status'" link :type="row.builtin ? 'info' : 'primary'" size="small" :disabled="row.builtin"
                       @click="toggleStatus(row)">{{ row.status === '启用' ? '停用' : '启用' }}</el-button>
                   </span>
                 </el-tooltip>
@@ -169,7 +169,7 @@
           <template #default="{ row }">
             <el-tooltip :disabled="!curPost?.builtin" content="老板职位不可移除人员" placement="top">
               <span class="op-wrap">
-                <el-button link type="danger" size="small" :disabled="curPost?.builtin" @click="removePerson(row)">移除</el-button>
+                <el-button v-can="'b-sys-post-staff'" link type="danger" size="small" :disabled="curPost?.builtin" @click="removePerson(row)">移除</el-button>
               </span>
             </el-tooltip>
           </template>

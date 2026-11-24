@@ -10,7 +10,7 @@
         <el-option label="全部状态" value="" />
         <el-option v-for="s in STATUS" :key="s" :label="s" :value="s" />
       </el-select>
-      <el-button v-can="'b-fin-payable-query'" size="small" type="primary">查找</el-button>
+      <el-button size="small" type="primary">查找</el-button>
       <el-button size="small" @click="reset">重置</el-button>
       <span class="count">共 {{ view.length }} 条 · 应付合计 {{ money(sumTotal) }}</span>
     </div>

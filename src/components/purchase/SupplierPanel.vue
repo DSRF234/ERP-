@@ -43,7 +43,7 @@
           <el-tooltip :disabled="!refCount(row.name)" placement="top"
             :content="`该供应商已存在 ${refCount(row.name)} 张采购单，只能停用`">
             <span class="del-wrap">
-              <el-button link type="danger" size="small" :disabled="!!refCount(row.name)"
+              <el-button v-can="'b-supplier-delete'" link type="danger" size="small" :disabled="!!refCount(row.name)"
                 @click.stop="removeSupplier(row)">删除</el-button>
             </span>
           </el-tooltip>
@@ -73,7 +73,7 @@
         </el-table-column>
         <el-table-column label="操作" width="90">
           <template #default="{ row }">
-            <el-button link type="danger" size="small" @click="removeGoods(row)">移除</el-button>
+            <el-button v-can="'b-supplier-goods'" link type="danger" size="small" @click="removeGoods(row)">移除</el-button>
           </template>
         </el-table-column>
       </el-table>

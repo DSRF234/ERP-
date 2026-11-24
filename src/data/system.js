@@ -3,8 +3,14 @@
  * 口径来源：《erpPRD.docx》2.6 系统设置 + 《Map1.pdf》字段清单
  *
  * 职位 → 账号为「一对多」，账号权限完全继承职位，不在账号层单独授权。
- * 权限树共 7 个模块、22 个页面、75 项按钮级权限。
- * （PRD 原定总数 71，按各页面实际按钮清单展开后为 75；界面计数一律由 TOTAL_PERMS 推导，勿再写死数字）
+ *
+ * 权限树的唯一真源是 src/data/perm.js（7 个模块 / 22 个页面）。
+ * 本文件不再维护第二份按钮清单：历史上这里曾有一份 75 项的旧树，
+ * 与页面实际按钮长期走岔，留下了「编辑订单」「打印面单」「撤回订单」等
+ * 页面上根本不存在、却能在权限树里勾选的权限点。现在职位只定义
+ * 「名称 / 部门 / 数据范围 / 状态 / 说明」，默认权限由 perm.js 的
+ * defaultsFor() 按职位职责推导后写入，管理员在「权限管理」里的调整
+ * 存 localStorage，下次进入优先恢复。
  */
 import { reactive } from 'vue'
 
@@ -14,153 +20,53 @@ export const DEPTS = ['管理层', '电商运营部', '采购部', '仓储部', 
 /* ---------------- 数据范围 ---------------- */
 export const SCOPES = ['全部数据', '本部门及下级', '本部门', '仅本人', '自定义']
 
-/* ---------------- 权限树（模块 → 页面 → 按钮） ---------------- */
-const P = (id, label) => ({ id, label })
-const PG = (id, label, btns) => ({ id, label, children: btns.map(([bid, blabel]) => P(bid, blabel)) })
-const M = (id, label, pages) => ({ id, label, children: pages })
-
-export const PERM_TREE = [
-  M('m-order', '订单管理', [
-    PG('p-order-review', '订单审核', [
-      ['b-order-review-view', '查看'], ['b-order-review-pass', '审核'],
-      ['b-order-review-reject', '驳回'], ['b-order-review-edit', '编辑'],
-      ['b-order-review-add', '新建订单'], ['b-order-review-export', '导出']
-    ]),
-    PG('p-order-pending', '待发货', [
-      ['b-order-pending-view', '查看'], ['b-order-pending-edit', '编辑'],
-      ['b-order-pending-back', '撤回订单'], ['b-order-pending-print', '打印面单'],
-      ['b-order-pending-export', '导出']
-    ]),
-    PG('p-order-shipped', '已发货', [
-      ['b-order-shipped-view', '查看'], ['b-order-shipped-edit', '编辑'],
-      ['b-order-shipped-print', '打印面单'], ['b-order-shipped-export', '导出']
-    ]),
-    PG('p-order-done', '已完结', [
-      ['b-order-done-view', '查看'], ['b-order-done-export', '导出'],
-      ['b-order-done-copy', '复制信息'], ['b-order-done-aftersale', '申请售后']
-    ])
-  ]),
-  M('m-purchase', '采购管理', [
-    PG('p-po', '采购订单', [
-      ['b-po-view', '查看'], ['b-po-add', '新建'], ['b-po-edit', '编辑'],
-      ['b-po-submit', '提交'], ['b-po-del', '删除']
-    ]),
-    PG('p-poh', '历史采购单', [['b-poh-view', '查看'], ['b-poh-export', '导出']]),
-    PG('p-sup', '供应商管理', [
-      ['b-sup-view', '查看'], ['b-sup-add', '新增'],
-      ['b-sup-edit', '编辑'], ['b-sup-del', '删除']
-    ])
-  ]),
-  M('m-inv', '库存管理', [
-    PG('p-stock', '库存记录', [
-      ['b-stock-view', '查看'], ['b-stock-warn', '设置预警'], ['b-stock-export', '导出']
-    ]),
-    PG('p-take', '仓库盘点', [
-      ['b-take-view', '查看'], ['b-take-add', '创建任务'],
-      ['b-take-do', '盘点'], ['b-take-export', '导出']
-    ])
-  ]),
-  /* 售后按钮清单严格按 PRD：待处理 3 项、处理中 4 项（不含质检）、完成 2 项 */
-  M('m-after', '售后管理', [
-    PG('p-wait', '售后待处理', [
-      ['b-wait-view', '查看'], ['b-wait-audit', '审核'], ['b-wait-export', '导出']
-    ]),
-    PG('p-doing', '售后处理中', [
-      ['b-doing-view', '查看'], ['b-doing-refund', '退款'],
-      ['b-doing-exchange', '换货'], ['b-doing-resend', '补发']
-    ]),
-    PG('p-adone', '售后处理完成', [['b-adone-view', '查看'], ['b-adone-export', '导出']])
-  ]),
-  M('m-fin', '财务管理', [
-    PG('p-rec', '对账中心', [
-      ['b-rec-view', '查看'], ['b-rec-check', '核对'], ['b-rec-export', '导出']
-    ]),
-    PG('p-ship', '发货数据', [['b-ship-view', '查看'], ['b-ship-export', '导出']]),
-    PG('p-goods', '商品信息', [['b-goods-view', '查看'], ['b-goods-export', '导出']]),
-    PG('p-aging', '库存积压', [['b-aging-view', '查看'], ['b-aging-export', '导出']]),
-    PG('p-pay', '应付账款台账', [
-      ['b-pay-view', '查看'], ['b-pay-audit', '审核'], ['b-pay-pay', '付款']
-    ])
-  ]),
-  M('m-dash', '数据看板', [PG('p-dash', '经营数据看板', [['b-dash-view', '查看'], ['b-dash-export', '导出']])]),
-  M('m-sys', '系统设置', [
-    PG('p-sys-post', '职位管理', [
-      ['b-sys-post-view', '查看'], ['b-sys-post-add', '新建'],
-      ['b-sys-post-edit', '编辑'], ['b-sys-post-off', '停用'], ['b-sys-post-del', '删除']
-    ]),
-    PG('p-sys-acc', '账号管理', [
-      ['b-sys-acc-view', '查看'], ['b-sys-acc-add', '新建'], ['b-sys-acc-edit', '编辑'],
-      ['b-sys-acc-pwd', '重置密码'], ['b-sys-acc-off', '停用'], ['b-sys-acc-del', '删除']
-    ]),
-    PG('p-sys-perm', '权限管理', [['b-sys-perm-view', '查看'], ['b-sys-perm-save', '保存分配']]),
-    PG('p-sys-wh', '发货仓设置', [['b-sys-wh-view', '查看'], ['b-sys-wh-edit', '更改地区']])
-  ])
-]
-
-export const ALL_BUTTON_IDS = PERM_TREE.flatMap(m => m.children.flatMap(p => p.children.map(b => b.id)))
-export const TOTAL_PERMS = ALL_BUTTON_IDS.length // 75（以按钮清单为准，勿写死）
-
-export const MODULE_COUNT = id => {
-  const m = PERM_TREE.find(x => x.id === id)
-  return m ? m.children.reduce((n, p) => n + p.children.length, 0) : 0
-}
-
 /* ---------------- 职位 ---------------- */
-const pick = pred => ALL_BUTTON_IDS.filter(pred)
-
+/**
+ * perms 一律留空，由 perm.js 的 ensurePostPerms() → defaultsFor() 发放。
+ * 在这里写死 id 就会出现「加了新按钮、某职位漏发」的同款问题，且无从校验。
+ */
 export const posts = reactive([
   {
     id: 'post-boss', name: '老板', dept: '管理层', scope: '全部数据', status: '启用',
-    builtin: true, perms: [...ALL_BUTTON_IDS], note: `系统内置职位，默认拥有全部 ${ALL_BUTTON_IDS.length} 项权限，可在权限管理中调整`
+    builtin: true, perms: [],
+    note: '系统内置职位，默认拥有全部页面与操作权限，可在权限管理中调整'
   },
   {
     id: 'post-ops', name: '运营', dept: '电商运营部', scope: '本部门', status: '启用',
-    perms: pick(id => id.startsWith('b-order-') || id === 'b-stock-view' || id.startsWith('b-dash-') || ['b-wait-view', 'b-doing-view', 'b-adone-view'].includes(id)),
+    perms: [],
     note: '负责卖货、订单审核与异常发起'
   },
   {
     id: 'post-buy', name: '采购', dept: '采购部', scope: '本部门', status: '启用',
-    perms: pick(id => id.startsWith('b-po') || id.startsWith('b-poh') || id.startsWith('b-sup') || id === 'b-stock-view' || id === 'b-stock-warn'),
+    perms: [],
     note: '负责采购下单、供应商与到货跟进'
   },
   {
     id: 'post-wh', name: '仓管', dept: '仓储部', scope: '本部门', status: '启用',
-    perms: pick(id => id.startsWith('b-stock') || id.startsWith('b-take') || ['b-order-pending-view', 'b-order-pending-print', 'b-order-shipped-view', 'b-order-shipped-edit', 'b-doing-view'].includes(id)),
+    perms: [],
     note: '负责出入库、盘点与退货收货质检（质检在 WMS 执行）'
   },
   {
     id: 'post-after', name: '售后', dept: '售后部', scope: '本部门', status: '启用',
-    perms: pick(id => id.startsWith('b-wait') || id.startsWith('b-doing') || id.startsWith('b-adone') || ['b-order-review-view', 'b-order-shipped-view', 'b-order-done-view', 'b-order-done-copy'].includes(id)),
+    perms: [],
     note: '负责售后受理审核、退款与换补跟进'
   },
   {
     id: 'post-fin', name: '财务', dept: '财务部', scope: '本部门', status: '启用',
-    perms: pick(id => id.startsWith('b-rec') || id.startsWith('b-ship') || id.startsWith('b-goods') || id.startsWith('b-aging') || id.startsWith('b-pay') || id === 'b-order-done-view'),
+    perms: [],
     note: '负责对账、赔付与应付账款'
   },
   {
     id: 'post-sys', name: '系统管理员', dept: '信息部', scope: '全部数据', status: '启用',
-    perms: [
-      'b-dashboard-view',
-      'b-sys-post-view', 'b-sys-post-create', 'b-sys-post-edit', 'b-sys-post-perm',
-      'b-sys-post-delete', 'b-sys-post-staff', 'b-sys-post-export',
-      'b-sys-account-view', 'b-sys-account-create', 'b-sys-account-edit',
-      'b-sys-account-reset', 'b-sys-account-delete', 'b-sys-account-export',
-      'b-sys-perm-view', 'b-sys-perm-save', 'b-sys-perm-restore',
-      'b-sys-wh-view', 'b-sys-wh-edit', 'b-sys-wh-export'
-    ],
+    perms: [],
     note: '负责账号、职位与权限分配，以及发货仓维护；不参与业务单据处理'
   },
   {
     id: 'post-demo', name: '全局演示', dept: '演示', scope: '全部数据', status: '启用',
-    /* 权限留空，由 perm.js 的 defaultsFor 统一发放全量，避免在此重复维护 80 条 id */
     perms: [],
     note: '会议演示专用：拥有全部页面与全部操作权限，可完整走通任意业务流程'
   }
 ])
-
-/* 恢复默认用：以当前内置基线为准 */
-export const DEFAULT_PERMS = Object.fromEntries(posts.map(p => [p.id, [...p.perms]]))
 
 /* ---------------- 账号 ---------------- */
 export const accounts = reactive([

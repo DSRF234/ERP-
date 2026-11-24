@@ -4,7 +4,7 @@
  * 用法：
  *   <el-button v-can="'b-order-review-audit'">审核</el-button>   无权限则不渲染（占位被移除）
  *   const { can } = usePerm()
- *   <el-button v-if="can('b-order-export')">导出</el-button>
+ *   <el-button v-if="can('b-order-review-export')">导出</el-button>
  *
  * 判定依据：当前登录人的「职位」在 src/data/system.js 中保存的权限 id 列表，
  * 用「职位名」关联，改职位或改权限后刷新页面即生效。

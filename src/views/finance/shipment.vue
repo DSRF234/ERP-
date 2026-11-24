@@ -11,7 +11,7 @@
         <el-option label="运输中（未完结）" value="shipped" />
         <el-option label="已签收（已完结）" value="done" />
       </el-select>
-      <el-button v-can="'b-fin-shipment-query'" size="small" type="primary">查找</el-button>
+      <el-button size="small" type="primary">查找</el-button>
       <el-button size="small" @click="reset">重置</el-button>
       <span class="count">共 {{ view.length }} 条</span>
     </div>

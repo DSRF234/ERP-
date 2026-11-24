@@ -66,7 +66,7 @@
               <el-button v-can="'b-sys-account-reset'" link type="primary" size="small" @click="resetPwd(row)">重置密码</el-button>
               <el-tooltip :disabled="!statusTip(row)" :content="statusTip(row)" placement="top">
                 <span class="op-wrap">
-                  <el-button link :type="statusLocked(row) ? 'info' : 'primary'" size="small" :disabled="statusLocked(row)"
+                  <el-button v-can="'b-sys-account-status'" link :type="statusLocked(row) ? 'info' : 'primary'" size="small" :disabled="statusLocked(row)"
                     @click="toggleStatus(row)">{{ row.status === '启用' ? '停用' : '启用' }}</el-button>
                 </span>
               </el-tooltip>

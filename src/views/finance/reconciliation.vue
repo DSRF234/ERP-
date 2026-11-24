@@ -18,7 +18,7 @@
         <el-option label="销售出库" value="销售出库" />
         <el-option label="退货入库" value="退货入库" />
       </el-select>
-      <el-button v-can="'b-fin-recon-query'" size="small" type="primary">查询</el-button>
+      <el-button size="small" type="primary">查询</el-button>
       <el-button size="small" @click="reset">重置</el-button>
       <span class="count">共 {{ view.length }} 条</span>
     </div>

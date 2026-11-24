@@ -1,7 +1,7 @@
 <template>
   <div>
     <PageHeader title="库存盘点" sub="创建盘点任务 · 录入实盘数 · 差异留痕">
-      <el-button size="small" @click="adjVisible = true">库存调整单（{{ take.adjustments.length }}）</el-button>
+      <el-button v-can="'b-stocktake-adjust'" size="small" @click="adjVisible = true">库存调整单（{{ take.adjustments.length }}）</el-button>
       <el-button v-can="'b-stocktake-create'" size="small" type="primary" :icon="Plus" @click="openCreate">创建盘点任务</el-button>
     </PageHeader>
 
@@ -55,7 +55,7 @@
         </el-table-column>
         <el-table-column label="操作" width="88" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openCheck(row)">
+            <el-button v-can="'b-stocktake-sheet'" link type="primary" size="small" @click="openCheck(row)">
               {{ row.status === '待盘点' ? '盘点' : '查看' }}
             </el-button>
           </template>
