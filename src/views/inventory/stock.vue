@@ -12,7 +12,7 @@
       <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
       <el-select v-model="category" size="small" style="width: 124px">
         <el-option label="全部货品类型" value="all" />
-        <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+        <el-option v-for="c in inv.categories" :key="c" :label="c" :value="c" />
       </el-select>
       <el-select v-model="stockState" size="small" style="width: 118px">
         <el-option label="全部库存状态" value="all" />
@@ -20,28 +20,39 @@
       </el-select>
       <el-select v-model="warehouse" size="small" style="width: 140px">
         <el-option label="全部收货仓" value="all" />
-        <el-option v-for="w in warehouses" :key="w" :label="w" :value="w" />
+        <el-option v-for="w in inv.warehouses" :key="w" :label="w" :value="w" />
       </el-select>
       <span class="grow">共 {{ view.length }} 条</span>
     </div>
 
     <div class="card">
-      <el-table :data="paged" size="small">
-        <el-table-column prop="name" label="货品名称" min-width="160" />
-        <el-table-column prop="code" label="货码" width="118" />
-        <el-table-column prop="batch" label="批次号" width="112" />
-        <el-table-column prop="warehouse" label="仓库" width="92" />
-        <el-table-column prop="inNo" label="入库单号" width="130" />
-        <el-table-column label="入库数量" width="86" align="right">
+      <el-table :data="paged" size="small" class="stock-table">
+        <el-table-column prop="name" label="货品名称" min-width="118" show-overflow-tooltip />
+        <el-table-column prop="code" label="货码" width="100" />
+        <el-table-column prop="category" label="货品类型" width="68" />
+        <el-table-column prop="batch" label="批次号" width="96" />
+        <el-table-column prop="warehouse" label="仓库" width="72" />
+        <el-table-column label="入库单号 / 来源采购单" width="122">
+          <template #default="{ row }">
+            <div class="mono">{{ row.inNo || '—' }}</div>
+            <div v-if="row.lastRef" class="ref" :title="`最近入库 ${row.lastRefQty} 件 · ${row.lastRefAt}`">来源：{{ row.lastRef }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="入库数量" width="66" align="right">
           <template #default="{ row }"><span class="mono">{{ num(row.inQty) }}</span></template>
         </el-table-column>
-        <el-table-column label="出库数量" width="86" align="right">
-          <template #default="{ row }"><span class="mono">{{ num(row.outQty) }}</span></template>
+        <el-table-column label="出库单号" width="106">
+          <template #default="{ row }"><span class="mono">{{ row.outNo || '—' }}</span></template>
         </el-table-column>
-        <el-table-column label="剩余数量" width="90" align="right">
+        <el-table-column label="出库数量" width="66" align="right">
+          <template #default="{ row }">
+            <span class="mono">{{ row.outQty ? num(row.outQty) : '—' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="剩余数量" width="72" align="right">
           <template #default="{ row }"><span class="mono strong">{{ num(row.left) }}</span></template>
         </el-table-column>
-        <el-table-column label="剩余容量" width="112">
+        <el-table-column label="剩余容量" width="88">
           <template #default="{ row }">
             <div class="cap" :class="row.status === '缺货' ? 'is-out' : row.status === '预警' ? 'is-low' : ''">
               <span class="cap-bar"><i :style="{ width: row.cap + '%' }" /></span>
@@ -49,7 +60,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="预警值" width="80" align="right">
+        <el-table-column label="预警值" width="64" align="right">
           <template #default="{ row }">
             <el-tooltip v-if="row.warnDays" placement="top"
               :content="`临期阈值：距到期不足 ${row.warnDays} ${row.warnUnit} 时预警`">
@@ -58,7 +69,7 @@
             <span v-else class="mono">{{ num(row.warnValue) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="库存状态" width="92">
+        <el-table-column label="库存状态" width="74">
           <template #default="{ row }">
             <el-tooltip :content="statusTip(row)" placement="top">
               <el-tag size="small" :type="TAG[row.status]">{{ row.status }}</el-tag>
@@ -77,7 +88,7 @@
       <div class="warn-filter">
         <el-select v-model="warn.supplier" size="small" style="width: 132px" placeholder="全部供应商">
           <el-option label="全部供应商" value="" />
-          <el-option v-for="s in suppliers" :key="s" :label="s" :value="s" />
+          <el-option v-for="s in inv.suppliers" :key="s" :label="s" :value="s" />
         </el-select>
         <el-input v-model="warn.kw" size="small" class="warn-kw" clearable :prefix-icon="Search"
           placeholder="输入商品名称/编码/批次号" @keyup.enter="doSearch" />
@@ -113,11 +124,11 @@
           <label class="req">
             填写时间
             <el-tooltip placement="top"
-              content="批次距到期日期不足该时间时，库存状态置为「预警」">
+              content="批次距到期日期不足该时间时，库存状态置为「预警」；仅支持 0~100 的整数">
               <el-icon class="ask"><QuestionFilled /></el-icon>
             </el-tooltip>
           </label>
-          <el-input v-model="warn.days" size="small" placeholder="(只写数字)" @input="warn.days = onlyNum(warn.days)" />
+          <el-input v-model="warn.days" size="small" placeholder="0~100" />
         </div>
         <div class="fld">
           <label class="req">选择单位</label>
@@ -129,7 +140,7 @@
         </div>
         <div class="fld">
           <label class="req">库存最低值</label>
-          <el-input v-model="warn.value" size="small" placeholder="只写数字" @input="warn.value = onlyNum(warn.value)">
+          <el-input v-model="warn.value" size="small" placeholder="0~100000">
             <template #append>件</template>
           </el-input>
         </div>
@@ -149,47 +160,21 @@ import { ElMessage } from 'element-plus'
 import { Bell, Search, QuestionFilled } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCards from '@/components/StatCards.vue'
+import { useInventoryStore } from '@/stores/inventory'
 
 const TAG = { 正常: 'success', 预警: 'warning', 缺货: 'danger' }
-const warehouses = ['华东主仓', '华南仓', '平台仓1', '平台仓2']
 const STATES = ['正常', '预警', '缺货']
+const PAGE_SIZE = 20
 
-const rows = ref([
-  { name: '洗面奶 100g', code: 'SE-2026-001', batch: 'B20260101', category: '家居日用', supplier: '某林林公司', warehouse: '华东主仓', inNo: 'BQ20260101111', inQty: 1200, outQty: 520, left: 680, cap: 86, warnValue: 200, warnDays: 12, warnUnit: '月', unit: '支', expiry: '2027-09-01' },
-  { name: '睫毛膏 8g', code: 'SE-2026-819', batch: 'B20261021', category: '美妆个护', supplier: '某林林公司', warehouse: '华南仓', inNo: 'BQ20260101113', inQty: 300, outQty: 198, left: 102, cap: 34, warnValue: 150, warnDays: 1, warnUnit: '月', unit: '支', expiry: '2026-12-10' },
-  { name: '抽纸 3层', code: 'AS-2026-021', batch: 'B20260819', category: '家居日用', supplier: '美妆公司', warehouse: '平台仓1', inNo: 'BQ20260819002', inQty: 2400, outQty: 2400, left: 0, cap: 0, warnValue: 100, warnDays: 3, warnUnit: '月', unit: '件', expiry: '2027-03-15' },
-  { name: '眼睫毛 5ml', code: 'SE-2026-002', batch: 'B20260912', category: '美妆个护', supplier: '美妆公司', warehouse: '华东主仓', inNo: 'BQ20260912003', inQty: 860, outQty: 630, left: 230, cap: 27, warnValue: 300, warnDays: 3, warnUnit: '月', unit: '支', expiry: '2027-01-20' },
-  { name: '牙膏 30g', code: 'SE-2026-003', batch: 'B20260714', category: '家居日用', supplier: '某林林公司', warehouse: '平台仓2', inNo: 'BQ20260714004', inQty: 1500, outQty: 700, left: 800, cap: 53, warnValue: 200, warnDays: 3, warnUnit: '月', unit: '个', expiry: '2028-02-28' },
-  { name: '精华液 30ml', code: 'AS-2026-022', batch: 'B20260114', category: '美妆个护', supplier: '雅美化妆品', warehouse: '华南仓', inNo: 'BQ20260114005', inQty: 640, outQty: 610, left: 30, cap: 5, warnValue: 60, warnDays: 2, warnUnit: '月', unit: '瓶', expiry: '2026-12-25' }
-])
+const inv = useInventoryStore()
 
 const kw = ref('')
 const category = ref('all')
 const stockState = ref('all')
 const warehouse = ref('all')
-const categories = computed(() => [...new Set(rows.value.map(r => r.category).filter(Boolean))])
 const page = ref(1)
-const PAGE_SIZE = 20
 
-/* ---- 预警计算：数量下限 + 保质期剩余天数 ---- */
-const UNIT_DAYS = { 年: 365, 月: 30, 日: 1 }
-const DAY = 24 * 60 * 60 * 1000
-const leftDays = r => (r.expiry ? Math.ceil((new Date(`${r.expiry}T00:00:00`) - new Date()) / DAY) : null)
-const nearExpiry = r => {
-  if (!r.expiry || !Number(r.warnDays)) return false
-  return leftDays(r) <= Number(r.warnDays) * (UNIT_DAYS[r.warnUnit] || 30)
-}
-const statusOf = r => (r.left <= 0 ? '缺货' : r.left <= r.warnValue || nearExpiry(r) ? '预警' : '正常')
-
-function statusTip(r) {
-  if (r.left <= 0) return '剩余数量为 0，已缺货'
-  const parts = []
-  if (r.left <= r.warnValue) parts.push(`剩余 ${num(r.left)} ≤ 预警值 ${num(r.warnValue)}`)
-  if (nearExpiry(r)) parts.push(`距到期 ${leftDays(r)} 天，低于临期阈值 ${r.warnDays} ${r.warnUnit}`)
-  return parts.length ? parts.join('；') : `剩余 ${num(r.left)}，高于预警值且未到临期阈值`
-}
-
-const view = computed(() => rows.value.map(r => ({ ...r, status: statusOf(r) })).filter(r => {
+const view = computed(() => inv.rows.filter(r => {
   const k = kw.value.trim()
   const okKw = !k || [r.name, r.code, r.batch].some(v => String(v).includes(k))
   const okWh = warehouse.value === 'all' || r.warehouse === warehouse.value
@@ -199,17 +184,23 @@ const view = computed(() => rows.value.map(r => ({ ...r, status: statusOf(r) }))
 }))
 const paged = computed(() => view.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
 
-const sum = (arr, key) => arr.reduce((s, r) => s + Number(r[key] || 0), 0)
-const num = v => (v === null || v === undefined ? '—' : v.toLocaleString('zh-CN'))
+const num = v => (v === null || v === undefined ? '—' : Number(v).toLocaleString('zh-CN'))
+const monthKey = (() => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+})()
+const inThisMonth = d => String(d || '').startsWith(monthKey)
+
 const stats = computed(() => {
   const all = view.value
   return [
     { label: '库存SKU总数', value: num(all.length), unit: '个' },
-    { label: '在库总数量', value: num(sum(all, 'left')), unit: '件' },
+    { label: '在库总数量', value: num(all.reduce((s, r) => s + Number(r.left || 0), 0)), unit: '件' },
     { label: '预警商品', value: num(all.filter(r => r.status === '预警').length), unit: '个', tone: 'warn' },
     { label: '已缺货', value: num(all.filter(r => r.status === '缺货').length), unit: '个', tone: 'danger' },
-    { label: '本月入库', value: num(sum(all, 'inQty')), unit: '件' },
-    { label: '本月出库', value: num(sum(all, 'outQty')), unit: '件' }
+    // 本月入库/出库按自然月统计（只看本月日期的那部分数量）
+    { label: '本月入库', value: num(all.filter(r => inThisMonth(r.inDate)).reduce((s, r) => s + Number(r.inQty || 0), 0)), unit: '件' },
+    { label: '本月出库', value: num(all.filter(r => inThisMonth(r.outDate)).reduce((s, r) => s + Number(r.outQty || 0), 0)), unit: '件' }
   ]
 })
 
@@ -218,27 +209,24 @@ watch(() => view.value.length, n => {
   if (page.value > max) page.value = max
 })
 
-/* ------- 设置预警 ------- */
-const suppliers = computed(() => [...new Set(rows.value.map(r => r.supplier).filter(Boolean))])
-const goodsPool = computed(() => {
-  const map = new Map()
-  rows.value.forEach(r => {
-    if (!map.has(r.code)) map.set(r.code, { code: r.code, name: r.name, supplier: r.supplier, batches: [] })
-    const g = map.get(r.code)
-    g.batches.push(r.batch)
-    if (!g.supplier) g.supplier = r.supplier
-  })
-  return [...map.values()]
-})
+function statusTip(r) {
+  if (r.left <= 0) return '剩余数量为 0，已缺货'
+  const parts = []
+  if (r.left <= r.warnValue) parts.push(`剩余 ${num(r.left)} ≤ 预警值 ${num(r.warnValue)}`)
+  if (r.leftDays !== null && Number(r.warnDays)) {
+    const limit = Number(r.warnDays) * ({ 年: 365, 月: 30, 日: 1 }[r.warnUnit] || 30)
+    if (r.leftDays <= limit) parts.push(`距到期 ${r.leftDays} 天，低于临期阈值 ${r.warnDays} ${r.warnUnit}`)
+  }
+  return parts.length ? parts.join('；') : `剩余 ${num(r.left)}，高于预警值且未到临期阈值`
+}
 
+/* ------- 设置预警 ------- */
 const warn = reactive({
   visible: false, supplier: '', kw: '', appliedSupplier: '', appliedKw: '',
   checked: [], days: '', unit: '月', value: ''
 })
 
-const onlyNum = v => String(v ?? '').replace(/[^\d]/g, '')
-
-const warnResults = computed(() => goodsPool.value.filter(g => {
+const warnResults = computed(() => inv.goodsPool.filter(g => {
   const okS = !warn.appliedSupplier || g.supplier === warn.appliedSupplier
   const k = warn.appliedKw
   const okK = !k || g.name.includes(k) || g.code.toLowerCase().includes(k.toLowerCase())
@@ -250,19 +238,13 @@ function doSearch() {
   warn.appliedSupplier = warn.supplier
   warn.appliedKw = warn.kw.trim()
 }
-watch(() => warn.supplier, doSearch)
 
 const allChecked = computed(() =>
   warnResults.value.length > 0 && warnResults.value.every(g => warn.checked.includes(g.code)))
 const partChecked = computed(() =>
   !allChecked.value && warnResults.value.some(g => warn.checked.includes(g.code)))
 
-/** 全选/取消全选当前筛选结果（幂等，避免 label 转发导致的重复 change） */
-function toggleAll(on) {
-  warnResults.value.forEach(g => setGoods(g.code, on))
-}
-
-/** 幂等设置勾选态：行 label 点击可能让 checkbox 触发多次 change，用目标值而非取反 */
+function toggleAll(on) { warnResults.value.forEach(g => setGoods(g.code, on)) }
 function setGoods(code, on) {
   const i = warn.checked.indexOf(code)
   if (on && i < 0) warn.checked.push(code)
@@ -270,29 +252,25 @@ function setGoods(code, on) {
 }
 
 function openWarn() {
-  warn.supplier = ''
-  warn.kw = ''
-  warn.checked = []
-  warn.days = ''
-  warn.unit = '月'
-  warn.value = ''
+  Object.assign(warn, { supplier: '', kw: '', checked: [], days: '', unit: '月', value: '' })
   doSearch()
   warn.visible = true
 }
 
+/** 只接受整数：-5 / abc / 1.5 一律报错，不再悄悄改数 */
 function saveWarn() {
   if (!warn.checked.length) return ElMessage.error('请至少勾选一个商品')
-  if (!warn.days || Number(warn.days) <= 0) return ElMessage.error('请填写时间（只写数字，需大于 0）')
-  if (warn.value === '' || warn.value === null) return ElMessage.error('请填写库存最低值')
-  const days = Number(warn.days)
-  const value = Number(warn.value)
-  warn.checked.forEach(code => {
-    rows.value.filter(r => r.code === code).forEach(r => {
-      r.warnDays = days
-      r.warnUnit = warn.unit
-      r.warnValue = value
-    })
-  })
+  const daysStr = String(warn.days).trim()
+  if (!/^\d+$/.test(daysStr)) return ElMessage.error('填写时间只能是非负整数（0~100）')
+  const days = Number(daysStr)
+  if (days < 0 || days > 100) return ElMessage.error('填写时间需在 0~100 之间')
+  const valStr = String(warn.value).trim()
+  if (!valStr) return ElMessage.error('请填写库存最低值')
+  if (!/^\d+$/.test(valStr)) return ElMessage.error('库存最低值只能是非负整数')
+  const value = Number(valStr)
+  if (value > 100000) return ElMessage.error('库存最低值不能超过 100000')
+
+  inv.setWarn({ codes: warn.checked, days, unit: warn.unit, value })
   ElMessage.success(`已为 ${warn.checked.length} 个商品设置预警：距到期不足 ${days} ${warn.unit} 或 剩余 ≤ ${num(value)} 件`)
   warn.visible = false
 }
@@ -300,7 +278,9 @@ function saveWarn() {
 
 <style scoped>
 .strong { font-weight: 600; }
+.stock-table :deep(.el-table__cell) { font-size: 11.5px; }
 .warn-val { border-bottom: 1px dashed var(--line); cursor: help; }
+.ref { font-size: 10.5px; color: var(--brand); line-height: 1.3; }
 
 /* 弹窗：供应商 + 关键字筛选 */
 .warn-filter { display: flex; align-items: center; gap: 8px; }

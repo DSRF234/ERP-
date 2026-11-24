@@ -1,6 +1,7 @@
 <template>
   <div>
     <PageHeader title="库存盘点" sub="创建盘点任务 · 录入实盘数 · 差异留痕">
+      <el-button size="small" @click="adjVisible = true">库存调整单（{{ take.adjustments.length }}）</el-button>
       <el-button v-can="'b-stocktake-create'" size="small" type="primary" :icon="Plus" @click="openCreate">创建盘点任务</el-button>
     </PageHeader>
 
@@ -28,7 +29,12 @@
     <div class="card">
       <el-table :data="paged" size="small">
         <el-table-column prop="no" label="盘点单号" width="136" />
-        <el-table-column prop="poNo" label="采购单号" width="136" />
+        <el-table-column label="采购单号" width="136">
+          <template #default="{ row }">
+            <a v-if="row.poNo && row.poNo !== '—'" class="po-link mono" @click="gotoPurchase(row.poNo)">{{ row.poNo }}</a>
+            <span v-else class="mono muted">—</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="name" label="货品名称" min-width="126" />
         <el-table-column prop="warehouse" label="仓库" width="90" />
         <el-table-column prop="inType" label="入库类型" width="92" />
@@ -62,17 +68,31 @@
     </div>
 
     <!-- 创建盘点任务 -->
-    <el-dialog v-model="dg.visible" title="创建盘点任务" width="640px" align-center>
+    <el-dialog v-model="dg.visible" title="创建盘点任务" width="680px" align-center>
       <el-form label-position="top" size="small" class="take-form">
         <el-row :gutter="16">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="供货仓库" required>
               <el-select v-model="dg.warehouse" style="width: 100%">
                 <el-option v-for="w in warehouses" :key="w" :label="w" :value="w" />
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
+            <el-form-item label="供应商名称" required>
+              <el-select v-model="dg.supplier" style="width: 100%" clearable placeholder="请选择供应商">
+                <el-option v-for="s in suppliers" :key="s" :label="s" :value="s" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="货品类型" required>
+              <el-select v-model="dg.category" style="width: 100%" clearable placeholder="请选择类型">
+                <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
             <el-form-item label="负责人" required>
               <el-select v-model="dg.owner" style="width: 100%">
                 <el-option v-for="o in owners" :key="o" :label="o" :value="o" />
@@ -126,8 +146,8 @@
         <div class="pk-field pk-goods">
           <label>货品名称</label>
           <el-select v-model="pk.codes" size="small" style="width: 100%" multiple filterable
-            collapse-tags collapse-tags-tooltip placeholder="洗面奶，同步库存管理已入库货品">
-            <el-option v-for="g in pkOptions" :key="g.code" :label="g.name" :value="g.code" />
+            collapse-tags collapse-tags-tooltip placeholder="同步库存管理已入库货品">
+            <el-option v-for="g in pkOptions" :key="g.code + g.batch" :label="g.name" :value="g.code" />
           </el-select>
         </div>
       </div>
@@ -141,10 +161,10 @@
       </div>
     </el-dialog>
 
-    <!-- 盘点 / 查看 -->
+    <!-- 盘点 / 查看：带出整单明细 -->
     <el-dialog v-model="chk.visible" :title="chk.readonly ? '查看' : '盘点'" width="1060px"
       align-center class="take-dlg">
-      <div class="sec-title">盘点明细</div>
+      <div class="sec-title">盘点明细（单号 {{ chk.no }}，共 {{ chkItems.length }} 行）</div>
       <el-table :data="chkItems" size="small" border class="detail-table"
         :header-cell-style="{ background: '#F7F8FA', color: 'var(--ink-2)', whiteSpace: 'normal', padding: '6px' }"
         :cell-style="{ padding: '7px 6px' }">
@@ -173,7 +193,7 @@
         <el-table-column label="实盘数" width="94" align="center">
           <template #default="{ row }">
             <el-input v-if="!chk.readonly" v-model="chk.vals[keyOf(row)]" size="small" class="qty-in"
-              maxlength="6" placeholder="0-100000" @input="onQtyInput(row)" />
+              maxlength="6" placeholder="0-100000" />
             <span v-else class="mono qty-txt">{{ num(row.realQty) }}</span>
           </template>
         </el-table-column>
@@ -185,42 +205,65 @@
         :readonly="chk.readonly" placeholder="选填，如：破损、货架位置异常等说明" />
 
       <div class="dlg-act">
-        <el-button size="small" @click="chk.visible = false">取消</el-button>
-        <el-button v-can="'b-stocktake-submit'" size="small" type="primary" @click="saveCheck">确定</el-button>
+        <el-button size="small" @click="chk.visible = false">{{ chk.readonly ? '关闭' : '取消' }}</el-button>
+        <el-button v-if="!chk.readonly" v-can="'b-stocktake-submit'" size="small" type="primary" @click="saveCheck">确定</el-button>
       </div>
     </el-dialog>
+
+    <!-- 库存调整单 -->
+    <el-drawer v-model="adjVisible" title="库存调整单" size="720px">
+      <el-table :data="take.adjustments" size="small" empty-text="暂无调整单（盘点有差异时自动生成）">
+        <el-table-column prop="no" label="调整单号" width="120" />
+        <el-table-column prop="taskNo" label="来源盘点单" width="120" />
+        <el-table-column prop="name" label="货品" min-width="110" />
+        <el-table-column prop="batch" label="批次号" width="100" />
+        <el-table-column label="差异" width="72" align="right">
+          <template #default="{ row }">
+            <span class="mono" :class="row.diff < 0 ? 'neg' : 'pos'">{{ row.diff > 0 ? '+' : '' }}{{ row.diff }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="调整前 / 后" width="120" align="right">
+          <template #default="{ row }"><span class="mono">{{ row.before }} → {{ row.after }}</span></template>
+        </el-table-column>
+        <el-table-column prop="time" label="生成时间" width="130" />
+      </el-table>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Plus, Search } from '@element-plus/icons-vue'
+import { Plus, Search, Picture } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCards from '@/components/StatCards.vue'
+import { useStocktakeStore } from '@/stores/stocktake'
+import { useSupplierStore } from '@/stores/supplier'
 
-const STATUS = ['待盘点', '已完成', '有差异']
-const TAG = { 待盘点: 'info', 已完成: 'success', 有差异: 'danger' }
+const router = useRouter()
+const take = useStocktakeStore()
+const supplierStore = useSupplierStore()
+
+const STATUS = ['待盘点', '已完结', '有差异']
+const TAG = { 待盘点: 'info', 已完结: 'success', 有差异: 'danger' }
 const warehouses = ['华东主仓', '华南仓', '平台仓1', '平台仓2']
 const owners = ['杨主管', '李丽霞', '王强']
-
-const rows = ref([
-  { no: 'PD202607121211', poNo: 'CG202607221421', name: '洗面奶 100g', code: 'SE-2026-001', batch: 'B20260101', category: '家居日用', warehouse: '华东主仓', inType: '采购入库', produceDate: '2026-01-14', expireDate: '2027-01-14', stockQty: 680, realQty: 672, owner: '杨主管', status: '有差异', remark: '货架里侧少 8 支，已拍照留证，待复核。' },
-  { no: 'PD202607121211', poNo: 'CG202607221421', name: '睫毛膏 8g', code: 'SE-2026-819', batch: 'B20261021', category: '美妆个护', warehouse: '华东主仓', inType: '采购入库', produceDate: '2026-09-12', expireDate: '2027-09-12', stockQty: 102, realQty: 102, owner: '杨主管', status: '已完成', remark: '' },
-  { no: 'PD202609121113', poNo: '—', name: '抽纸 3层', code: 'AS-2026-021', batch: 'B20260819', category: '家居日用', warehouse: '华南仓', inType: '调拨入库', produceDate: '2026-07-14', expireDate: '2027-07-14', stockQty: 0, realQty: null, owner: '李丽霞', status: '待盘点', remark: '' },
-  { no: 'PD202602011230', poNo: 'CG202607180916', name: '牙膏 30g', code: 'SE-2026-003', batch: 'B20260714', category: '家居日用', warehouse: '平台仓2', inType: '采购入库', produceDate: '2026-09-12', expireDate: '2027-09-12', stockQty: 800, realQty: null, owner: '王强', status: '待盘点', remark: '' },
-  { no: 'PD202601121108', poNo: 'CG202607150622', name: '精华液 30ml', code: 'AS-2026-022', batch: 'B20260114', category: '美妆个护', warehouse: '华南仓', inType: '采购入库', produceDate: '2026-01-14', expireDate: '2027-01-14', stockQty: 30, realQty: 28, owner: '李丽霞', status: '有差异', remark: '破损 2 瓶已报废，等仓库确认后调整库存。' },
-  { no: 'PD202601121108', poNo: 'CG202607150622', name: '眼睫毛 5ml', code: 'SE-2026-002', batch: 'B20260912', category: '美妆个护', warehouse: '华南仓', inType: '调拨入库', produceDate: '2026-07-14', expireDate: '2027-07-14', stockQty: 230, realQty: 230, owner: '李丽霞', status: '已完成', remark: '' }
-])
+const PAGE_SIZE = 20
 
 const kw = ref('')
 const category = ref('all')
 const state = ref('all')
 const warehouse = ref('all')
 const page = ref(1)
-const PAGE_SIZE = 20
+const adjVisible = ref(false)
 
-const view = computed(() => rows.value.filter(r => {
+/** 货品池：库存里的批次 + 供应商名，供添加货品筛选 */
+const pool = computed(() => take.pool)
+const suppliers = computed(() => [...new Set(pool.value.map(g => g.supplier).filter(Boolean))])
+const categories = computed(() => [...new Set(pool.value.map(g => g.category).filter(Boolean))])
+
+const view = computed(() => take.rows.filter(r => {
   const k = kw.value.trim()
   const okKw = !k || [r.no, r.name, r.owner, r.code].some(v => String(v).includes(k))
   const okCat = category.value === 'all' || r.category === category.value
@@ -230,15 +273,16 @@ const view = computed(() => rows.value.filter(r => {
 }))
 const paged = computed(() => view.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
 
-const num = v => (v === null || v === undefined ? '—' : v.toLocaleString('zh-CN'))
+const num = v => (v === null || v === undefined ? '—' : Number(v).toLocaleString('zh-CN'))
+
+/** 盘点记录 = 盘点明细行数（PRD 4.1 口径） */
 const stats = computed(() => {
   const all = view.value
-  const orders = new Set(all.map(r => r.no))
   return [
-    { label: '盘点单总数', value: orders.size, unit: '个' },
-    { label: '待盘点', value: all.filter(r => r.status === '待盘点').length, unit: '个', tone: 'warn' },
-    { label: '有差异', value: all.filter(r => r.status === '有差异').length, unit: '个', tone: 'danger' },
-    { label: '本月盘点货品', value: all.reduce((s, r) => s + Number(r.stockQty || 0), 0).toLocaleString('zh-CN'), unit: '件' }
+    { label: '盘点记录', value: all.length, unit: '条' },
+    { label: '待盘点', value: all.filter(r => r.status === '待盘点').length, unit: '条', tone: 'warn' },
+    { label: '有差异', value: all.filter(r => r.status === '有差异').length, unit: '条', tone: 'danger' },
+    { label: '本月盘点货品', value: num(all.reduce((s, r) => s + Number(r.stockQty || 0), 0)), unit: '件' }
   ]
 })
 
@@ -247,127 +291,92 @@ watch(() => view.value.length, n => {
   if (page.value > max) page.value = max
 })
 
-/* ------- 货品池（同步库存/供应商货品） ------- */
-const pool = [
-  { code: 'SE-2026-001', name: '洗面奶 100g', spec: '100g/支', batch: 'B20260101', category: '家居日用', supplier: '某林林公司', stockQty: 680 },
-  { code: 'SE-2026-819', name: '睫毛膏 8g', spec: '8g/支', batch: 'B20261021', category: '美妆个护', supplier: '某林林公司', stockQty: 102 },
-  { code: 'AS-2026-021', name: '抽纸 3层', spec: '3层/包', batch: 'B20260819', category: '家居日用', supplier: '美妆公司', stockQty: 0 },
-  { code: 'SE-2026-002', name: '眼睫毛 5ml', spec: '5ml/支', batch: 'B20260912', category: '美妆个护', supplier: '美妆公司', stockQty: 230 },
-  { code: 'SE-2026-003', name: '牙膏 30g', spec: '30g/个', batch: 'B20260714', category: '家居日用', supplier: '某林林公司', stockQty: 800 },
-  { code: 'AS-2026-022', name: '精华液 30ml', spec: '30ml/瓶', batch: 'B20260114', category: '美妆个护', supplier: '雅美化妆品', stockQty: 30 }
-]
-const suppliers = [...new Set(pool.map(g => g.supplier))]
-const categories = [...new Set(pool.map(g => g.category))]
+function gotoPurchase(poNo) {
+  router.push({ path: '/purchase', query: { kw: poNo } })
+}
 
 /* ------- 创建盘点任务 ------- */
-const dg = reactive({
-  visible: false, warehouse: '华东主仓', owner: '杨主管', remark: '', goods: []
-})
-const pickedGoods = computed(() => pool.filter(g => dg.goods.includes(g.code)))
+const dg = reactive({ visible: false, warehouse: '华东主仓', supplier: '', category: '', owner: '杨主管', remark: '', goods: [] })
+const pickedGoods = computed(() => pool.value.filter(g => dg.goods.includes(g.code + '|' + g.batch)))
 
 function openCreate() {
-  dg.warehouse = '华东主仓'
-  dg.owner = '杨主管'
-  dg.remark = ''
-  dg.goods = []
+  Object.assign(dg, { warehouse: '华东主仓', supplier: suppliers.value[0] || '', category: categories.value[0] || '', owner: '杨主管', remark: '', goods: [] })
   dg.visible = true
 }
 
-/* ------- 添加货品（弹窗内多选） ------- */
+/* ------- 添加货品 ------- */
 const pk = reactive({ visible: false, supplier: '', category: '', codes: [] })
-/** 只列出符合条件的货品，已在明细里的排除，避免重复添加 */
-const pkOptions = computed(() => pool.filter(g => {
+const pkOptions = computed(() => pool.value.filter(g => {
   const okS = !pk.supplier || g.supplier === pk.supplier
   const okC = !pk.category || g.category === pk.category
-  return okS && okC && !dg.goods.includes(g.code)
+  return okS && okC && !dg.goods.includes(g.code + '|' + g.batch)
 }))
 
 function openPicker() {
-  pk.supplier = ''
-  pk.category = ''
-  pk.codes = []
-  pk.visible = true
+  Object.assign(pk, { supplier: dg.supplier || '', category: dg.category || '', codes: [], visible: true })
 }
-
 function cancelPicker() {
   pk.visible = false
   pk.codes = []
 }
-
 function savePicker() {
-  const add = pk.codes.filter(c => !dg.goods.includes(c))
+  const add = pk.codes.map(code => {
+    const hit = pkOptions.value.find(g => g.code === code)
+    return hit ? { key: `${hit.code}|${hit.batch}`, hit } : null
+  }).filter(Boolean).filter(x => !dg.goods.includes(x.key))
   if (!add.length) return ElMessage.error('请先勾选要添加的货品')
-  dg.goods.push(...add)
+  dg.goods.push(...add.map(x => x.key))
   pk.visible = false
   pk.codes = []
   ElMessage.success(`已添加 ${add.length} 个货品到盘点明细`)
 }
 
 function saveCreate() {
-  if (!dg.goods.length) return ElMessage.error('请至少添加一个盘点商品')
-  const d = new Date()
-  const p = n => String(n).padStart(2, '0')
-  const no = `PD${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}`
-  pickedGoods.value.forEach(g => {
-    rows.value.unshift({
-      no, poNo: '—', name: g.name, code: g.code, batch: g.batch,
-      category: g.category, warehouse: dg.warehouse,
-      inType: dg.warehouse === '华东主仓' ? '采购入库' : '调拨入库',
-      produceDate: '2026-09-12', expireDate: '2027-09-12',
-      stockQty: g.stockQty, realQty: null, owner: dg.owner, status: '待盘点',
-      remark: dg.remark
-    })
-  })
+  if (!dg.supplier) return ElMessage.error('请选择供应商名称')
+  if (!dg.category) return ElMessage.error('请选择货品类型')
+  const goods = pickedGoods.value
+  const res = take.createTask({ warehouse: dg.warehouse, owner: dg.owner, remark: dg.remark, goods })
+  if (!res.ok) return ElMessage.error(res.msg)
   dg.visible = false
   page.value = 1
-  ElMessage.success(`盘点任务 ${no} 已创建，共 ${dg.goods.length} 个货品，负责人 ${dg.owner}`)
+  ElMessage.success(`盘点任务 ${res.no} 已创建，共 ${res.count} 个货品，负责人 ${dg.owner}`)
 }
 
 /* ------- 盘点 / 查看 ------- */
-const chk = reactive({ visible: false, row: null, readonly: false, vals: {}, remark: '' })
-const chkItems = computed(() => (chk.row ? [chk.row] : []))
-const keyOf = r => `${r.no}|${r.name}`
-const onlyNum = v => String(v ?? '').replace(/[^\d]/g, '')
-const QTY_MAX = 100000
-/** 实盘数只收数字，且不超过 100000 */
-function onQtyInput(row) {
-  const k = keyOf(row)
-  let v = onlyNum(chk.vals[k])
-  if (v !== '' && Number(v) > QTY_MAX) v = String(QTY_MAX)
-  chk.vals[k] = v
-}
+const chk = reactive({ visible: false, no: '', readonly: false, vals: {}, remark: '' })
+const chkItems = computed(() => (chk.no ? take.groupsOf(chk.no) : []))
+const keyOf = r => `${r.no}|${r.name}|${r.batch}`
 
 function openCheck(row) {
-  chk.row = row
+  chk.no = row.no
   chk.readonly = row.status !== '待盘点'
   chk.vals = {}
-  chkItems.value.forEach(r => {
-    chk.vals[keyOf(r)] = chk.readonly ? String(r.realQty ?? '') : ''
-  })
+  chkItems.value.forEach(r => { chk.vals[keyOf(r)] = chk.readonly ? String(r.realQty ?? '') : '' })
   chk.remark = row.remark || ''
   chk.visible = true
 }
 
 function saveCheck() {
-  if (chk.readonly) { chk.visible = false; return }
-  const blank = chkItems.value.filter(r => String(chk.vals[keyOf(r)] ?? '').trim() === '')
-  if (blank.length) return ElMessage.error('请填写实盘数后才能保存')
-  const over = chkItems.value.find(r => Number(chk.vals[keyOf(r)]) > QTY_MAX)
-  if (over) return ElMessage.error(`实盘数需在 0~${QTY_MAX} 之间`)
-  let diff = 0
-  chkItems.value.forEach(r => {
-    const real = Number(chk.vals[keyOf(r)])
-    r.realQty = real
-    r.status = real === Number(r.stockQty) ? '已完成' : '有差异'
-    r.remark = chk.remark
-    if (r.status === '有差异') diff++
-  })
+  const items = chkItems.value
+  for (const r of items) {
+    const raw = String(chk.vals[keyOf(r)] ?? '').trim()
+    if (raw === '') return ElMessage.error(`【${r.name}】请填写实盘数后才能保存`)
+    if (!/^\d+$/.test(raw)) return ElMessage.error(`【${r.name}】实盘数只能是非负整数，当前为「${raw}」`)
+    if (Number(raw) > 100000) return ElMessage.error(`【${r.name}】实盘数需在 0~100000 之间`)
+  }
+  let diffCount = 0
+  let lastAdj = ''
+  for (const r of items) {
+    const res = take.saveCheck({ no: r.no, name: r.name, batch: r.batch, realQty: Number(chk.vals[keyOf(r)]), remark: chk.remark })
+    if (!res.ok) return ElMessage.error(res.msg)
+    if (res.status === '有差异') { diffCount++; lastAdj = res.adjNo }
+  }
   chk.visible = false
-  ElMessage.success(
-    diff
-      ? `盘点已保存，${diff} 个货品有差异，请生成库存调整单`
-      : '盘点已保存，实盘数与库存数一致'
-  )
+  if (diffCount) {
+    ElMessage.success(`盘点已保存，${diffCount} 个货品有差异，已生成库存调整单 ${lastAdj} 并回写库存`)
+  } else {
+    ElMessage.success('盘点已保存，实盘数与库存数一致')
+  }
 }
 </script>
 
@@ -377,8 +386,12 @@ function saveCheck() {
   padding-top: 10px; border-top: 1px dashed var(--line);
 }
 .detail-head h4 { margin: 0; font-size: 13px; font-weight: 600; }
-.detail-head .extra { margin-left: auto; font-size: 11.5px; color: var(--ink-3); }
 .detail-head .el-button { margin-left: auto; }
+.po-link { color: var(--brand); cursor: pointer; text-decoration: none; }
+.po-link:hover { text-decoration: underline; }
+.muted { color: var(--ink-3); }
+.neg { color: var(--danger); }
+.pos { color: var(--ok); }
 
 /* 创建盘点任务：标签在输入框上方 */
 .take-form :deep(.el-form-item) { margin-bottom: 14px; }
@@ -403,7 +416,6 @@ function saveCheck() {
 
 /* 盘点 / 查看弹窗 */
 .take-dlg { max-width: 96vw; }
-/* 标题区与内容区之间加分隔，贴近原型弹窗 */
 .take-dlg :deep(.el-dialog__header) {
   padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--line-2);
 }
@@ -411,14 +423,11 @@ function saveCheck() {
 .sec-title + .el-textarea { margin-bottom: 2px; }
 .detail-table { margin-bottom: 16px; font-size: 11px; }
 .detail-table :deep(.el-table__cell) { font-size: 11px; }
-/* el-table 的 .cell 自带 12px 左右内边距，叠加单元格 padding 会把可用宽度吃掉一半 */
 .detail-table :deep(.cell) { padding: 0; }
-/* 两行表头：主标题 + 灰色规则说明 */
 .th2 { display: flex; flex-direction: column; line-height: 1.35; }
 .th2 em { font-style: normal; font-size: 9.5px; color: var(--ink-3); font-weight: 400; }
 .pd-no { color: var(--brand); font-variant-numeric: tabular-nums; }
 .qty-in { width: 100%; }
-/* 实盘数是唯一需要录入的字段，用品牌色描边 + 淡蓝底 + 居中加粗数字突出 */
 .qty-in :deep(.el-input__wrapper) {
   padding: 0 7px; min-height: 28px;
   background: var(--brand-l); box-shadow: 0 0 0 1px var(--brand) inset;

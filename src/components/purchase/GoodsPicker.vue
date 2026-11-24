@@ -1,7 +1,7 @@
 <template>
   <el-dialog :model-value="modelValue" title="添加货品" width="860px" align-center
     @update:model-value="v => emit('update:modelValue', v)">
-    <p class="dlg-hint">同步供应商管理的供应商所连接的货品，根据供应商和货品类型进行筛选，勾选后加入采购明细。</p>
+    <p class="dlg-hint">货品来自「供应商管理」，只列合作中供应商的货品；切换供应商时已选货品会清空（同一采购单只能有一个供应商）。</p>
 
     <div class="picker">
       <div class="sup-col">
@@ -11,16 +11,17 @@
             <span class="sname">{{ s.name }}</span>
             <em>{{ s.goods.length }}</em>
           </li>
+          <li v-if="!pool.length" class="empty">暂无可用的合作中供应商</li>
         </ul>
       </div>
 
       <div class="goods-col">
         <div class="col-head">
-          <span>供应商货品 · {{ activeName }}</span>
+          <span>供应商货品 · {{ activeName || '—' }}</span>
           <el-input v-model="kw" size="small" style="width: 180px" clearable placeholder="搜索货品名称/货码" />
         </div>
         <el-table ref="tableRef" :data="goodsView" size="small" height="286" row-key="code"
-          @selection-change="onSelect">
+          empty-text="该供应商暂无货品" @selection-change="onSelect">
           <el-table-column type="selection" width="42" />
           <el-table-column prop="code" label="货码编号" width="130" />
           <el-table-column prop="name" label="货品名称" min-width="120" />
@@ -51,6 +52,7 @@
 import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { money } from '@/utils/format'
+import { useSupplierStore } from '@/stores/supplier'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -59,42 +61,27 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'confirm'])
 
-const pool = [
-  {
-    name: '某林林公司',
-    goods: [
-      { code: 'SO-2026-001', name: '洗面奶', spec: '100g/支', price: 9.99, minPrice: 12.02 },
-      { code: 'SO-2026-002', name: '睫毛膏', spec: '8g/支', price: 8.20, minPrice: 9.80 },
-      { code: 'SO-2026-003', name: '牙膏', spec: '30g/个', price: 12.00, minPrice: 19.50 }
-    ]
-  },
-  {
-    name: '美妆公司',
-    goods: [
-      { code: 'SO-2026-011', name: '眼睫毛', spec: '5ml/支', price: 6.60, minPrice: 8.40 },
-      { code: 'SO-2026-012', name: '抽纸', spec: '3层/包', price: 3.50, minPrice: 4.20 }
-    ]
-  },
-  {
-    name: '雅美化妆品',
-    goods: [
-      { code: 'SO-2026-031', name: '精华液', spec: '30ml/瓶', price: 68.00, minPrice: 79.00 },
-      { code: 'SO-2026-032', name: '小棕瓶', spec: '50ml/瓶', price: 380.00, minPrice: 420.00 }
-    ]
-  }
-]
+const supplierStore = useSupplierStore()
+/** 只列「合作中」供应商，停用的不会出现在这里 */
+const pool = computed(() => supplierStore.activeSuppliers)
 
-const activeName = ref(props.supplier && pool.some(p => p.name === props.supplier) ? props.supplier : pool[0].name)
+const activeName = ref('')
 const kw = ref('')
 const selected = ref([])
 const tableRef = ref()
 
 const goodsView = computed(() => {
-  const s = pool.find(p => p.name === activeName.value)
+  const s = pool.value.find(p => p.name === activeName.value)
   if (!s) return []
   const k = kw.value.trim()
   return k ? s.goods.filter(g => g.name.includes(k) || g.code.includes(k)) : s.goods
 })
+
+function initActive() {
+  const list = pool.value
+  if (!list.length) { activeName.value = ''; return }
+  activeName.value = list.some(p => p.name === props.supplier) ? props.supplier : list[0].name
+}
 
 function onSelect(rows) { selected.value = rows }
 function pickSupplier(name) {
@@ -108,10 +95,11 @@ function pickSupplier(name) {
 
 watch(() => props.modelValue, v => {
   if (!v) return
-  activeName.value = props.supplier && pool.some(p => p.name === props.supplier) ? props.supplier : pool[0].name
+  initActive()
   kw.value = ''
   selected.value = []
 })
+watch(pool, () => { if (props.modelValue) initActive() })
 
 function confirm() {
   emit('confirm', { supplier: activeName.value, goods: selected.value })
@@ -135,6 +123,7 @@ function confirm() {
 }
 .sup-list li:hover { background: var(--fill); }
 .sup-list li.on { background: var(--brand-l); color: var(--brand-d); font-weight: 600; }
+.sup-list li.empty { justify-content: center; color: var(--ink-3); font-size: 12px; cursor: default; }
 .sup-list .sname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sup-list em { font-style: normal; font-size: 11px; color: var(--ink-3); }
 .picker-foot {

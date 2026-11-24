@@ -108,21 +108,19 @@
           label="发货时间" width="136" />
         <el-table-column prop="platformGoods" label="平台商品信息" min-width="170" show-overflow-tooltip />
 
-        <el-table-column label="操作" :width="status === 'review' ? 150 : (status === 'pending' ? 168 : 130)" fixed="right">
+        <el-table-column label="操作" :width="status === 'pending' ? 168 : 150" fixed="right">
           <template #default="{ row }">
             <template v-if="status === 'review'">
               <el-button v-can="pid.audit" link type="primary" size="small" @click="openReview(row)">审核</el-button>
               <el-button v-can="pid.reject" link type="danger" size="small" @click="openReject(row)">驳回</el-button>
-              <el-button v-can="pid.edit" link size="small" @click="edit(row)">编辑</el-button>
             </template>
-            <template v-else-if="status === 'pending'">
-              <el-button v-can="pid.outbound" link type="primary" size="small" @click="shipOut(row)">模拟出库回传</el-button>
-              <el-button v-can="pid.edit" link size="small" @click="edit(row)">编辑</el-button>
-            </template>
-            <el-button v-can="pid.receive" v-if="status === 'shipped'" link type="primary" size="small"
+            <el-button v-can="pid.outbound" v-else-if="status === 'pending'" link type="primary" size="small"
+              @click="shipOut(row)">模拟出库回传</el-button>
+            <el-button v-can="pid.receive" v-else-if="status === 'shipped'" link type="primary" size="small"
               @click="receive(row)">确认收货</el-button>
-            <el-button v-can="pid.aftersale" v-if="status === 'done'" link type="primary" size="small" @click="openAfter(row)">申请售后</el-button>
-            <el-button v-if="status === 'done'" link size="small" @click="viewDetail(row)">查看</el-button>
+            <el-button v-can="pid.aftersale" v-else-if="status === 'done'" link type="primary" size="small"
+              @click="openAfter(row)">申请售后</el-button>
+            <el-button link type="primary" size="small" @click="openDetail(row)">详情</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -309,8 +307,128 @@
       </template>
     </el-dialog>
 
-    <!-- 编辑订单 -->
-    <OrderEditDialog v-model="editVisible" :order="editingOrder" @submit="saveEdit" />
+    <!-- 订单详情 -->
+    <el-drawer v-model="detailVisible" size="680px">
+      <template #header>
+        <div v-if="detailOrder" class="dr-h">
+          <b>订单详情</b>
+          <el-tag size="small" :type="statusTag(detailOrder.status)" effect="plain" style="margin-left:8px">
+            {{ statusText(detailOrder.status) }}
+          </el-tag>
+          <span class="mono dr-no">{{ detailOrder.no }}</span>
+        </div>
+      </template>
+
+      <template v-if="detailOrder">
+        <div class="sec-t">处理进度</div>
+        <div class="steps">
+          <div v-for="(s, i) in ORDER_STEPS" :key="s" class="stp"
+            :class="{ done: detailDone || i < stepIdx, cur: !detailDone && i === stepIdx, todo: !detailDone && i > stepIdx }">
+            <div v-if="i > 0" class="line"></div>
+            <div class="dot"><i v-if="detailDone || i < stepIdx">✓</i></div>
+            <div class="lb">{{ s }}</div>
+          </div>
+        </div>
+
+        <div class="sec-t">订单信息</div>
+        <el-descriptions :column="2" border size="small">
+          <el-descriptions-item label="平台单号"><span class="mono">{{ detailOrder.no }}</span></el-descriptions-item>
+          <el-descriptions-item label="订单状态">
+            <el-tag size="small" :type="statusTag(detailOrder.status)" effect="plain">{{ statusText(detailOrder.status) }}</el-tag>
+            <span v-if="detailOrder.deferredAt" class="defer-tag dl">待处理</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="平台 / 店铺">{{ detailOrder.platform }} · {{ detailOrder.shop }}</el-descriptions-item>
+          <el-descriptions-item label="发货仓库">{{ detailOrder.warehouse }}</el-descriptions-item>
+          <el-descriptions-item label="下单时间">{{ detailOrder.orderTime || detailOrder.payTime }}</el-descriptions-item>
+          <el-descriptions-item label="付款时间">{{ detailOrder.payTime }}</el-descriptions-item>
+          <el-descriptions-item label="最晚发货时间">{{ detailOrder.deadline }}</el-descriptions-item>
+          <el-descriptions-item label="买家留言">{{ detailOrder.note || '—' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div class="sec-t" style="margin-top:18px">收件信息</div>
+        <el-descriptions :column="2" border size="small">
+          <el-descriptions-item label="收件人">{{ detailOrder.receiver }}</el-descriptions-item>
+          <el-descriptions-item label="手机号"><span class="mono">{{ detailOrder.phone }}</span></el-descriptions-item>
+          <el-descriptions-item label="收件地址" :span="2">{{ detailOrder.address }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div class="sec-t" style="margin-top:18px">
+          商品明细<span class="sec-sub">共 {{ detailTotalQty }} 件</span>
+        </div>
+        <el-table :data="detailOrder.goods" size="small" border>
+          <el-table-column prop="name" label="商品" min-width="180" />
+          <el-table-column prop="spec" label="规格" width="120" />
+          <el-table-column prop="sku" label="SKU" width="130">
+            <template #default="{ row }"><span class="mono">{{ row.sku }}</span></template>
+          </el-table-column>
+          <el-table-column prop="qty" label="数量" width="70" align="right" />
+        </el-table>
+
+        <div class="sec-t" style="margin-top:18px">金额信息</div>
+        <el-descriptions :column="2" border size="small">
+          <el-descriptions-item label="订单金额"><span class="mono">{{ money(detailOrder.amount) }}</span></el-descriptions-item>
+          <el-descriptions-item label="平台结算金额"><span class="mono">{{ money(detailOrder.settle) }}</span></el-descriptions-item>
+          <el-descriptions-item label="实际到账金额" :span="2"><span class="mono">{{ money(detailOrder.actual) }}</span></el-descriptions-item>
+        </el-descriptions>
+        <div class="amt-note">订单金额 = Σ(单价×数量)；实际到账 = 订单金额 − 平台结算金额</div>
+
+        <div class="sec-t" style="margin-top:18px">物流信息</div>
+        <el-descriptions :column="2" border size="small">
+          <el-descriptions-item label="发货状态">
+            <el-tag size="small" :type="LOGI_TAG[detailOrder.status] || 'info'" effect="plain">
+              {{ LOGI_TEXT[detailOrder.status] || '—' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="快递公司">{{ detailOrder.carrier || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="出库单号"><span class="mono">{{ detailOrder.outboundNo || '—' }}</span></el-descriptions-item>
+          <el-descriptions-item label="运单号"><span class="mono">{{ detailOrder.expressNo || '—' }}</span></el-descriptions-item>
+          <el-descriptions-item v-if="detailOrder.shippedAt" label="发货时间">{{ detailOrder.shippedAt }}</el-descriptions-item>
+          <el-descriptions-item v-if="detailOrder.doneAt" label="确认收货时间">{{ detailOrder.doneAt }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 已发货 / 已完结：模拟物流轨迹；待审核 / 待发货只有单号，不生成轨迹 -->
+        <div v-if="detailTrack" class="logi">
+          <div class="logi-head">
+            <span class="sub">物流轨迹 · 共 {{ detailTrack.events.length }} 条</span>
+            <span class="mono sub cp-no">{{ detailOrder.carrier }} {{ detailOrder.expressNo }}</span>
+          </div>
+          <div class="logi-route">
+            <span class="rp">{{ detailTrack.from }}</span>
+            <span class="arw">→</span>
+            <span class="rp">{{ detailTrack.to }}</span>
+          </div>
+          <el-timeline class="logi-tl">
+            <el-timeline-item v-for="(e, i) in detailTrack.events" :key="e.time + e.state" :timestamp="e.time"
+              placement="top" :color="i === 0 ? (e.state === '已签收' ? '#1E8E5A' : '#169BD5') : '#D5DAE0'"
+              :hollow="i !== 0">
+              <div class="ev" :class="[i === 0 ? 'hot' : '', e.state === '已签收' ? 'sign' : '']">
+                <div class="ev-h">
+                  <b>{{ e.state }}</b>
+                  <span class="ev-p">{{ e.place }}</span>
+                  <span v-if="i === 0" class="ev-now">最新</span>
+                </div>
+                <div class="ev-d">{{ e.desc }}</div>
+              </div>
+            </el-timeline-item>
+          </el-timeline>
+          <div class="lg-foot">轨迹按发货时间模拟生成，接入 WMS 后由承运商官网回传。</div>
+        </div>
+        <div v-else class="logi-tip">
+          {{ detailOrder.status === 'review'
+            ? '审核通过后生成出库单号；WMS 出库回传后生成运单号，届时可查看物流轨迹。'
+            : '订单已生成出库单号，等待 WMS 出库回传后生成运单号，届时可查看物流轨迹。' }}
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="dr-foot">
+          <span v-if="detailOrder" class="dr-sum">
+            共 <b>{{ detailTotalQty }}</b> 件 · 订单金额 <b class="mono">{{ money(detailOrder.amount) }}</b>
+          </span>
+          <el-button size="small" @click="detailVisible = false">关闭</el-button>
+        </div>
+      </template>
+    </el-drawer>
 
     <!-- 申请售后 -->
     <el-dialog v-model="afterVisible" title="申请售后" width="480px">
@@ -362,20 +480,20 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
-import OrderEditDialog from '@/components/order/OrderEditDialog.vue'
 import { money, timeLeft } from '@/utils/format'
 import { useOrderStore, CARRIERS } from '@/stores/order'
 import { useStockStore, WAREHOUSES } from '@/stores/stock'
 import { tickets as afterTickets, nowStr } from '@/data/aftersale'
+import { orderTrackOf } from '@/data/orderTrack'
 
 const props = defineProps({ status: { type: String, default: 'review' } })
 
 /* 四个状态页复用同一组件，操作权限 id 也随之切换 */
 const PID = {
-  review: { create: 'b-order-review-create', audit: 'b-order-review-audit', batch: 'b-order-review-batch', reject: 'b-order-review-reject', edit: 'b-order-edit', exp: 'b-order-export' },
-  pending: { outbound: 'b-order-pending-outbound', edit: 'b-order-edit2', exp: 'b-order-export2' },
-  shipped: { receive: 'b-order-shipped-receive', edit: 'b-order-edit3', exp: 'b-order-export3' },
-  done: { aftersale: 'b-order-done-aftersale', edit: 'b-order-edit4', exp: 'b-order-export4' }
+  review: { create: 'b-order-review-create', audit: 'b-order-review-audit', batch: 'b-order-review-batch', reject: 'b-order-review-reject', exp: 'b-order-export' },
+  pending: { outbound: 'b-order-pending-outbound', exp: 'b-order-export2' },
+  shipped: { receive: 'b-order-shipped-receive', exp: 'b-order-export3' },
+  done: { aftersale: 'b-order-done-aftersale', exp: 'b-order-export4' }
 }
 const pid = computed(() => PID[props.status] || {})
 const store = useOrderStore()
@@ -424,13 +542,33 @@ const afterTag = v => AFTER_TAG[v] || 'info'
 const reviewVisible = ref(false)
 const rejectVisible = ref(false)
 const createVisible = ref(false)
-const editVisible = ref(false)
-const editingOrder = ref(null)
 const cur = ref(null)
 const useAlt = ref(true)
 const rejectReason = ref('')
 const form = reactive({ platform: '天猫', shop: '', receiver: '', phone: '', address: '', note: '',
   goodsName: '', qty: 1, amount: 0 })
+
+/* 详情抽屉：进度、状态与物流文案 */
+const ORDER_STEPS = ['待审核', '待发货', '已发货', '已完结']
+const STATUS_TEXT = { review: '待审核', pending: '待发货', shipped: '已发货', done: '已完结' }
+const STATUS_TAG = { review: 'warning', pending: 'info', shipped: 'primary', done: 'success' }
+const STATUS_STEP = { review: 0, pending: 1, shipped: 2, done: 3 }
+const LOGI_TEXT = { review: '未发货', pending: '待出库', shipped: '运输中', done: '已签收' }
+const LOGI_TAG = { review: 'info', pending: 'warning', shipped: 'primary', done: 'success' }
+const detailVisible = ref(false)
+const detailOrder = ref(null)
+const statusText = s => STATUS_TEXT[s] || '—'
+const statusTag = s => STATUS_TAG[s] || 'info'
+const stepIdx = computed(() => STATUS_STEP[detailOrder.value?.status] ?? 0)
+const detailDone = computed(() => detailOrder.value?.status === 'done')
+const detailTotalQty = computed(() =>
+  (detailOrder.value?.goods || []).reduce((s, g) => s + (Number(g.qty) || 0), 0))
+// 待审核 / 待发货没有运单号，不生成轨迹；已发货 / 已完结才展示模拟轨迹
+const detailTrack = computed(() => {
+  const o = detailOrder.value
+  if (!o || !o.expressNo || !['shipped', 'done'].includes(o.status)) return null
+  return orderTrackOf(o)
+})
 
 /* 库存校验（单条 / 批量共用） */
 const stockOf = (wh, sku) => stockStore.availableOf(sku, wh)
@@ -505,11 +643,12 @@ function exitBatch() {
   selected.value = []
 }
 
-// 四个状态页复用同一个组件，切页时退出批量模式，避免复选列残留到待发货等页面
+// 四个状态页复用同一个组件，切页时退出批量模式并关闭弹窗 / 抽屉，避免残留
 watch(() => props.status, () => {
   if (batchMode.value) exitBatch()
   batchVisible.value = false
   holdVisible.value = false
+  detailVisible.value = false
 })
 function openBatch() {
   const list = [...selected.value]
@@ -617,21 +756,11 @@ function receive(row) {
   }).catch(() => {})
 }
 
-/** 编辑订单：打开完整表单，保存时整体写回订单字段 */
-function edit(row) {
-  editingOrder.value = row
-  editVisible.value = true
+/** 订单详情：只读抽屉，四个状态页共用 */
+function openDetail(row) {
+  detailOrder.value = row
+  detailVisible.value = true
 }
-
-function saveEdit(payload) {
-  if (!editingOrder.value) return
-  const res = store.update(editingOrder.value.no, payload)
-  if (!res.ok) return ElMessage.error(res.msg)
-  editVisible.value = false
-  ElMessage.success('订单已更新')
-}
-
-function viewDetail() { ElMessage.info('查看订单详情（待实现）') }
 function createOrder() {
   if (!form.receiver || !form.address) return ElMessage.error('请填写收件人与地址')
   if (!form.amount || form.amount <= 0) return ElMessage.error('请填写订单金额')
@@ -750,4 +879,62 @@ function submitAfter() {
 }
 .wh-stock .enough { color: var(--ok); font-weight: 600; }
 .wh-stock .short { color: var(--danger); }
+
+/* 订单详情抽屉 */
+.dr-h { display: flex; align-items: center; width: 100%; }
+.dr-h b { font-size: 15px; font-weight: 600; }
+.dr-no { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+.sec-t {
+  font-size: 12.5px; font-weight: 600; margin-bottom: 9px;
+  padding-left: 8px; border-left: 3px solid var(--brand);
+}
+.sec-sub { margin-left: 8px; font-size: 11.5px; font-weight: 400; color: var(--ink-3); }
+.dl { margin-left: 6px; margin-top: 0; }
+.dr-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; width: 100%; }
+.dr-sum { margin-right: auto; font-size: 12px; color: var(--ink-3); }
+.dr-sum b { color: var(--ink); font-weight: 600; }
+.amt-note { margin-top: 8px; font-size: 11.5px; color: var(--ink-3); line-height: 1.6; }
+
+/* 进度条 */
+.steps { display: flex; padding: 4px 0 18px; }
+.stp { flex: 1; position: relative; text-align: center; }
+.stp .line { position: absolute; top: 8px; right: 50%; width: 100%; height: 2px; background: var(--line); z-index: 0; }
+.stp.done .line, .stp.cur .line { background: var(--brand); }
+.stp .dot {
+  position: relative; z-index: 1; width: 18px; height: 18px; line-height: 18px; border-radius: 50%;
+  margin: 0 auto 6px; background: #fff; border: 2px solid var(--line); color: #fff; font-size: 10px;
+}
+.stp.done .dot, .stp.cur .dot { background: var(--brand); border-color: var(--brand); }
+.stp.cur .dot { box-shadow: 0 0 0 3px var(--brand-l); }
+.stp.todo .dot { background: #fff; border-color: #D5DAE0; }
+.stp .lb { font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.stp.done .lb { color: var(--ink-2); }
+.stp.cur .lb { color: var(--brand-d); font-weight: 600; }
+
+/* 物流轨迹 */
+.logi { margin-top: 10px; border: 1px solid var(--line-2); border-radius: 8px; background: #FAFBFC; padding: 12px 14px 6px; }
+.logi-head { display: flex; align-items: center; gap: 10px; }
+.logi-route { margin-top: 6px; font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.logi-route .rp { color: var(--ink-2); }
+.logi-route .arw { color: var(--brand); font-weight: 600; }
+.logi-tl { margin-top: 12px; padding-left: 2px; }
+.logi-tl :deep(.el-timeline-item) { padding-bottom: 13px; }
+.logi-tl :deep(.el-timeline-item__tail) { border-left-color: var(--line); }
+.logi-tl :deep(.el-timeline-item__timestamp) { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; margin-bottom: 3px; }
+.logi-tl :deep(.el-timeline-item__node) { box-shadow: 0 0 0 3px #FAFBFC; }
+.ev-h { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.ev-h b { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.ev-p { font-size: 11.5px; color: var(--ink-3); }
+.ev-now { font-size: 10px; line-height: 15px; padding: 0 5px; border-radius: 3px; background: var(--brand-l); color: var(--brand-d); font-weight: 500; }
+.ev-d { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; line-height: 1.55; }
+.ev.hot b { color: var(--brand); font-size: 13px; }
+.ev.hot .ev-p { color: var(--ink-2); }
+.ev.hot .ev-d { color: var(--ink-2); }
+.ev.hot.sign b { color: var(--ok); }
+.ev.hot.sign .ev-now { background: var(--ok-l); color: var(--ok); }
+.lg-foot { font-size: 11px; color: var(--ink-3); border-top: 1px dashed var(--line); padding: 8px 0 6px; margin-top: 2px; }
+.logi-tip {
+  margin-top: 10px; font-size: 11.5px; line-height: 1.7; color: var(--ink-3);
+  background: var(--fill); border: 1px dashed var(--line); border-radius: 6px; padding: 9px 11px;
+}
 </style>

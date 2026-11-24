@@ -29,7 +29,26 @@
           <el-breadcrumb-item>{{ route.meta.title }}</el-breadcrumb-item>
         </el-breadcrumb>
         <div class="right">
+          <el-popover placement="bottom-end" :width="360" trigger="click" @show="msg.markAllRead">
+            <template #reference>
+              <div class="bell" title="消息通知">
+                <el-badge :value="msg.unread" :hidden="!msg.unread" :max="99">
+                  <el-icon><Bell /></el-icon>
+                </el-badge>
+              </div>
+            </template>
+            <div class="msg-head">消息通知 <span class="muted">（{{ msg.list.length }} 条）</span></div>
+            <div class="msg-body">
+              <div v-for="m in msg.list" :key="m.id" class="msg-item">
+                <div class="msg-t">{{ m.title }}</div>
+                <div class="msg-b">{{ m.body }}</div>
+                <div class="msg-time">收件人：{{ m.to }} · {{ m.time }}</div>
+              </div>
+              <div v-if="!msg.list.length" class="msg-empty">暂无消息</div>
+            </div>
+          </el-popover>
           <span class="time">数据更新至 {{ today }}</span>
+
           <el-dropdown trigger="click" @command="onCommand">
             <div class="user">
               <el-avatar :size="26" class="avatar">{{ initial }}</el-avatar>
@@ -83,12 +102,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { useAfterStore } from '@/stores/aftersale'
+import { useMessageStore } from '@/stores/message'
 import { MODULES, canView, permsOfPostName } from '@/data/perm'
 
 const route = useRoute()
 const router = useRouter()
 const store = useUserStore()
 const afterStore = useAfterStore()
+const msg = useMessageStore()
 
 /* 菜单完全由权限树推导：没有「查看页面」权限的页面不出现，模块下全无可见页面则整块隐藏 */
 const perms = computed(() => permsOfPostName(store.post))
@@ -151,6 +172,17 @@ const today = computed(() => {
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar { height: 52px; flex: none; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 20px; }
 .right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.bell { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; color: var(--ink-2); }
+.bell:hover { background: var(--fill); }
+.msg-head { font-size: 13px; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid var(--line-2); }
+.msg-head .muted { font-weight: 400; font-size: 11.5px; color: var(--ink-3); }
+.msg-body { max-height: 320px; overflow-y: auto; }
+.msg-item { padding: 9px 0; border-bottom: 1px dashed var(--line-2); }
+.msg-item:last-child { border-bottom: none; }
+.msg-t { font-size: 12.5px; color: var(--ink); font-weight: 600; }
+.msg-b { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+.msg-time { font-size: 11px; color: var(--ink-3); margin-top: 3px; }
+.msg-empty { padding: 18px 0; text-align: center; font-size: 12px; color: var(--ink-3); }
 .time { font-size: 12px; color: var(--ink-3); }
 .user { display: flex; align-items: center; gap: 7px; cursor: pointer; padding: 3px 6px; border-radius: 5px; }
 .user:hover { background: var(--fill); }
