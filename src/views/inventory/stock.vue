@@ -27,18 +27,21 @@
 
     <div class="card">
       <el-table :data="paged" size="small" class="stock-table">
-        <el-table-column prop="name" label="货品名称" min-width="128" show-overflow-tooltip />
+        <el-table-column prop="name" label="货品名称" min-width="118" show-overflow-tooltip />
         <el-table-column prop="code" label="货码" width="100" />
         <el-table-column prop="category" label="货品类型" width="68" />
         <el-table-column prop="batch" label="批次号" width="96" />
         <el-table-column prop="warehouse" label="仓库" width="72" />
-        <el-table-column label="入库单号" width="110">
-          <template #default="{ row }"><span class="mono">{{ row.inNo || '—' }}</span></template>
+        <el-table-column label="入库单号 / 来源采购单" width="122">
+          <template #default="{ row }">
+            <div class="mono">{{ row.inNo || '—' }}</div>
+            <div v-if="row.lastRef" class="ref" :title="`最近入库 ${row.lastRefQty} 件 · ${row.lastRefAt}`">来源：{{ row.lastRef }}</div>
+          </template>
         </el-table-column>
         <el-table-column label="入库数量" width="66" align="right">
           <template #default="{ row }"><span class="mono">{{ num(row.inQty) }}</span></template>
         </el-table-column>
-        <el-table-column label="出库单号" width="110">
+        <el-table-column label="出库单号" width="106">
           <template #default="{ row }"><span class="mono">{{ row.outNo || '—' }}</span></template>
         </el-table-column>
         <el-table-column label="出库数量" width="66" align="right">
@@ -277,6 +280,7 @@ function saveWarn() {
 .strong { font-weight: 600; }
 .stock-table :deep(.el-table__cell) { font-size: 11.5px; }
 .warn-val { border-bottom: 1px dashed var(--line); cursor: help; }
+.ref { font-size: 10.5px; color: var(--brand); line-height: 1.3; }
 
 /* 弹窗：供应商 + 关键字筛选 */
 .warn-filter { display: flex; align-items: center; gap: 8px; }

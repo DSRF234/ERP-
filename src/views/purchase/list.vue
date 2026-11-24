@@ -155,7 +155,9 @@
         <el-table-column label="采购金额" width="118" align="right">
           <template #default="{ row }"><span class="mono">{{ money(row.price * row.qty) }}</span></template>
         </el-table-column>
-        <el-table-column prop="category" label="货品类型" width="104" />
+        <el-table-column label="货品类型" width="104">
+          <template #default="{ row }">{{ row.category || audit.row?.category }}</template>
+        </el-table-column>
       </el-table>
 
       <div class="sec-title" style="margin-top: 16px">驳回原因</div>

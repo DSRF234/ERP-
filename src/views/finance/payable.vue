@@ -67,12 +67,14 @@
           <el-descriptions-item label="采购金额">{{ money(cur.amount) }}</el-descriptions-item>
           <el-descriptions-item label="运费">{{ money(cur.freight) }}</el-descriptions-item>
           <el-descriptions-item label="应付总金额">{{ money(cur.total) }}</el-descriptions-item>
+          <el-descriptions-item label="采购数量">{{ curItems.reduce((s,i)=>s+i.qty,0) }} 件</el-descriptions-item>
           <el-descriptions-item label="应付确认">{{ cur.checked ? '已确认' : '待确认' }}</el-descriptions-item>
         </el-descriptions>
 
         <div class="sec-t" style="margin-top:16px">采购货品明细</div>
         <el-table :data="curItems" size="small" border>
           <el-table-column type="index" label="序号" width="56" />
+          <el-table-column prop="no" label="货品编码" width="130" />
           <el-table-column prop="name" label="采购货品" min-width="150" />
           <el-table-column prop="qty" label="数量" width="90" align="right" />
           <el-table-column label="单价" width="100" align="right">
@@ -85,7 +87,7 @@
 
         <div class="sec-t" style="margin-top:16px">付款信息</div>
         <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="供应商">广州雅美化妆品有限公司</el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ cur.ref.supplier }}</el-descriptions-item>
           <el-descriptions-item label="结算方式">月结 30 天</el-descriptions-item>
           <el-descriptions-item label="应付款日">{{ cur.date }}</el-descriptions-item>
           <el-descriptions-item label="付款状态">
@@ -109,6 +111,7 @@ import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { money } from '@/utils/format'
+import { purchaseOrders, totalOf, payableOf, qtyOf, checkPayable } from '@/data/purchase'
 
 const STATUS = ['待审核', '进行中', '已完成', '已驳回']
 const TAG = { 待审核: 'info', 进行中: 'warning', 已完成: 'success', 已驳回: 'danger' }
@@ -118,14 +121,21 @@ const f = reactive({ status: '' })
 const drawer = ref(false)
 const cur = ref(null)
 
-const rows = reactive([
-  { no:'CG202611160012', warehouse:'华东主仓', goods:'雅诗兰黛小棕瓶 ×200', date:'2026-11-16', amount:76000, freight:120, total:76120, status:'进行中', checked:false },
-  { no:'CG202611140008', warehouse:'华南仓', goods:'星野纯棉四件套 ×600', date:'2026-11-14', amount:72000, freight:300, total:72300, status:'已完成', checked:true },
-  { no:'CG202611120015', warehouse:'华东主仓', goods:'星野香薰礼盒 ×800', date:'2026-11-12', amount:24000, freight:80, total:24080, status:'待审核', checked:false },
-  { no:'CG202611090003', warehouse:'华南仓', goods:'星野收纳箱 ×1200', date:'2026-11-09', amount:36000, freight:200, total:36200, status:'已完成', checked:false }
-])
+const rows = computed(() => purchaseOrders.map(o => ({
+  no: o.no,
+  warehouse: o.warehouse,
+  goods: o.items.map(i => `${i.name} ×${i.qty}`).join('、') || '—',
+  date: o.date,
+  amount: totalOf(o),
+  freight: o.freight,
+  total: payableOf(o),
+  status: o.status,
+  checked: o.payableChecked,
+  items: o.items,
+  ref: o
+})))
 
-const view = computed(() => rows.filter(r => {
+const view = computed(() => rows.value.filter(r => {
   const k = kw.value.trim()
   const okKw = !k || [r.no, r.goods].some(v => String(v).includes(k))
   const okS = !f.status || r.status === f.status
@@ -135,14 +145,12 @@ const view = computed(() => rows.filter(r => {
 const sumTotal = computed(() => view.value.reduce((s, r) => s + r.total, 0))
 const reset = () => { kw.value = ''; f.status = '' }
 
-/** 把「雅诗兰黛小棕瓶 ×200」拆成明细行 */
 const curItems = computed(() => {
   if (!cur.value) return []
-  const m = String(cur.value.goods || '').match(/^(.*?)\s*×\s*(\d+)$/)
-  const name = m ? m[1] : cur.value.goods
-  const qty = m ? Number(m[2]) : 1
-  const price = cur.value.amount / (qty || 1)
-  return [{ name, qty, price, amount: cur.value.amount }]
+  return (cur.value.items || []).map(i => ({
+    no: i.code, name: i.name, spec: i.spec,
+    qty: i.qty, price: i.price, amount: i.price * i.qty
+  }))
 })
 
 function openAudit(row) {
@@ -152,7 +160,8 @@ function openAudit(row) {
 
 function confirmPayable() {
   if (!cur.value) return
-  cur.value.checked = true
+  const res = checkPayable(cur.value.no)
+  if (!res.ok) { ElMessage.error(res.msg); return }
   drawer.value = false
   ElMessage.success(`${cur.value.no} 应付账款已确认，合计 ${money(cur.value.total)}`)
 }

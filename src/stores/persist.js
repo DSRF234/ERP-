@@ -8,11 +8,11 @@
  * 版本号进 key，改数据结构时 +1 即可丢弃旧数据。
  */
 export const KEY = {
-  supplier: 'xy_erp_supplier_v2',
-  purchase: 'xy_erp_purchase_v2',
-  inventory: 'xy_erp_inventory_v2',
-  stocktake: 'xy_erp_stocktake_v2',
-  message: 'xy_erp_message_v2'
+  supplier: 'xy_erp_supplier_v3',
+  purchase: 'xy_erp_purchase_v3',
+  inventory: 'xy_erp_inventory_v3',
+  stocktake: 'xy_erp_stocktake_v3',
+  message: 'xy_erp_message_v3'
 }
 
 export function read(key, fallback) {

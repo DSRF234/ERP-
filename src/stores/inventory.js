@@ -1,90 +1,71 @@
 import { defineStore } from 'pinia'
-import { reactive, computed, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { KEY, read, write, replaceAll } from './persist'
+import { stockRows, inboundStock } from '@/data/stock'
 
 /**
- * 库存记录（货品批次库存）
- * 采购确认入库、盘点差异回写都写这里，库存页直接读，跨模块才联动得起来。
+ * 库存记录（门面层）
+ * ------------------------------------------------------------------
+ * 数据在 data/stock.js —— 全站唯一一份库存：
+ *   · 库存记录页展示
+ *   · 订单发货时扣减（stores/stock.js → data/stock.js）
+ *   · 采购确认入库时增加并回写来源采购单
+ * 这里补上：库存状态（含临期）、剩余容量、按货品设预警、盘点差异回写、持久化。
  */
-const seed = () => [
-  {
-    name: '洗面奶 100g', code: 'SE-2026-001', batch: 'B20260101', category: '家居日用',
-    supplier: '某林林公司', warehouse: '华东主仓', unit: '支',
-    inNo: 'BQ20260101111', inQty: 1200, inDate: '2026-11-05',
-    outNo: 'CK20261118021', outQty: 520, outDate: '2026-11-18',
-    left: 680, capacity: 791, warnValue: 200, warnDays: 12, warnUnit: '月', expiry: '2027-09-01'
-  },
-  {
-    name: '睫毛膏 8g', code: 'SE-2026-819', batch: 'B20261021', category: '美妆个护',
-    supplier: '某林林公司', warehouse: '华南仓', unit: '支',
-    inNo: 'BQ20260101113', inQty: 300, inDate: '2026-11-08',
-    outNo: 'CK20261120007', outQty: 198, outDate: '2026-11-20',
-    left: 102, capacity: 300, warnValue: 150, warnDays: 1, warnUnit: '月', expiry: '2026-12-10'
-  },
-  {
-    name: '抽纸 3层', code: 'AS-2026-021', batch: 'B20260819', category: '家居日用',
-    supplier: '美妆公司', warehouse: '平台仓1', unit: '件',
-    inNo: 'BQ20260819002', inQty: 2400, inDate: '2026-09-19',
-    outNo: 'CK20261028012', outQty: 2400, outDate: '2026-10-28',
-    left: 0, capacity: 800, warnValue: 100, warnDays: 3, warnUnit: '月', expiry: '2027-03-15'
-  },
-  {
-    name: '眼睫毛 5ml', code: 'SE-2026-002', batch: 'B20260912', category: '美妆个护',
-    supplier: '美妆公司', warehouse: '华东主仓', unit: '支',
-    inNo: 'BQ20260912003', inQty: 860, inDate: '2026-11-12',
-    outNo: 'CK20261121015', outQty: 630, outDate: '2026-11-21',
-    left: 230, capacity: 852, warnValue: 300, warnDays: 3, warnUnit: '月', expiry: '2027-01-20'
-  },
-  {
-    name: '牙膏 30g', code: 'SE-2026-003', batch: 'B20260714', category: '家居日用',
-    supplier: '某林林公司', warehouse: '平台仓2', unit: '个',
-    inNo: 'BQ20260714004', inQty: 1500, inDate: '2026-10-14',
-    outNo: 'CK20261030009', outQty: 700, outDate: '2026-10-30',
-    left: 800, capacity: 1509, warnValue: 200, warnDays: 3, warnUnit: '月', expiry: '2028-02-28'
-  },
-  {
-    name: '精华液 30ml', code: 'AS-2026-022', batch: 'B20260114', category: '美妆个护',
-    supplier: '雅美化妆品', warehouse: '华南仓', unit: '瓶',
-    inNo: 'BQ20260114005', inQty: 640, inDate: '2026-11-03',
-    outNo: 'CK20261122003', outQty: 610, outDate: '2026-11-22',
-    left: 30, capacity: 600, warnValue: 60, warnDays: 2, warnUnit: '月', expiry: '2026-12-25'
-  }
-]
-
 const UNIT_DAYS = { 年: 365, 月: 30, 日: 1 }
 const DAY = 24 * 60 * 60 * 1000
 
-export const leftDaysOf = batch =>
-  batch.expiry ? Math.ceil((new Date(`${batch.expiry}T00:00:00`) - new Date()) / DAY) : null
+const leftDaysOf = r => (r.expiry && r.expiry !== '—')
+  ? Math.ceil((new Date(`${r.expiry}T00:00:00`) - new Date()) / DAY)
+  : null
 
-export const nearExpiryOf = batch => {
-  if (!batch.expiry || !Number(batch.warnDays)) return false
-  return leftDaysOf(batch) <= Number(batch.warnDays) * (UNIT_DAYS[batch.warnUnit] || 30)
+const nearExpiryOf = r => {
+  if (!r.expiry || r.expiry === '—' || !Number(r.warnDays)) return false
+  return leftDaysOf(r) <= Number(r.warnDays) * (UNIT_DAYS[r.warnUnit] || 30)
 }
 
 /** 库存状态：剩余 0 缺货；≤ 预警值或临期 → 预警；否则正常 */
-export const statusOf = batch =>
-  batch.left <= 0 ? '缺货' : (batch.left <= batch.warnValue || nearExpiryOf(batch) ? '预警' : '正常')
+export const statusOf = r => {
+  const avail = Math.max(0, Number(r.left) - Number(r.locked || 0))
+  if (avail <= 0) return '缺货'
+  if (avail <= Number(r.warnValue || 0) || nearExpiryOf(r)) return '预警'
+  return '正常'
+}
 
-export const capOf = batch =>
-  batch.capacity > 0 ? Math.max(0, Math.min(100, Math.round((batch.left / batch.capacity) * 100))) : 0
+/** 剩余容量：剩余 ÷（剩余 + 累计出库） */
+const capOf = r => {
+  const total = Number(r.left || 0) + Number(r.outQty || 0)
+  return total > 0 ? Math.max(0, Math.min(100, Math.round((Number(r.left) / total) * 100))) : 0
+}
+
+/** 批次号 B20260101 → 2026-01-01，用于「本月入库/出库」按自然月统计 */
+const dateOfBatch = batch => {
+  const m = String(batch || '').match(/^B(\d{4})(\d{2})(\d{2})$/)
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : ''
+}
+const baseName = n => String(n || '').split(' ')[0]
 
 export const useInventoryStore = defineStore('inventory', () => {
-  const batches = reactive(read(KEY.inventory, seed()))
-  watch(batches, v => write(KEY.inventory, v), { deep: true })
+  const saved = read(KEY.inventory, null)
+  if (Array.isArray(saved) && saved.length) replaceAll(stockRows, saved)
+  watch(stockRows, v => write(KEY.inventory, v), { deep: true })
 
-  const rows = computed(() => batches.map(b => ({
-    ...b,
-    status: statusOf(b),
-    cap: capOf(b),
-    leftDays: leftDaysOf(b)
+  const batches = stockRows
+
+  const rows = computed(() => batches.map(r => ({
+    ...r,
+    status: statusOf(r),
+    cap: capOf(r),
+    leftDays: leftDaysOf(r),
+    inDate: r.inDate || dateOfBatch(r.batch),
+    outDate: r.outDate || (r.outQty ? dateOfBatch(r.batch) : ''),
+    outNo: r.outNo || ''
   })))
 
   const categories = computed(() => [...new Set(batches.map(b => b.category).filter(Boolean))])
   const warehouses = computed(() => [...new Set(batches.map(b => b.warehouse).filter(Boolean))])
   const suppliers = computed(() => [...new Set(batches.map(b => b.supplier).filter(Boolean))])
 
-  /** 按货品维度（货码）汇总，供设置预警弹窗使用 */
   const goodsPool = computed(() => {
     const map = new Map()
     batches.forEach(b => {
@@ -97,62 +78,52 @@ export const useInventoryStore = defineStore('inventory', () => {
     return [...map.values()]
   })
 
-  /** 采购到货入库：已有同货品同仓批次就累加，没有就新建批次 */
+  /**
+   * 采购到货入库：按 货码 或 货品主名 + 仓库 匹配已有批次并累加，
+   * 匹配不到才新建（供应商货码 SO-xxx 与库存货码 SE-xxx 目前靠主名对齐）。
+   */
   function inbound({ name, code, warehouse, qty, unit, supplier, orderNo, category }) {
     const num = Number(qty) || 0
-    const today = new Date()
-    const p = n => String(n).padStart(2, '0')
-    const date = `${today.getFullYear()}-${p(today.getMonth() + 1)}-${p(today.getDate())}`
-    // 采购明细用的是「洗面奶」，库存批次是「洗面奶 100g」，按主名匹配同一个货
-    const base = nm => String(nm || '').split(' ')[0]
-    let hit = batches.find(b => b.warehouse === warehouse &&
-      (b.code === code || base(b.name) === base(name)))
+    const hit = batches.find(b => b.warehouse === warehouse &&
+      (b.code === code || baseName(b.name) === baseName(name)))
     if (hit) {
-      hit.inQty += num
-      hit.left += num
-      // 入库同时扩容仓位，剩余容量百分比才不会一入库就变 100%
-      hit.capacity += num
-      hit.inNo = orderNo || hit.inNo
-      hit.inDate = date
+      hit.left = Number(hit.left) + num
+      hit.inQty = Number(hit.inQty || 0) + num
+      if (orderNo) {
+        hit.inNo = orderNo
+        hit.lastRef = orderNo
+        hit.lastRefQty = num
+        hit.lastRefAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
+        hit.inDate = hit.lastRefAt.slice(0, 10)
+      }
       return hit
     }
-    const sibling = batches.find(b => b.code === code || base(b.name) === base(name))
-    hit = {
-      name: sibling ? sibling.name : name, code: code || `NEW-${Date.now()}`,
-      batch: `B${date.replace(/-/g, '')}`,
-      category: category || '未分类', supplier: supplier || '—',
-      warehouse, unit: unit || '件',
-      inNo: orderNo || '—', inQty: num, inDate: date,
-      outNo: '', outQty: 0, outDate: '',
-      left: num, capacity: num, warnValue: 100, warnDays: 3, warnUnit: '月', expiry: ''
-    }
-    batches.push(hit)
-    return hit
+    return inboundStock(code || `NEW-${Date.now()}`, warehouse, num, {
+      name, type: category || '未分类', supplier: supplier || '—', refNo: orderNo || ''
+    })
   }
 
-  /** 盘点差异回写：left 直接加减差异数量 */
+  /** 盘点差异回写 */
   function adjust({ name, batch, warehouse, diff }) {
     const hit = batches.find(b => b.name === name && b.batch === batch && (!warehouse || b.warehouse === warehouse))
     if (!hit) return null
-    const before = hit.left
-    hit.left = Math.max(0, hit.left + Number(diff || 0))
+    const before = Number(hit.left)
+    hit.left = Math.max(0, before + Number(diff || 0))
     return { before, after: hit.left }
   }
 
-  /** 设置预警：按货码，全部批次同步（PRD 7） */
+  /** 设置预警：按货码，全部批次同步 */
   function setWarn({ codes, days, unit, value }) {
-    const d = Number(days)
-    const v = Number(value)
     batches.forEach(b => {
       if (!codes.includes(b.code)) return
-      b.warnDays = d
+      b.warnDays = Number(days)
       b.warnUnit = unit
-      b.warnValue = v
+      b.warnValue = Number(value)
     })
   }
 
   function reload() {
-    replaceAll(batches, read(KEY.inventory, seed()))
+    replaceAll(batches, read(KEY.inventory, []))
   }
 
   return { batches, rows, categories, warehouses, suppliers, goodsPool, inbound, adjust, setWarn, reload }

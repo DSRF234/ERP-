@@ -29,25 +29,21 @@ export const PERM_TREE = [
         { id: 'b-order-review-audit', label: '审核订单' },
         { id: 'b-order-review-batch', label: '批量审核' },
         { id: 'b-order-review-reject', label: '驳回订单' },
-        { id: 'b-order-edit', label: '编辑订单' },
         { id: 'b-order-export', label: '导出订单' }
       ] },
       { id: 'p-order-pending', label: '待发货', path: '/order/pending', children: [
         { id: 'b-order-pending-view', label: '查看页面' },
         { id: 'b-order-pending-outbound', label: '模拟出库回传' },
-        { id: 'b-order-edit2', label: '编辑订单' },
         { id: 'b-order-export2', label: '导出订单' }
       ] },
       { id: 'p-order-shipped', label: '已发货', path: '/order/shipped', children: [
         { id: 'b-order-shipped-view', label: '查看页面' },
         { id: 'b-order-shipped-receive', label: '确认收货' },
-        { id: 'b-order-edit3', label: '编辑订单' },
         { id: 'b-order-export3', label: '导出订单' }
       ] },
       { id: 'p-order-done', label: '已完结', path: '/order/done', children: [
         { id: 'b-order-done-view', label: '查看页面' },
         { id: 'b-order-done-aftersale', label: '发起售后' },
-        { id: 'b-order-edit4', label: '编辑订单' },
         { id: 'b-order-export4', label: '导出订单' }
       ] }
     ]
