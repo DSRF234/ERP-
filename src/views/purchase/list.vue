@@ -135,27 +135,14 @@ import PageHeader from '@/components/PageHeader.vue'
 import StatCards from '@/components/StatCards.vue'
 import SupplierPanel from '@/components/purchase/SupplierPanel.vue'
 import { money } from '@/utils/format'
-import { useStockStore } from '@/stores/stock'
+import { purchaseOrders, warehousingOrder, approveOrder, rejectOrder, totalOf, qtyOf } from '@/data/purchase'
 
 const router = useRouter()
 const stockStore = useStockStore()
 const STATUS = ['待审核', '进行中', '已完成', '已驳回']
 const TAG = { 待审核: 'info', 进行中: 'warning', 已完成: 'success', 已驳回: 'danger' }
 
-const rows = ref([
-  { no: 'CG202607221421', buyer: '张某某', supplier: '某林林公司', warehouse: '华东主仓', date: '2026-07-22 14:27', expressNo: 'DB1234567891234', logistics: '某邦物流', category: '家居日用', freight: 100, amount: 20000, status: '待审核' },
-  { no: 'CG202607221418', buyer: '李某', supplier: '美妆公司', warehouse: '华南仓', date: '2026-07-22 11:03', expressNo: 'DB1234567891235', logistics: '某东物流', category: '美妆个护', freight: 80, amount: 46500, status: '待审核' },
-  { no: 'CG202607211207', buyer: '张某某', supplier: '某林林公司', warehouse: '华东主仓', date: '2026-07-21 09:42', expressNo: 'DB1234567891188', logistics: '某邦物流', category: '家居日用', freight: 120, amount: 38200, status: '进行中' },
-  { no: 'CG202607201155', buyer: '王某', supplier: '雅美化妆品', warehouse: '平台仓1', date: '2026-07-20 16:18', expressNo: 'JD7788001122', logistics: '某东物流', category: '美妆个护', freight: 60, amount: 128600, status: '进行中' },
-  { no: 'CG202607191022', buyer: '李某', supplier: '美妆公司', warehouse: '华东主仓', date: '2026-07-19 10:05', expressNo: 'DB1234567891023', logistics: '某邦物流', category: '美妆个护', freight: 95, amount: 27400, status: '进行中' },
-  { no: 'CG202607180916', buyer: '张某某', supplier: '某林林公司', warehouse: '华南仓', date: '2026-07-18 08:56', expressNo: 'JD7788000987', logistics: '某东物流', category: '家居日用', freight: 130, amount: 91300, status: '已完成' },
-  { no: 'CG202607170844', buyer: '王某', supplier: '雅美化妆品', warehouse: '华东主仓', date: '2026-07-17 14:31', expressNo: 'DB1234567890876', logistics: '某邦物流', category: '美妆个护', freight: 70, amount: 52600, status: '已完成' },
-  { no: 'CG202607160733', buyer: '李某', supplier: '美妆公司', warehouse: '平台仓2', date: '2026-07-16 09:12', expressNo: 'JD7788000765', logistics: '某东物流', category: '美妆个护', freight: 45, amount: 15800, status: '已完成' },
-  { no: 'CG202607150622', buyer: '张某某', supplier: '某林林公司', warehouse: '华东主仓', date: '2026-07-15 15:44', expressNo: 'DB1234567890654', logistics: '某邦物流', category: '家居日用', freight: 110, amount: 67400, status: '已完成' },
-  { no: 'CG202607140511', buyer: '王某', supplier: '雅美化妆品', warehouse: '华南仓', date: '2026-07-14 11:26', expressNo: 'DB1234567890543', logistics: '某邦物流', category: '美妆个护', freight: 88, amount: 33900, status: '已驳回' },
-  { no: 'CG202607130422', buyer: '李某', supplier: '美妆公司', warehouse: '华东主仓', date: '2026-07-13 10:08', expressNo: 'JD7788000432', logistics: '某东物流', category: '美妆个护', freight: 55, amount: 21800, status: '进行中' },
-  { no: 'CG202607120315', buyer: '张某某', supplier: '某林林公司', warehouse: '华东主仓', date: '2026-07-12 17:02', expressNo: 'DB1234567890321', logistics: '某邦物流', category: '家居日用', freight: 100, amount: 44900, status: '待审核' }
-])
+const rows = computed(() => purchaseOrders)
 
 const kw = ref('')
 const status = ref('all')
@@ -232,17 +219,16 @@ const auditGoods = computed(() => {
 
 const SKU_BY_CATEGORY = { '家居日用': 'SKU-200118', '美妆个护': 'SKU-100231' }
 
-/** 确认入库：按收货仓增加库存，采购单转已完成 */
+/** 确认入库：按收货仓把明细写入库存中心，采购单转已完成 */
 function warehousing(row) {
-  const qty = 1000
-  const sku = SKU_BY_CATEGORY[row.category] || 'SKU-100231'
+  const qty = qtyOf(row)
   ElMessageBox.confirm(
-    `采购单 ${row.no} 将按收货仓「${row.warehouse}」入库，库存增加 ${qty} 件，入库后单据转为「已完成」。`,
+    `采购单 ${row.no} 将按收货仓「${row.warehouse}」入库，共 ${qty} 件，入库后单据转为「已完成」。`,
     '确认入库', { type: 'warning', confirmButtonText: '确认入库' }
   ).then(() => {
-    stockStore.inbound(sku, row.warehouse, qty)
-    row.status = '已完成'
-    ElMessage.success(`入库完成：${row.warehouse} 库存 +${qty}，可在「库存记录」查看`)
+    const res = warehousingOrder(row.no)
+    if (!res.ok) { ElMessage.error(res.msg); return }
+    ElMessage.success(`入库完成：${res.warehouse} 库存 +${res.qty}，可在「库存记录」查看对应货品`)
   }).catch(() => {})
 }
 
@@ -252,11 +238,13 @@ function openAudit(row) {
   audit.visible = true
 }
 function approve() {
+  approveOrder(audit.row.no)
   audit.row.status = '进行中'
   audit.visible = false
   ElMessage.success(`采购单 ${audit.row.no} 审核通过，状态变为「进行中」`)
 }
 function reject() {
+  rejectOrder(audit.row.no)
   if (!audit.reason.trim()) return ElMessage.error('驳回时必须填写驳回原因')
   audit.row.status = '已驳回'
   audit.visible = false

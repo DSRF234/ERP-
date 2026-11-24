@@ -31,7 +31,12 @@
         <el-table-column prop="code" label="货码" width="118" />
         <el-table-column prop="batch" label="批次号" width="112" />
         <el-table-column prop="warehouse" label="仓库" width="92" />
-        <el-table-column prop="inNo" label="入库单号" width="130" />
+        <el-table-column label="入库单号 / 来源采购单" width="170">
+          <template #default="{ row }">
+            <div class="mono">{{ row.inNo || '—' }}</div>
+            <div v-if="row.lastRef" class="ref" :title="'最近入库 ' + row.lastRefQty + ' 件 · ' + row.lastRefAt">来源：{{ row.lastRef }}</div>
+          </template>
+        </el-table-column>
         <el-table-column label="入库数量" width="86" align="right">
           <template #default="{ row }"><span class="mono">{{ num(row.inQty) }}</span></template>
         </el-table-column>
@@ -149,19 +154,14 @@ import { ElMessage } from 'element-plus'
 import { Bell, Search, QuestionFilled } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCards from '@/components/StatCards.vue'
+import { useStockStore } from '@/stores/stock'
 
 const TAG = { 正常: 'success', 预警: 'warning', 缺货: 'danger' }
 const warehouses = ['华东主仓', '华南仓', '平台仓1', '平台仓2']
 const STATES = ['正常', '预警', '缺货']
 
-const rows = ref([
-  { name: '洗面奶 100g', code: 'SE-2026-001', batch: 'B20260101', category: '家居日用', supplier: '某林林公司', warehouse: '华东主仓', inNo: 'BQ20260101111', inQty: 1200, outQty: 520, left: 680, cap: 86, warnValue: 200, warnDays: 12, warnUnit: '月', unit: '支', expiry: '2027-09-01' },
-  { name: '睫毛膏 8g', code: 'SE-2026-819', batch: 'B20261021', category: '美妆个护', supplier: '某林林公司', warehouse: '华南仓', inNo: 'BQ20260101113', inQty: 300, outQty: 198, left: 102, cap: 34, warnValue: 150, warnDays: 1, warnUnit: '月', unit: '支', expiry: '2026-12-10' },
-  { name: '抽纸 3层', code: 'AS-2026-021', batch: 'B20260819', category: '家居日用', supplier: '美妆公司', warehouse: '平台仓1', inNo: 'BQ20260819002', inQty: 2400, outQty: 2400, left: 0, cap: 0, warnValue: 100, warnDays: 3, warnUnit: '月', unit: '件', expiry: '2027-03-15' },
-  { name: '眼睫毛 5ml', code: 'SE-2026-002', batch: 'B20260912', category: '美妆个护', supplier: '美妆公司', warehouse: '华东主仓', inNo: 'BQ20260912003', inQty: 860, outQty: 630, left: 230, cap: 27, warnValue: 300, warnDays: 3, warnUnit: '月', unit: '支', expiry: '2027-01-20' },
-  { name: '牙膏 30g', code: 'SE-2026-003', batch: 'B20260714', category: '家居日用', supplier: '某林林公司', warehouse: '平台仓2', inNo: 'BQ20260714004', inQty: 1500, outQty: 700, left: 800, cap: 53, warnValue: 200, warnDays: 3, warnUnit: '月', unit: '个', expiry: '2028-02-28' },
-  { name: '精华液 30ml', code: 'AS-2026-022', batch: 'B20260114', category: '美妆个护', supplier: '雅美化妆品', warehouse: '华南仓', inNo: 'BQ20260114005', inQty: 640, outQty: 610, left: 30, cap: 5, warnValue: 60, warnDays: 2, warnUnit: '月', unit: '瓶', expiry: '2026-12-25' }
-])
+const store = useStockStore()
+const rows = computed(() => store.rows)
 
 const kw = ref('')
 const category = ref('all')

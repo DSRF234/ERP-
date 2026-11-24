@@ -153,6 +153,7 @@ import { Plus } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import GoodsPicker from '@/components/purchase/GoodsPicker.vue'
 import { money } from '@/utils/format'
+import { addOrder } from '@/data/purchase'
 
 const router = useRouter()
 const buyers = ['张某某', '李某', '王某']
@@ -178,8 +179,8 @@ const form = reactive({
   expressNo: 'DB1234567891234',
   date: '2026-07-22',
   items: [
-    { name: '洗面奶', spec: '100g/支', unit: '支', price: 20, qty: 1000 },
-    { name: '睫毛膏', spec: '8g/支', unit: '支', price: 8.2, qty: 200 }
+    { code: 'SO-2026-001', name: '洗面奶', spec: '100g/支', unit: '支', price: 20, qty: 1000 },
+    { code: 'SO-2026-002', name: '睫毛膏', spec: '8g/支', unit: '支', price: 8.2, qty: 200 }
   ]
 })
 
@@ -194,7 +195,7 @@ function onPick({ supplier, goods }) {
   }
   goods.forEach(g => {
     if (form.items.some(i => i.name === g.name)) return
-    form.items.push({ name: g.name, spec: g.spec, unit: '支', price: g.price, qty: 1 })
+    form.items.push({ code: g.code, name: g.name, spec: g.spec, unit: '支', price: g.price, qty: 1 })
   })
 }
 
@@ -214,6 +215,7 @@ async function submit() {
     await ElMessageBox.confirm('是否将货品采购信息提交？提交后进入待审核，不可直接修改。', '提交确认', {
       confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
     })
+    addOrder(form)
     ElMessage.success(`采购单 ${form.no} 已提交，状态：待审核`)
     router.push('/purchase')
   } catch (e) { /* 取消 */ }
