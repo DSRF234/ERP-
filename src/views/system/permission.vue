@@ -94,7 +94,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { posts, accountsOfPost } from '@/data/system'
 import {
@@ -154,9 +154,20 @@ function syncFromPost() {
 }
 watch(current, syncFromPost, { immediate: true })
 
-function selectPost(id) {
+/** 切换职位：有未保存的修改时先二次确认，避免误点丢掉刚勾的权限 */
+async function selectPost(id) {
   if (id === current.value) return
-  if (dirty.value) ElMessage.warning('已放弃「' + curPost.value.name + '」未保存的修改')
+  if (dirty.value) {
+    try {
+      await ElMessageBox.confirm(
+        `切换职位将放弃对「${curPost.value.name}」未保存的权限修改，是否继续？`,
+        '未保存的修改',
+        { confirmButtonText: '放弃修改', cancelButtonText: '取消', type: 'warning' }
+      )
+    } catch (e) {
+      return
+    }
+  }
   current.value = id
 }
 
@@ -166,18 +177,30 @@ function selectPost(id) {
  *   2. 取消了「查看页面」→ 该页所有操作一并清掉
  */
 let fixing = false
-function onCheck() {
+function onCheck(data) {
   if (fixing) return
   const keys = new Set(treeRef.value?.getCheckedKeys(true) || [])
   const before = keys.size
-  keys.forEach(id => {
-    const page = PAGE_OF_OP[id]
-    if (page && id !== page.children[0].id) keys.add(page.children[0].id)
-  })
-  PAGES.forEach(page => {
-    const viewId = page.children[0].id
-    if (!keys.has(viewId)) page.children.slice(1).forEach(o => keys.delete(o.id))
-  })
+
+  const pageOfNode = PAGE_BY_ID[data?.id] || PAGE_OF_OP[data?.id]
+  const isViewNode = !!pageOfNode && pageOfNode.children[0].id === data?.id
+
+  if (isViewNode && !keys.has(data.id)) {
+    /* 用户主动取消「查看页面」：该页所有操作一并清掉，且不要再被下面的规则补回查看权 */
+    pageOfNode.children.slice(1).forEach(o => keys.delete(o.id))
+  } else {
+    /* 补齐：勾了任一操作就必须带上该页「查看页面」 */
+    keys.forEach(id => {
+      const page = PAGE_OF_OP[id]
+      if (page && id !== page.children[0].id) keys.add(page.children[0].id)
+    })
+    /* 兜底：没有查看权的页面，残留操作一律清掉 */
+    PAGES.forEach(page => {
+      const viewId = page.children[0].id
+      if (!keys.has(viewId)) page.children.slice(1).forEach(o => keys.delete(o.id))
+    })
+  }
+
   const next = [...keys]
   checkedKeys.value = next
   if (next.length !== before) {
@@ -217,6 +240,9 @@ function restore() {
 
 function save() {
   if (!dirty.value) return
+  if (!checkedKeys.value.length) {
+    return ElMessage.error('至少勾选一个页面权限，否则该职位下的账号登录后没有任何页面可访问')
+  }
   curPost.value.perms = [...checkedKeys.value]
   savePermsToStorage()
   const n = accountsOfPost(current.value).length

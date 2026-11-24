@@ -195,6 +195,7 @@
           </el-table-column>
         </template>
 
+
         <el-table-column label="操作" :width="opWidth" fixed="right">
           <template #default="{ row }">
             <div v-if="status === 'doing'" class="ops">
@@ -225,6 +226,10 @@
 
         <div class="sec-t">处理方式</div>
         <div class="type-hint">漏发 / 少件选补发；错发、破损、尺码不符选换货；地址填错选更改地址</div>
+        <div v-if="form.type === '更改地址'" class="addr-diff">
+          <div class="ad-row"><span class="ad-k">原地址</span>{{ cur.customer.addr }}</div>
+          <div class="ad-row"><span class="ad-k">改后地址</span><b>{{ cur.newAddr || '客户未填写' }}</b></div>
+        </div>
         <el-radio-group v-model="form.type" class="types" @change="onTypeChange">
           <el-radio v-for="t in typeDefs" :key="t.k" :label="t.k" border>
             <div class="rt">{{ t.k }}</div>
@@ -249,8 +254,12 @@
             </div>
           </div>
           <div v-if="stockShort" class="stock-warn">
-            <span>库存不足，审核同意后无法生成{{ form.type === '补发' ? '补发单' : '换货单' }}，客户会二次投诉。</span>
-            <el-button link type="primary" size="small" @click="toRefundType">改为仅退款</el-button>
+            <span><b>库存不足，「同意」已禁用</b>：四仓凑不齐 {{ cur.qty }} 件，同意了也发不出货。<br>结论已默认「拒绝申请」，请与客户协商后改为：</span>
+            <div class="warn-acts">
+              <el-button link type="primary" size="small" @click="toRefundType">改为仅退款</el-button>
+              <el-button link type="primary" size="small" @click="toReturnType">改为退货退款</el-button>
+              <el-button link type="danger" size="small" @click="form.result = 'reject'">拒绝并说明</el-button>
+            </div>
           </div>
           <div v-else class="stock-ok">
             建议从<b>{{ shipWhs[0].name }}</b>发货（可用 {{ shipWhs[0].stock }} 件）<template v-if="shipWhs.length > 1">，另 {{ shipWhs.length - 1 }} 个仓也可发</template>
@@ -259,7 +268,7 @@
 
         <div class="sec-t" style="margin-top:16px">审核结论</div>
         <el-radio-group v-model="form.result">
-          <el-radio label="agree">同意</el-radio>
+          <el-radio label="agree" :disabled="stockShort">同意</el-radio>
           <el-radio label="partial" :disabled="!canPartial">部分同意（调整退款金额）</el-radio>
           <el-radio label="reject">拒绝申请</el-radio>
         </el-radio-group>
@@ -399,7 +408,7 @@
         <div v-if="cur" class="dr-h">
           <b>售后单详情</b>
           <el-tag size="small" :type="typeTag(cur.type)" effect="plain" style="margin-left:8px">{{ cur.type }}</el-tag>
-          <span class="mono sub" style="margin-left:auto">{{ cur.ticket }}</span>
+          <span v-if="status !== 'wait'" class="mono sub" style="margin-left:auto">{{ cur.ticket }}</span>
         </div>
       </template>
       <template v-if="cur">
@@ -414,11 +423,9 @@
               <div class="lb">{{ s }}</div>
             </div>
           </div>
-          <div v-if="cur.queue === 'qc'" class="qc-tip">
-            退回件已入仓（{{ cur.customer.addr }} 附近仓），等待仓储部质检。质检由 WMS 执行，结果回传后自动进入「待退款」；
-            当前退款、换货、补货按钮均锁定。
+          <div v-if="status === 'doing' && queueTip" class="qc-tip" :class="{ ok: !cur.queue || !['back', 'transit', 'qc'].includes(cur.queue) }">
+            {{ queueTip }}
           </div>
-          <div v-else-if="status === 'doing'" class="qc-tip">仓储部尚未回传质检结论，退款、换货、补货动作暂不可用。</div>
         </template>
 
         <div class="sec-t" style="margin-top:16px">售后申请信息</div>
@@ -435,6 +442,10 @@
           <el-descriptions-item label="客户">{{ cur.customer.name }} · {{ cur.customer.phone }}</el-descriptions-item>
           <el-descriptions-item label="收货地址" :span="2">
             {{ cur.customer.addr }} <span class="sub">已加密，仅客服可解密查看</span>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="isAddrTicket(cur)" label="更改后地址" :span="2">
+            <span class="addr-new">{{ cur.newAddr || '—' }}</span>
+            <el-tag size="small" :type="addrTag(cur)" effect="plain" style="margin-left:8px">{{ addrState(cur) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="客户留言" :span="2">{{ cur.message || '—' }}</el-descriptions-item>
         </el-descriptions>
@@ -457,8 +468,8 @@
           </el-table-column>
         </el-table>
 
-        <!-- 处理结果（完成页 / 处理中已审核） -->
-        <template v-if="status === 'done'">
+        <!-- 处理结果（完成页；处理中已审核的单据同样展示，便于核对审核结论与待退金额） -->
+        <template v-if="status === 'done' || (cur.result && cur.result !== '—')">
           <div class="sec-t" style="margin-top:18px">处理结果</div>
           <el-descriptions v-if="cur.type === '更改地址'" :column="2" border size="small">
             <el-descriptions-item label="审核结果">
@@ -471,6 +482,39 @@
             <el-descriptions-item label="处理人">{{ cur.who || '—' }}</el-descriptions-item>
             <el-descriptions-item label="完成时间">{{ cur.finishedAt || '—' }}</el-descriptions-item>
           </el-descriptions>
+          <!-- 换货：只呈现换货口径，不出现退款金额 -->
+          <el-descriptions v-else-if="cur.type === '换货'" :column="2" border size="small">
+            <el-descriptions-item label="审核结果">
+              <el-tag size="small" :type="cur.result === '拒绝' ? 'danger' : 'success'" effect="plain">{{ cur.result }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="换货单号">
+              <span v-if="cur.workOrder" class="mono">{{ cur.workOrder }}</span>
+              <span v-else class="sub">{{ cur.result === '拒绝' ? '—' : '待建单' }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="换货数量">{{ cur.woQty || cur.qty }} 件</el-descriptions-item>
+            <el-descriptions-item label="发货仓库">{{ cur.workOrderWarehouse || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="换货商品" :span="2">{{ cur.woGoods || cur.goods }}</el-descriptions-item>
+            <el-descriptions-item label="审核意见" :span="2">{{ cur.auditRemark || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="处理人">{{ cur.who || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="完成时间">{{ cur.finishedAt || '—' }}</el-descriptions-item>
+          </el-descriptions>
+          <!-- 补发：只呈现补发口径，不出现退款金额 -->
+          <el-descriptions v-else-if="cur.type === '补发'" :column="2" border size="small">
+            <el-descriptions-item label="审核结果">
+              <el-tag size="small" :type="cur.result === '拒绝' ? 'danger' : 'success'" effect="plain">{{ cur.result }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="补发单号">
+              <span v-if="cur.workOrder" class="mono">{{ cur.workOrder }}</span>
+              <span v-else class="sub">{{ cur.result === '拒绝' ? '—' : '待建单' }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="补发数量">{{ cur.woQty || cur.qty }} 件</el-descriptions-item>
+            <el-descriptions-item label="发货仓库">{{ cur.workOrderWarehouse || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="补发商品" :span="2">{{ cur.woGoods || cur.goods }}</el-descriptions-item>
+            <el-descriptions-item label="审核意见" :span="2">{{ cur.auditRemark || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="处理人">{{ cur.who || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="完成时间">{{ cur.finishedAt || '—' }}</el-descriptions-item>
+          </el-descriptions>
+          <!-- 退货 / 仅退款 / 部分仅退款 / 补差价：退款口径 -->
           <el-descriptions v-else :column="2" border size="small">
             <el-descriptions-item label="审核结果">
               <el-tag size="small" :type="cur.result === '拒绝' ? 'danger' : 'success'" effect="plain">{{ cur.result }}</el-tag>
@@ -480,16 +524,11 @@
               <span v-else class="sub">—</span>
             </el-descriptions-item>
             <el-descriptions-item label="退款方式">{{ cur.refundWay || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="对应衍生单号">
-              {{ cur.workOrder && cur.workOrder.startsWith('TH') ? cur.workOrder : '—' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="关联工单">
-              <span v-if="cur.workOrder && !cur.workOrder.startsWith('TH')" class="mono">
-                {{ cur.workOrder.startsWith('HH') ? '换货单 ' : '补发单 ' }}{{ cur.workOrder }}
-              </span>
+            <el-descriptions-item v-if="cur.type === '退货'" label="退货单号">
+              <span v-if="cur.workOrder && cur.workOrder.startsWith('TH')" class="mono">{{ cur.workOrder }}</span>
               <span v-else class="sub">—</span>
             </el-descriptions-item>
-            <el-descriptions-item label="审核意见">{{ cur.auditRemark || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="审核意见" :span="2">{{ cur.auditRemark || '—' }}</el-descriptions-item>
             <el-descriptions-item label="处理人">{{ cur.who || '—' }}</el-descriptions-item>
             <el-descriptions-item label="完成时间">{{ cur.finishedAt || '—' }}</el-descriptions-item>
           </el-descriptions>
@@ -544,6 +583,10 @@
           <el-button size="small" @click="detailVisible = false">关闭</el-button>
           <el-button v-can="'b-after-doing-address'" v-if="status === 'doing' && cur?.queue === 'address'" size="small" type="primary"
             @click="finishAddress(cur)">完成改址</el-button>
+          <el-button v-can="'b-after-doing-exchange'" v-else-if="status === 'doing' && cur?.type === '换货'" size="small" type="primary"
+            :disabled="cur?.queue !== 'exchange'" :title="opTip(cur, 'exchange')" @click="doAction(cur, 'exchange')">换货</el-button>
+          <el-button v-can="'b-after-doing-resend'" v-else-if="status === 'doing' && cur?.type === '补发'" size="small" type="primary"
+            :disabled="cur?.queue !== 'resend'" :title="opTip(cur, 'resend')" @click="doAction(cur, 'resend')">补货</el-button>
           <el-button v-can="'b-after-doing-refund'" v-else-if="status === 'doing'" size="small" type="primary" :disabled="cur?.queue !== 'refund'"
             :title="cur?.queue !== 'refund' ? '仅「待退款」队列可发起退款' : ''" @click="startRefund">退款</el-button>
           <el-button v-can="'b-after-done-copy'" v-if="status === 'done'" size="small" type="primary" @click="copyInfo">复制信息</el-button>
@@ -563,7 +606,7 @@ import { useOrderStore } from '@/stores/order'
 import {
   tickets, STEPS, QUEUE_TEXT, QUEUE_ORDER, progressOf, REFUND_ONLY,
   companyOf, trackOf, auditTicket, confirmRefund, completeAddress, createWorkOrder, workOrderNo,
-  stockOf, WAREHOUSE_OPTIONS, todayStr
+  stockOf, WAREHOUSE_OPTIONS, todayStr, isAddrTicket
 } from '@/data/aftersale'
 import { usePerm } from '@/directives/can'
 
@@ -605,7 +648,11 @@ const typeDefs = [
   { k: '更改地址', d: '仅改收货地址' }
 ]
 
-const list = computed(() => tickets.filter(t => t.status === props.status))
+const list = computed(() => tickets.filter(t =>
+    t.status === props.status &&
+    /* 退款类（不涉及实物回流）审核后直达完成，任何情况下都不出现在「售后处理中」 */
+    (props.status !== 'doing' || !REFUND_ONLY.includes(t.type))
+  ))
 
 /* 待处理指标 */
 const overdue = computed(() => list.value.filter(t => new Date(t.sla.replace(/-/g, '/')) < new Date()).length)
@@ -657,9 +704,17 @@ const reset = () => { kw.value = ''; f.channel = ''; f.type = ''; f.range = []; 
 const noop = () => {}
 const dpart = v => String(v || '').split(' ')
 const queueName = k => QUEUE_TEXT[k] || '—'
+/* 改址单的生效状态：已生效 / 待生效 / 未生效（审核拒绝） */
+const addrState = t => {
+  if (t.result === '拒绝') return '未生效'
+  if (t.status === 'done') return '已生效'
+  if (t.status === 'doing') return '待生效'
+  return '待审核'
+}
+const addrTag = t => ({ 已生效: 'success', 待生效: 'warning', 未生效: 'danger', 待审核: 'info' }[addrState(t)])
 const typeTag = t => ({
   退货: 'primary', 仅退款: 'info', 部分仅退款: 'info', 换货: 'primary',
-  补发: 'warning', 补差价: 'success', 更改地址: 'success', 退货退款: 'primary'
+  补发: 'warning', 补差价: 'success', 更改地址: 'success'
 }[t] || 'info')
 const lgTag = v => ({
   已签收: 'success', 运输中: 'primary', 派送中: 'warning', 待签收: 'info',
@@ -743,7 +798,14 @@ const stockShort = computed(() => needStock.value && shipWhs.value.length === 0)
 function toRefundType() {
   form.type = '仅退款'
   form.amount = cur.value?.orderAmount || 0
-  if (form.result === 'partial') form.result = 'agree'
+  form.result = 'agree'
+}
+/* 库存不足的另一种协商方案：客户寄回、我们退款，不需要立即发新货 */
+function toReturnType() {
+  form.type = '退货'
+  form.back = 'yes'
+  form.amount = cur.value?.orderAmount || 0
+  form.result = 'agree'
 }
 const canPartial = computed(() => !['换货', '补发', '更改地址'].includes(form.type))
 const amountHint = computed(() => {
@@ -753,20 +815,26 @@ const amountHint = computed(() => {
   return `可退上限 ${money(cur.value?.orderAmount || 0)}，审核通过即原路退回`
 })
 const flowHint = computed(() => {
+  /* 无货的换货 / 补发：不管当前结论是什么，都先讲清「不能同意」与可选出路 */
+  if (stockShort.value) {
+    const kind = form.type === '换货' ? '换货单' : '补发单'
+    const pick = form.result === 'reject'
+      ? '当前结论为「拒绝申请」：提交后不打款，直接进入「售后处理完成」'
+      : '请先与客户协商，把处理方式改为「仅退款」或「退货退款」后再同意'
+    return `四仓均无可用库存：同意后无法生成${kind}。${pick}。`
+  }
   if (form.result === 'reject') return '提交后：拒绝 → 直接进入「售后处理完成」，不进入处理中；退款金额记 0。'
   if (form.type === '更改地址') return '提交后：同意 → 进入「地址变更待生效」队列，客服确认新地址已同步至订单与承运商后单据完结；拒绝 → 直接进入「售后处理完成」。'
   if (form.type === '退货') return form.back === 'yes'
     ? '提交后：同意 → 进入「待客户退回」，同时生成退回地址与 TH 退货单；收货、质检由仓储部完成。'
-    : '提交后：同意 → 无需寄回，进入「待退款」，可直接确认退款。'
+    : '提交后：同意 → 无需寄回，进入「待退款」，可直接确认退款（不生成 TH 退货单）。'
   if (form.type === '换货') {
-    if (stockShort.value) return '四仓均无可用库存：同意后无法生成换货单，建议改为「仅退款」，或先转采购补货后再审核。'
     return `提交后：同意 → 进入「换货待发货」，需创建换货单（HH），建议从${shipWhs.value[0].name}换新（可用 ${shipWhs.value[0].stock} 件）。`
   }
   if (REFUND_ONLY.includes(form.type)) {
     return '提交后：同意 → 立即按退款金额原路退回客户原支付渠道，并直接进入「售后处理完成」，不进入售后处理中；拒绝 → 同样直接进入「售后处理完成」，不打款、退款金额记 0。'
   }
   if (form.type === '补发') {
-    if (stockShort.value) return '四仓均无可用库存：同意后无法生成补发单，建议改为「仅退款」，或先转采购补货后再审核。'
     return `提交后：同意 → 进入「待补发」，需创建补发单（BF），建议从${shipWhs.value[0].name}补发（可用 ${shipWhs.value[0].stock} 件）。`
   }
   return '提交后：同意 → 进入「待退款」，可直接确认退款。'
@@ -774,12 +842,16 @@ const flowHint = computed(() => {
 
 function openAudit(row) {
   cur.value = row
-  form.type = row.applyType === '退货退款' ? '退货' : (types.includes(row.applyType) ? row.applyType : '退货')
+  /* 申请类型与处理方式同值，直接预选；历史数据若不在候选内则回落「退货」 */
+  form.type = types.includes(row.applyType) ? row.applyType : '退货'
   form.result = 'agree'
   form.duty = '商品质量'
   form.back = 'yes'
   form.amount = noRefund.value ? 0 : row.orderAmount
   form.remark = ''
+  /* 换货 / 补发且四仓无货：结论默认落在「拒绝申请」，
+     避免默认选中一个不可用的「同意」，也避免确认按钮被卡死 */
+  if (stockShort.value) form.result = 'reject'
   auditVisible.value = true
 }
 function onTypeChange() {
@@ -798,6 +870,9 @@ function submitAudit() {
   const no = cur.value.orderNo
   const t = cur.value
   const to = auditTicket(t, { ...form, result: form.result }, who.value)
+  if (to === 'stock-short') {
+    return ElMessage.error('四仓均无可用库存，不能同意补发／换货：请与客户协商改为仅退款或退货退款')
+  }
   /* 同步订单售后状态：只有「拒绝」和「仅退款类同意」是终态，其余同意都仍占用售后 */
   if (to === 'rejected') orderStore.setAfterStatus(no, '已完结')
   else if (to === 'refunded') orderStore.setAfterStatus(no, '已退款')
@@ -816,6 +891,22 @@ function openDetail(row) { cur.value = row; detailVisible.value = true }
 /* 进度 */
 const pg = computed(() => cur.value ? progressOf(cur.value) : { steps: STEPS, idx: 0 })
 
+/* 处理中每个环节只说这个环节的事，不再统一套「等待质检」 */
+const queueTip = computed(() => {
+  const t = cur.value
+  if (!t || t.status !== 'doing') return ''
+  const map = {
+    back: '待客户寄回：收到退回件并完成质检后，才可发起退款。',
+    transit: '退回件在途：签收入仓并完成质检后，才可发起退款。',
+    qc: `退回件已入仓（${t.customer.addr} 附近仓），等待仓储部质检。质检由 WMS 执行，结果回传后自动进入「待退款」；当前退款、换货、补货按钮均锁定。`,
+    refund: '退回件质检已通过，可按审核确认的金额直接退款。',
+    exchange: '质检已通过，可创建换货单，由仓库换新发货。',
+    resend: '审核已通过，补发不涉及客户寄回，可直接创建补发单由仓库补发出库。',
+    address: '审核已通过，地址变更待同步至订单与承运商，确认同步后单据完结。'
+  }
+  return map[t.queue] || ''
+})
+
 /* 物流 */
 const trackData = computed(() => {
   if (!cur.value) return { events: [], eventsDesc: [], from: '—', to: '—', updated: '—' }
@@ -833,16 +924,30 @@ function copyNo() {
 function copyInfo() {
   const t = cur.value
   if (!t) return
-  const txt = [
+  const head = [
     `售后单号：${t.ticket}`,
     `订单编号：${t.orderNo}`,
     `客户：${t.customer.name}（${t.customer.phone}）`,
     `商品：${t.goods} / ${t.sku}`,
     `处理方式：${t.type}`,
-    `审核结果：${t.result}`,
-    `退款金额：${t.amount > 0 ? money(t.amount) : '—'}`,
-    `退款方式：${t.refundWay || '—'}`,
-    `关联工单：${t.workOrder || '—'}`,
+    `审核结果：${t.result}`
+  ]
+  /* 与服务详情页保持一致：什么售后就复制什么字段 */
+  const body = isAddrTicket(t)
+    ? [`原地址：${t.customer.addr}`, `更改后地址：${t.newAddr || '—'}`, `地址同步：${t.addressSync || '—'}`]
+    : t.type === '换货' || t.type === '补发'
+      ? [
+          `${t.type}单号：${t.workOrder || '—'}`,
+          `${t.type}商品：${t.woGoods || t.goods}`,
+          `${t.type}数量：${t.woQty || t.qty} 件`,
+          `发货仓库：${t.workOrderWarehouse || '—'}`
+        ]
+      : [
+          `退款金额：${t.amount > 0 ? money(t.amount) : '—'}`,
+          `退款方式：${t.refundWay || '—'}`,
+          `退货单号：${t.workOrder || '—'}`
+        ]
+  const txt = [...head, ...body,
     `审核意见：${t.auditRemark || '—'}`,
     `处理人：${t.who || '—'}`,
     `完成时间：${t.finishedAt || '—'}`
@@ -892,7 +997,7 @@ function submitRefund() {
 async function finishAddress(row) {
   try {
     await ElMessageBox.confirm(
-      `确认订单 ${row.orderNo} 的新收货地址已同步至订单与承运商？确认后单据完结，不涉及任何退款。`,
+      `确认订单 ${row.orderNo} 的地址变更已同步至订单与承运商？\n原地址：${row.customer.addr}\n更改后：${row.newAddr || '客户未填写'}\n确认后单据完结，不涉及任何退款。`,
       '完成地址变更',
       { confirmButtonText: '确认已同步', cancelButtonText: '取消', type: 'info' }
     )
@@ -960,12 +1065,12 @@ function exportData() {
   const isWait = props.status === 'wait'
   const head = isWait
     ? ['售后原因', '凭证数', '申请售后类型', '售后申请时间', '剩余处理时长', '下单订单编号', '下单时间', '物流状态', '商品', 'SKU', '客户', '电话', '地址']
-    : ['售后单号', '下单订单编号', '商品', 'SKU', '处理方式', '售后原因', '关联工单', '审核结果', '退款金额', '退款方式', '处理人', '完成时间', '审核意见']
+    : ['售后单号', '下单订单编号', '商品', 'SKU', '处理方式', '售后原因', '关联工单', '审核结果', '退款金额', '退款方式', '处理人', '完成时间', '审核意见', '原地址', '更改后地址']
   const lines = [head.join(',')]
   view.value.forEach(t => {
     const row = isWait
       ? [t.reason, t.proofs.length, t.applyType, t.applyTime, sla(t.sla).text, t.orderNo, t.orderTime, t.logistics, t.goods, t.sku, t.customer.name, t.customer.phone, t.customer.addr]
-      : [t.ticket, t.orderNo, t.goods, t.sku, t.type, t.reason, t.workOrder || '', t.result, t.amount || '', t.refundWay || '', t.who || '', t.finishedAt || '', t.auditRemark || '']
+      : [t.ticket, t.orderNo, t.goods, t.sku, t.type, t.reason, t.workOrder || '', t.result, t.amount || '', t.refundWay || '', t.who || '', t.finishedAt || '', t.auditRemark || '', isAddrTicket(t) ? t.customer.addr : '', isAddrTicket(t) ? (t.newAddr || '') : '']
     lines.push(row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
   })
   const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
@@ -1014,6 +1119,14 @@ const refresh = () => ElMessage.success('已刷新待处理队列')
 .q.all { cursor: default; background: var(--fill); }
 .q.all:hover { border-color: var(--line); }
 
+.addr-new { color: var(--brand-d); font-weight: 600; }
+
+/* 审核弹窗：地址对照 */
+.addr-diff { margin: 0 0 12px; padding: 9px 12px; border: 1px solid #BFE3F2; background: var(--brand-l); border-radius: 6px; }
+.addr-diff .ad-row { font-size: 12px; color: var(--ink-2); line-height: 1.8; }
+.addr-diff .ad-k { display: inline-block; width: 62px; color: var(--ink-3); }
+.addr-diff b { color: var(--brand-d); }
+
 /* 表格单元 */
 .ocell { display: flex; flex-direction: column; line-height: 1.45; }
 .sub { font-size: 11px; color: var(--ink-3); }
@@ -1054,8 +1167,9 @@ const refresh = () => ElMessage.success('已刷新待处理队列')
 .st.bad { border-color: #F2D3D3; background: #FFF8F8; }
 .st.bad .st-s b { color: var(--danger); }
 .st-s i { margin-left: 4px; font-style: normal; font-size: 11px; color: var(--danger); }
-.stock-warn { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--danger); }
-.stock-warn span { flex: 1; }
+.stock-warn { margin-top: 8px; font-size: 12px; line-height: 1.7; color: var(--danger); }
+.stock-warn b { font-weight: 600; }
+.warn-acts { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
 .stock-ok { margin-top: 8px; font-size: 12px; color: var(--ink-2); }
 .stock-ok b { color: var(--ink); font-weight: 600; }
 
@@ -1101,6 +1215,7 @@ const refresh = () => ElMessage.success('已刷新待处理队列')
   font-size: 11.5px; line-height: 1.7; color: var(--warn); background: var(--warn-l);
   border: 1px solid #F5DCB8; border-radius: 6px; padding: 8px 11px; margin: -6px 0 14px;
 }
+.qc-tip.ok { color: #1E8E5A; background: #F2F9F4; border-color: #CFE9D9; }
 
 .dr-h { display: flex; align-items: center; width: 100%; }
 .dr-h b { font-size: 15px; font-weight: 600; }

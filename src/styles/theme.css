@@ -65,7 +65,7 @@ body {
 
 /* 指标/tag 通用 */
 .num { text-align: right; font-variant-numeric: tabular-nums; }
-.mono { font-variant-numeric: tabular-nums; }
+.mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace; }
 .muted { color: var(--ink-3); }
 
 /* 表格更紧凑，贴近原型 */

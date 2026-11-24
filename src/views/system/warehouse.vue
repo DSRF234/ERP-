@@ -8,6 +8,7 @@
       <el-input v-model="kw" size="small" placeholder="搜索仓库名称 / 地区全称或简称" style="width: 260px" clearable />
       <el-button size="small" type="primary" @click="noop">查询</el-button>
       <el-button size="small" @click="kw = ''">重置</el-button>
+      <span class="count">共 {{ view.length }} 个仓</span>
       <div class="stat">
         <el-tooltip v-if="unassigned.length" placement="bottom">
           <template #content>

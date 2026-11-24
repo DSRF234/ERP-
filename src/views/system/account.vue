@@ -126,10 +126,9 @@
 import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
-import {
-  accounts, posts, INIT_PASSWORD, randomPassword, postById, postName,
-  deptOfAccount, accountsOfPost
-} from '@/data/system'
+import { accounts, posts, INIT_PASSWORD, randomPassword, postById, postName,
+  deptOfAccount, accountsOfPost } from '@/data/system'
+import { accountBridge, useUserStore } from '@/stores/user'
 
 const kw = ref('')
 const f = reactive({ post: '', status: '' })
@@ -161,7 +160,8 @@ const editing = ref(null)
 const af = reactive({ name: '', account: '', phone: '', postId: '', password: INIT_PASSWORD, status: '启用', remark: '' })
 
 /* 下拉里保留当前账号已绑定的停用职位，避免编辑时职位被悄悄清空 */
-const postOptions = computed(() => posts.filter(p => p.status === '启用' || p.id === af.postId))
+/* 下拉里保留停用职位（置灰 + 标注「已停用」），避免管理员以为职位消失了 */
+const postOptions = computed(() => posts)
 const formPostDisabled = computed(() => !!af.postId && postById(af.postId)?.status === '停用')
 
 function regenPwd() {
@@ -200,15 +200,26 @@ function submitAcc() {
   const status = editing.value ? editing.value.status : '启用'
 
   if (editing.value) {
+    const prevAccount = editing.value.account
     Object.assign(editing.value, {
       name: af.name.trim(), account: af.account.trim(), phone: af.phone,
       postId: af.postId, status, remark: af.remark
+    })
+    /* 同步登录身份：姓名 / 账号 / 职位变了，登录后的称呼与权限要跟着变 */
+    accountBridge.update(prevAccount, {
+      account: af.account.trim(), name: af.name.trim(),
+      post: postName(af.postId), dept: postById(af.postId)?.dept || '—', status
     })
     ElMessage.success('已保存，权限按新职位即时生效')
   } else {
     accounts.push({
       id: 'acc-' + Date.now(), name: af.name.trim(), account: af.account.trim(), phone: af.phone,
       postId: af.postId, status, lastLogin: '', remark: af.remark
+    })
+    /* 同步登录身份：否则新账号在账号管理里看得到、却登录不了 */
+    accountBridge.add({
+      account: af.account.trim(), password: af.password, name: af.name.trim(),
+      post: postName(af.postId), dept: postById(af.postId)?.dept || '—', status
     })
     ElMessage({
       type: 'success',
@@ -226,6 +237,7 @@ async function resetPwd(row) {
       `将「${row.name}」的密码重置为 ${INIT_PASSWORD}，下次登录强制修改，当前登录状态立即失效。`,
       '重置密码', { confirmButtonText: '重置', cancelButtonText: '取消', type: 'warning' }
     )
+    useUserStore().resetPassword(row.account, INIT_PASSWORD)
     ElMessage.success(`密码已重置为 ${INIT_PASSWORD}`)
   } catch (e) { /* 取消 */ }
 }
@@ -240,6 +252,7 @@ async function toggleStatus(row) {
         { confirmButtonText: '停用', cancelButtonText: '取消', type: 'warning' })
     }
     row.status = next
+    accountBridge.setStatus(row.account, next)
     ElMessage.success(`账号已${next}`)
   } catch (e) { /* 取消 */ }
 }
@@ -252,6 +265,7 @@ async function removeAcc(row) {
       { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
     const i = accounts.indexOf(row)
     if (i > -1) accounts.splice(i, 1)
+    accountBridge.remove(row.account)
     ElMessage.success('账号已删除')
   } catch (e) { /* 取消 */ }
 }

@@ -27,6 +27,12 @@ export const stampStr = () => nowStr().replace(/[-: ]/g, '').slice(0, 8)
 
 /* 六节点流程条 */
 export const STEPS = ['申请提交', '售后审核', '客户寄回', '仓库质检', '退款/换货/补发', '完成']
+/** 退货：寄回 → 质检 → 退款 */
+export const RETURN_STEPS = ['申请提交', '售后审核', '客户寄回', '仓库质检', '退款', '完成']
+/** 换货：寄回旧件 → 质检 → 换货发货 */
+export const EXCHANGE_STEPS = ['申请提交', '售后审核', '客户寄回', '仓库质检', '换货发货', '完成']
+/** 补发：漏发 / 少件无需客户寄回，审核通过后由仓库补发出库 */
+export const RESEND_STEPS = ['申请提交', '售后审核', '补发出库', '完成']
 export const ADDR_STEPS = ['申请提交', '售后审核', '地址变更', '完成']
 
 /* 队列 → 所处节点下标（address 对应 ADDR_STEPS 的「地址变更」节点） */
@@ -42,6 +48,9 @@ export const QUEUE_ORDER = ['back', 'transit', 'qc', 'refund', 'exchange', 'rese
  * 其余处理方式（退货 / 换货 / 补发 / 更改地址）同意后一律进处理中。
  */
 export const REFUND_ONLY = ['仅退款', '部分仅退款', '补差价']
+
+/** 是否「更改地址」类售后（客户申请或审核改判都算） */
+export const isAddrTicket = t => !!(t && (t.type === '更改地址' || t.applyType === '更改地址'))
 
 /* 各仓可用库存（演示数据，换货/补发建单时校验） */
 export const STOCK = {
@@ -66,7 +75,7 @@ export const tickets = reactive([
   /* ===== 待处理（客服尚未审核） ===== */
   {
     ticket: 'AS20261116001', orderNo: 'TM20261116002', channel: '天猫',
-    applyType: '退货退款', type: '退货', reason: '商品破损', proofs: ['破损外箱.jpg', '瓶身裂纹.jpg', '开箱.mp4'],
+    applyType: '退货', type: '退货', reason: '商品破损', proofs: ['破损外箱.jpg', '瓶身裂纹.jpg', '开箱.mp4'],
     applyTime: '2026-11-16 09:20', sla: offsetH(6), logistics: '已签收',
     expressNo: 'ZT7788990011', goods: '雅诗兰黛小棕瓶 50ml ×1', sku: 'SKU-100231', qty: 1,
     orderTime: '2026-11-14 10:22', orderAmount: 1286, amount: 0,
@@ -127,6 +136,7 @@ export const tickets = reactive([
     expressNo: 'YZ7788112233', goods: '星野收纳箱 大号 ×2', sku: 'SKU-400011', qty: 2,
     orderTime: '2026-11-17 09:30', orderAmount: 528, amount: 0,
     customer: C('唐**', '135****9908', '重庆市渝北区 ******'),
+    newAddr: '重庆市江北区 ******（公司）',
     message: '地址选成旧家了，件还在路上，麻烦改到公司地址。',
     status: 'wait', queue: '', result: '—', duty: '', auditRemark: '', auditor: '', auditTime: '',
     who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '', syncTime: '', repeat: false
@@ -158,7 +168,7 @@ export const tickets = reactive([
   },
   {
     ticket: 'AS20261113005', orderNo: 'TM20261112009', channel: '天猫',
-    applyType: '退货退款', type: '退货', reason: '不喜欢', proofs: ['商品实拍.jpg'],
+    applyType: '退货', type: '退货', reason: '不喜欢', proofs: ['商品实拍.jpg'],
     applyTime: '2026-11-13 10:15', sla: '2026-11-16 10:15', logistics: '退回在途',
     expressNo: 'ZT1122334455', goods: '雅诗兰黛小棕瓶 50ml ×2', sku: 'SKU-100231', qty: 2,
     orderTime: '2026-11-12 18:12', orderAmount: 2340, amount: 2340,
@@ -182,19 +192,19 @@ export const tickets = reactive([
   },
   {
     ticket: 'AS20261111009', orderNo: 'TM20261109004', channel: '天猫',
-    applyType: '退货退款', type: '退货', reason: '尺码不符', proofs: ['尺码标.jpg'],
+    applyType: '退货', type: '退货', reason: '尺码不符', proofs: ['尺码标.jpg'],
     applyTime: '2026-11-11 16:40', sla: '2026-11-14 16:40', logistics: '退回已到仓',
     expressNo: 'ZT6655443322', goods: '星野纯棉四件套 ×1', sku: 'SKU-200118', qty: 1,
     orderTime: '2026-11-09 14:05', orderAmount: 359, amount: 359,
     customer: C('马**', '135****8834', '四川省成都市武侯区 ******'),
-    message: '床品尺寸拍错了，已经寄回，单号 ZT6655443322。',
+    message: '床品尺寸拍错了，已经按客服给的退货地址寄回。',
     status: 'doing', queue: 'qc', result: '同意', duty: '客户原因',
     auditRemark: '同意退货，客户已寄回，运费客户承担', auditor: '张丽珊', auditTime: '2026-11-11 17:30',
     who: '', finishedAt: '', workOrder: 'TH20261111002', refundWay: '', addressSync: '', syncTime: '', repeat: false
   },
   {
     ticket: 'AS20261108010', orderNo: 'JD20261106003', channel: '京东',
-    applyType: '退货退款', type: '退货', reason: '商品瑕疵', proofs: ['划痕特写.jpg'],
+    applyType: '退货', type: '退货', reason: '商品瑕疵', proofs: ['划痕特写.jpg'],
     applyTime: '2026-11-08 10:05', sla: '2026-11-11 10:05', logistics: '已签收',
     expressNo: 'YZ1122998877', goods: '兰蔻小黑瓶 30ml ×1', sku: 'SKU-100188', qty: 1,
     orderTime: '2026-11-06 20:15', orderAmount: 899, amount: 899,
@@ -206,29 +216,18 @@ export const tickets = reactive([
   },
   {
     ticket: 'AS20261110014', orderNo: 'XC20261108001', channel: '小程序',
-    applyType: '补发', type: '补发', reason: '漏发', proofs: ['开箱视频.mp4', '清单.jpg'],
+    applyType: '补发', type: '补发', reason: '商品破损', proofs: ['开箱视频.mp4', '清单.jpg'],
     applyTime: '2026-11-10 13:25', sla: '2026-11-12 13:25', logistics: '已签收',
-    expressNo: 'SF2233445566', goods: '星野香薰礼盒 ×2', sku: 'SKU-300045', qty: 2,
+    expressNo: 'SF2233445566', goods: '星野收纳箱 大号 ×2', sku: 'SKU-400011', qty: 2,
     orderTime: '2026-11-08 15:40', orderAmount: 398, amount: 0,
     customer: C('邓**', '138****9931', '福建省厦门市思明区 ******'),
-    message: '两套礼盒都少了一个蜡烛，需要补发 2 个。',
+    message: '两个收纳箱侧面都有裂口，需要补发 2 个。',
     status: 'doing', queue: 'resend', result: '同意', duty: '仓库错发',
     auditRemark: '同意补发 2 件，待仓库确认库存', auditor: '张丽珊', auditTime: '2026-11-10 14:10',
     who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '', syncTime: '', repeat: false
   },
 
-  {
-    ticket: 'AS20261115019', orderNo: 'TM20261114015', channel: '天猫',
-    applyType: '退货退款', type: '退货', reason: '商品破损', proofs: ['蜡烛碎裂.jpg', '外箱.jpg'],
-    applyTime: '2026-11-15 11:20', sla: '2026-11-18 11:20', logistics: '已签收',
-    expressNo: 'ZT2200334455', goods: '星野香薰蜡烛 ×1', sku: 'SKU-300052', qty: 1,
-    orderTime: '2026-11-13 15:40', orderAmount: 76, amount: 76,
-    customer: C('孔**', '139****3374', '安徽省合肥市蜀山区 ******'),
-    message: '蜡烛碎了一支，才 70 多块，不用寄回了，直接退吧。',
-    status: 'doing', queue: 'refund', result: '同意', duty: '物流破损',
-    auditRemark: '货值低，免寄回，同意直接退款', auditor: '张丽珊', auditTime: '2026-11-15 13:50',
-    who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '', syncTime: '', repeat: false
-  },
+
 
   {
     ticket: 'AS20261118020', orderNo: 'DY20261117018', channel: '抖音',
@@ -237,16 +236,31 @@ export const tickets = reactive([
     expressNo: 'ZT9900112233', goods: '星野收纳箱 大号 ×1', sku: 'SKU-400011', qty: 1,
     orderTime: '2026-11-17 19:05', orderAmount: 264, amount: 0,
     customer: C('袁**', '136****2215', '江苏省南京市建邺区 ******'),
+    newAddr: '江苏省南京市玄武区 ******（公司）',
     message: '刚下单地址选成家里了，件还在路上，麻烦改到公司地址。',
     status: 'doing', queue: 'address', result: '同意', duty: '客户原因',
     auditRemark: '同意改址，需同步至承运商改派后再完结', auditor: '张丽珊', auditTime: '2026-11-18 10:05',
     who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '待同步至订单与承运商', syncTime: '', repeat: false
   },
 
+  {
+    /* 退货类：客户已寄回、仓库质检通过，停在「待退款」等财务打款（不涉及仅退款） */
+    ticket: 'AS20261109025', orderNo: 'JD20261107004', channel: '京东',
+    applyType: '退货', type: '退货', reason: '商品破损', proofs: ['瓶身裂纹.jpg', '质检单.jpg'],
+    applyTime: '2026-11-09 10:20', sla: '2026-11-12 10:20', logistics: '退回已到仓',
+    expressNo: 'YZ6677889900', goods: '兰蔻小黑瓶 30ml ×1', sku: 'SKU-100188', qty: 1,
+    orderTime: '2026-11-07 14:50', orderAmount: 899, amount: 899,
+    customer: C('范**', '138****3391', '湖北省武汉市江汉区 ******'),
+    message: '瓶身有一道裂纹，已经按客服给的退货地址寄回，麻烦质检后尽快退款。',
+    status: 'doing', queue: 'refund', result: '同意', duty: '商品质量',
+    auditRemark: '同意退货，客户已寄回，仓库质检通过（不影响二次销售）', auditor: '张丽珊', auditTime: '2026-11-09 11:30',
+    who: '', finishedAt: '', workOrder: 'TH20261109005', refundWay: '', addressSync: '', syncTime: '', repeat: false
+  },
+
   /* ===== 处理完成 ===== */
   {
     ticket: 'AS20261110007', orderNo: 'TM20261108021', channel: '天猫',
-    applyType: '退货退款', type: '退货', reason: '商品破损', proofs: ['破损.jpg'],
+    applyType: '退货', type: '退货', reason: '商品破损', proofs: ['破损.jpg'],
     applyTime: '2026-11-10 15:20', sla: '2026-11-13 15:20', logistics: '已签收',
     expressNo: 'ZT5544332211', goods: '雅诗兰黛小棕瓶 50ml ×1', sku: 'SKU-100231', qty: 1,
     orderTime: '2026-11-08 09:30', orderAmount: 1080, amount: 1080,
@@ -276,8 +290,9 @@ export const tickets = reactive([
     applyTime: '2026-11-07 09:35', sla: '2026-11-08 09:35', logistics: '待签收',
     expressNo: 'YT6655001122', goods: '星野收纳箱 大号 ×1', sku: 'SKU-400011', qty: 1,
     orderTime: '2026-11-05 19:40', orderAmount: 264, amount: 0,
-    customer: C('许**', '135****4472', '江苏省苏州市吴中区 ******'),
-    message: '地址写成了公司，想改到家里。',
+    customer: C('许**', '135****4472', '江苏省苏州市工业园区 ******'),
+    newAddr: '江苏省苏州市吴中区 ******',
+    message: '地址写成了公司，想改到家里（吴中区）。',
     status: 'done', queue: '', result: '同意', duty: '客户原因',
     auditRemark: '未签收，同意改地址，已同步至订单', auditor: '张丽珊', auditTime: '2026-11-07 10:10',
     who: '张丽珊', finishedAt: '2026-11-07 10:12', workOrder: '',
@@ -307,6 +322,7 @@ export const tickets = reactive([
     status: 'done', queue: '', result: '同意', duty: '客户原因',
     auditRemark: '同意换货，已生成换货单', auditor: '张丽珊', auditTime: '2026-11-05 12:00',
     who: '张丽珊', finishedAt: '2026-11-06 10:30', workOrder: 'HH20261105-3021',
+    woQty: 1, woGoods: '星野纯棉四件套 1.5m ×1',
     refundWay: '', addressSync: '', syncTime: '', repeat: false
   },
   {
@@ -355,7 +371,8 @@ export const tickets = reactive([
     expressNo: 'ZT6611223344', goods: '雅诗兰黛小棕瓶 50ml ×1', sku: 'SKU-100231', qty: 1,
     orderTime: '2026-11-09 12:00', orderAmount: 1286, amount: 0,
     customer: C('尹**', '137****7719', '河南省郑州市金水区 ******'),
-    message: '想改到单位地址，下午能送到就行。',
+    newAddr: '河南省郑州市郑东新区 ******（单位）',
+    message: '想改到单位地址（郑东新区），下午能送到就行。',
     status: 'done', queue: '', result: '拒绝', duty: '客户原因',
     auditRemark: '快件已于 11-11 07:50 签收，无法改地址，已建议客户自行转寄', auditor: '张丽珊', auditTime: '2026-11-11 09:10',
     who: '张丽珊', finishedAt: '2026-11-11 09:12', workOrder: '',
@@ -372,7 +389,20 @@ export const tickets = reactive([
     status: 'done', queue: '', result: '同意', duty: '仓库错发',
     auditRemark: '核实为仓库漏发，补发 1 瓶，48 小时内出库', auditor: '张丽珊', auditTime: '2026-11-11 09:30',
     who: '张丽珊', finishedAt: '2026-11-12 09:20', workOrder: 'BF20261112-4178',
+    woQty: 1, woGoods: '兰蔻小黑瓶 30ml ×1',
     refundWay: '', addressSync: '', syncTime: '', repeat: false
+  },
+  {
+    ticket: 'AS20261115019', orderNo: 'TM20261114015', channel: '天猫',
+    applyType: '仅退款', type: '仅退款', reason: '商品破损', proofs: ['蜡烛碎裂.jpg', '外箱.jpg'],
+    applyTime: '2026-11-15 11:20', sla: '2026-11-18 11:20', logistics: '已签收',
+    expressNo: 'ZT2200334455', goods: '星野香薰蜡烛 ×1', sku: 'SKU-300052', qty: 1,
+    orderTime: '2026-11-13 15:40', orderAmount: 76, amount: 76,
+    customer: C('孔**', '139****3374', '安徽省合肥市蜀山区 ******'),
+    message: '蜡烛碎了一支，才 70 多块，不用寄回了，直接退吧。',
+    status: 'done', queue: '', result: '同意', duty: '物流破损',
+    auditRemark: '货值低，免寄回，按仅退款原路退回', auditor: '张丽珊', auditTime: '2026-11-15 13:50',
+    who: '张丽珊', finishedAt: '2026-11-15 13:52', workOrder: '', refundWay: '原路退回', addressSync: '', syncTime: '', repeat: false
   }
 ])
 
@@ -610,6 +640,16 @@ export const TRACKS = {
       ['2026-11-11 07:48', '已签收', '郑州市金水区', '快件已签收，签收人：本人。客户随后申请改地址']
     ]
   },
+  AS20261109025: {
+    from: '湖北 · 武汉江汉区（客户寄回）', to: '江苏 · 苏州（华东主仓）', updated: '2026-11-11 15:20',
+    events: [
+      ['2026-11-09 16:40', '已揽收', '武汉市江汉区', '退回件已交寄，邮政 EMS 已揽收，快递员 赵鹏（135****2210）'],
+      ['2026-11-09 22:10', '运输中', '武汉邮件处理中心', '快件已到达【武汉邮件处理中心】'],
+      ['2026-11-10 19:35', '运输中', '苏州邮件处理中心', '快件已到达【苏州邮件处理中心】'],
+      ['2026-11-11 10:05', '运输中', '苏州吴江投递部', '快件已到达【苏州吴江投递部】，下一站【星野优选华东主仓】'],
+      ['2026-11-11 14:50', '已收货', '星野优选华东主仓', '退回件已入仓，质检结论：外箱完好、瓶身裂纹属运输破损，可退']
+    ]
+  },
   AS20261110024: {
     from: '江苏 · 苏州（华东主仓）', to: '天津 · 南开区', updated: '2026-11-12 10:05',
     events: [
@@ -635,6 +675,11 @@ export const trackOf = t => {
 
 /* ---------------- 流转动作 ---------------- */
 export const auditTicket = (t, f, who) => {
+  /* 换货 / 补发要发实物：四仓可用量都凑不齐申请数量时，一律不允许同意。
+     UI 已把「同意」置灰，这里兜底，防止绕过界面或后续新增入口漏校验。 */
+  if (f.result !== 'reject' && ['换货', '补发'].includes(f.type)) {
+    if (!WAREHOUSE_NAMES.some(n => stockOf(t.sku, n) >= t.qty)) return 'stock-short'
+  }
   t.type = f.type
   t.duty = f.duty
   t.auditRemark = f.remark
@@ -650,11 +695,14 @@ export const auditTicket = (t, f, who) => {
     t.refundWay = ''
     t.addressSync = ''
     t.syncTime = ''
+    t.workOrder = ''
+    t.woQty = 0
+    t.woGoods = ''
     t.who = who
     t.finishedAt = nowStr()
     return 'rejected'
   }
-  /* 仅退款 / 部分仅退款 / 补差价：不涉及寄回与仓储作业，同意即按原支付路径打款，直接完结 */
+  /* 仅退款 / 部分仅退款 / 补差价：不涉及实物回流，同意即打款直接完结（这是唯一跳过处理中的三类） */
   if (REFUND_ONLY.includes(f.type)) {
     t.amount = Number(f.amount) || 0
     t.status = 'done'
@@ -676,12 +724,22 @@ export const auditTicket = (t, f, who) => {
   }
   t.amount = Number(f.amount) || 0
   if (f.type === '退货') {
-    t.queue = f.back === 'yes' ? 'back' : 'refund'
-    if (f.back === 'yes') t.workOrder = 'TH' + stampStr() + '0' + (Math.floor(Math.random() * 9) + 1)
+    /* 无需寄回也要进处理中·待退款，只是不生成 TH 退货单（口径见测试用例 AF-030） */
+    if (f.back === 'no') {
+      t.queue = 'refund'
+      t.workOrder = ''
+    } else {
+      t.queue = 'back'
+      t.workOrder = 'TH' + stampStr() + '0' + (Math.floor(Math.random() * 9) + 1)
+    }
   } else if (f.type === '换货') {
     t.queue = 'exchange'
+    t.woQty = t.qty
+    t.woGoods = t.goods
   } else if (f.type === '补发') {
     t.queue = 'resend'
+    t.woQty = t.qty
+    t.woGoods = t.goods
   } else {
     t.queue = 'refund'
   }
@@ -722,6 +780,8 @@ export const createWorkOrder = (t, kind, wh, who) => {
   t.workOrder = workOrderNo(kind)
   t.workOrderType = kind
   t.workOrderWarehouse = wh
+  t.woQty = t.woQty || t.qty
+  t.woGoods = t.woGoods || t.goods
   t.who = who
   t.finishedAt = nowStr()
   t.result = '同意'
@@ -741,7 +801,14 @@ export const progressOf = t => {
     if (t.status === 'doing') return { steps: ADDR_STEPS, idx: 2, rejected: false }
     return { steps: ADDR_STEPS, idx: 1, rejected: false }
   }
-  if (t.status === 'wait') return { steps: STEPS, idx: 1, rejected: false }
-  if (t.status === 'done') return { steps: STEPS, idx: 5, rejected: false }
-  return { steps: STEPS, idx: QUEUE_STEP[t.queue] ?? 1, rejected: false }
+  /* 补发无需客户寄回：申请 → 审核 → 补发出库 → 完成 */
+  if (t.type === '补发') {
+    if (t.status === 'wait') return { steps: RESEND_STEPS, idx: 1, rejected: false }
+    if (t.status === 'done') return { steps: RESEND_STEPS, idx: 3, rejected: false }
+    return { steps: RESEND_STEPS, idx: 2, rejected: false }
+  }
+  const steps = t.type === '换货' ? EXCHANGE_STEPS : RETURN_STEPS
+  if (t.status === 'wait') return { steps, idx: 1, rejected: false }
+  if (t.status === 'done') return { steps, idx: 5, rejected: false }
+  return { steps, idx: QUEUE_STEP[t.queue] ?? 1, rejected: false }
 }

@@ -7,3 +7,6 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 *.log
+
+# 本地临时产物（截图、辅助页、无头浏览器 profile）
+.tmp/

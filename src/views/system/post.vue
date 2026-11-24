@@ -190,6 +190,7 @@ import {
   accountsOfPost, setPostStatus
 } from '@/data/system'
 import { PERM_TREE, TOTAL_PERMS } from '@/data/perm'
+import { accountBridge } from '@/stores/user'
 
 const router = useRouter()
 const kw = ref('')
@@ -275,6 +276,8 @@ async function toggleStatus(row) {
       )
     }
     const { affected } = setPostStatus(row.id, next)
+    /* 同步到登录凭据库：账号列表与登录校验是两套数据，只改职位状态不会拦截登录 */
+    if (next === '停用') affected.forEach(a => accountBridge.setStatus(a.account, '停用'))
     const extra = next === '停用' && affected.length ? `，${affected.length} 个账号已同步停用` : ''
     ElMessage.success(`职位「${row.name}」已${next}${extra}`)
   } catch (e) { /* 取消 */ }

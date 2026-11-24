@@ -281,17 +281,29 @@ function readSaved() {
   }
 }
 
-/** 把当前各职位权限写回本地，刷新 / 重新登录后仍生效 */
+/**
+ * 把当前各职位权限写回本地，刷新 / 重新登录后仍生效。
+ * 键优先用职位唯一 id（post-xxx）：跨部门同名职位（如两个「运营」）若按名称存，
+ * 后保存的会把前一个覆盖掉（BUG-02）。名称键仅在全局唯一时额外写一份，
+ * 兼容旧快照与按名称排查的脚本。
+ */
 export function savePermsToStorage() {
   const map = {}
-  posts.forEach(p => { map[p.name] = [...(p.perms || [])] })
+  const nameCount = {}
+  posts.forEach(p => { nameCount[p.name] = (nameCount[p.name] || 0) + 1 })
+  posts.forEach(p => {
+    const perms = [...(p.perms || [])]
+    if (p.id) map[p.id] = perms
+    if (nameCount[p.name] === 1) map[p.name] = perms
+  })
   try { localStorage.setItem(STORE_KEY, JSON.stringify(map)) } catch (e) { /* 隐私模式忽略 */ }
 }
 
 export function ensurePostPerms() {
   const saved = readSaved()
   posts.forEach(p => {
-    const s = saved[p.name]
+    /* 先按职位 id；旧快照只有名称键，再退回名称（同名职位不会命中唯一的名称键） */
+    const s = Array.isArray(saved[p.id]) ? saved[p.id] : saved[p.name]
     if (Array.isArray(s)) {
       const clean = s.filter(id => KNOWN.has(id))
       if (clean.length) { p.perms = clean; return }

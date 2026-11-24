@@ -318,8 +318,11 @@
         <el-form-item label="订单编号">{{ cur && cur.no }}</el-form-item>
         <el-form-item label="处理方式">
           <el-select v-model="afterForm.type" style="width:100%">
-            <el-option v-for="t in ['退货', '仅退款', '换货', '补发', '补差价']" :key="t" :label="t" :value="t" />
+            <el-option v-for="t in AFTER_TYPES" :key="t" :label="t" :value="t" />
           </el-select>
+        </el-form-item>
+        <el-form-item v-if="afterForm.type === '更改地址'" label="更改后地址">
+          <el-input v-model="afterForm.newAddr" placeholder="请输入客户要求改到的新收货地址" />
         </el-form-item>
         <el-form-item label="售后原因">
           <el-input v-model="afterForm.reason" type="textarea" :rows="3" placeholder="请填写售后原因" />
@@ -639,11 +642,13 @@ function createOrder() {
 
 /* 申请售后 */
 const afterVisible = ref(false)
-const afterForm = reactive({ type: '退货', reason: '' })
+const AFTER_TYPES = ['退货', '仅退款', '部分仅退款', '换货', '补发', '补差价', '更改地址']
+const afterForm = reactive({ type: '退货', reason: '', newAddr: '' })
 function openAfter(row) {
   cur.value = row
   afterForm.type = '退货'
   afterForm.reason = ''
+  afterForm.newAddr = ''
   afterVisible.value = true
 }
 const pad = n => String(n).padStart(2, '0')
@@ -660,9 +665,11 @@ function genTicketNo() {
 /** 申请售后：写入售后共享数据层（售后页读取的就是这份） */
 function submitAfter() {
   if (!afterForm.reason) return ElMessage.error('请填写售后原因')
+  if (afterForm.type === '更改地址' && !afterForm.newAddr.trim()) return ElMessage.error('更改地址需填写更改后的收货地址')
   const o = cur.value
   const g = o.goods[0] || {}
-  const APPLY_TYPE = { '退货': '退货退款', '仅退款': '仅退款', '换货': '换货', '补发': '补发', '补差价': '补差价' }
+  /* 申请类型与处理方式用同一套词，避免详情里两处叫法不一致 */
+  const APPLY_TYPE = Object.fromEntries(AFTER_TYPES.map(t => [t, t]))
 
   afterTickets.unshift({
     ticket: genTicketNo(),
@@ -683,6 +690,7 @@ function submitAfter() {
     orderAmount: o.amount,
     amount: 0,
     customer: { name: o.receiver, phone: o.phone, addr: o.address },
+    newAddr: afterForm.type === '更改地址' ? afterForm.newAddr.trim() : '',
     message: afterForm.reason,
     status: 'wait', queue: '', result: '—', duty: '', auditRemark: '', auditor: '', auditTime: '',
     who: '', finishedAt: '', workOrder: '', refundWay: '', addressSync: '', syncTime: '', repeat: false
