@@ -17,7 +17,7 @@
             <el-col :span="8">
               <el-form-item label="采购编号">
                 <el-input v-model="form.no" disabled />
-                <div class="field-hint">系统自动生成，如 CG202607081223</div>
+                <div class="field-hint">系统自动生成，如 CG202607081223；同一分钟内多单自动加流水号</div>
               </el-form-item>
             </el-col>
             <el-col :span="8">
@@ -31,16 +31,17 @@
             <el-col :span="8">
               <el-form-item label="制单人">
                 <el-input v-model="form.creator" disabled />
-                <div class="field-hint">由系统根据登录账号直接生成</div>
+                <div class="field-hint">取当前登录账号，不可修改</div>
               </el-form-item>
             </el-col>
 
             <el-col :span="8">
               <el-form-item label="供应商名称">
-                <el-select v-model="form.supplier" style="width: 100%" placeholder="请选择供应商">
-                  <el-option v-for="s in suppliers" :key="s" :label="s" :value="s" />
+                <el-select v-model="form.supplier" style="width: 100%" placeholder="请选择供应商"
+                  @change="onSupplierChange">
+                  <el-option v-for="s in supplierNames" :key="s" :label="s" :value="s" />
                 </el-select>
-                <div class="field-hint">同一个采购单只能有一个供应商</div>
+                <div class="field-hint">只列出「合作中」的供应商</div>
               </el-form-item>
             </el-col>
             <el-col :span="8">
@@ -139,6 +140,7 @@
           总采购金额（元）　<b>{{ money(total) }}</b>
         </span>
       </div>
+      <div class="limit-tip">单价上限 10,000 元／采购数量需为正整数（≤ 1,000,000），提交时逐行校验</div>
     </div>
 
     <GoodsPicker v-model="picker" :supplier="form.supplier" @confirm="onPick" />
@@ -146,45 +148,92 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { reactive, ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import GoodsPicker from '@/components/purchase/GoodsPicker.vue'
 import { money } from '@/utils/format'
+import { usePurchaseStore } from '@/stores/purchase'
+import { useSupplierStore } from '@/stores/supplier'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const purchase = usePurchaseStore()
+const supplierStore = useSupplierStore()
+const user = useUserStore()
+
+const DRAFT_KEY = 'xy_erp_purchase_draft'
 const buyers = ['张某某', '李某', '王某']
-const suppliers = ['某林林公司', '美妆公司', '雅美化妆品']
 const warehouses = ['华东主仓', '华南仓', '平台仓1', '平台仓2']
 const units = ['个', '支', '件', '盒', '瓶']
 
-function makeNo() {
-  const d = new Date()
-  const p = n => String(n).padStart(2, '0')
-  return `CG${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}`
-}
+const supplierNames = computed(() => supplierStore.activeNames)
 
 const form = reactive({
-  no: makeNo(),
+  no: purchase.nextNo(),
   buyer: '张某某',
-  creator: '张某某',
-  supplier: '某林林公司',
+  creator: user.name || '演示',
+  supplier: supplierNames.value[0] || '',
   warehouse: '华东主仓',
   category: '家居日用',
   logistics: '某邦物流公司',
   freight: 100,
   expressNo: 'DB1234567891234',
-  date: '2026-07-22',
+  date: '2026-11-24',
   items: [
-    { name: '洗面奶', spec: '100g/支', unit: '支', price: 20, qty: 1000 },
-    { name: '睫毛膏', spec: '8g/支', unit: '支', price: 8.2, qty: 200 }
+    { code: 'SO-2026-001', name: '洗面奶', spec: '100g/支', unit: '支', price: 20, qty: 1000, category: '家居日用' },
+    { code: 'SO-2026-002', name: '睫毛膏', spec: '8g/支', unit: '支', price: 8.2, qty: 200, category: '美妆个护' }
   ]
 })
 
 const total = computed(() => form.items.reduce((s, i) => s + Number(i.price || 0) * Number(i.qty || 0), 0))
 const picker = ref(false)
+const dirty = ref(false)
+let submitted = false
+
+/* ---------------- 草稿：刷新/误关页面内容不丢 ---------------- */
+function saveDraft() {
+  try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(form)) } catch (e) { /* 忽略 */ }
+}
+function clearDraft() {
+  try { sessionStorage.removeItem(DRAFT_KEY) } catch (e) { /* 忽略 */ }
+}
+watch(form, () => { dirty.value = true; saveDraft() }, { deep: true })
+
+function onBeforeUnload(e) {
+  if (submitted || !dirty.value) return
+  e.preventDefault()
+  e.returnValue = ''
+}
+onMounted(() => {
+  window.addEventListener('beforeunload', onBeforeUnload)
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY)
+    if (raw) {
+      const d = JSON.parse(raw)
+      Object.keys(form).forEach(k => { if (d[k] !== undefined) form[k] = d[k] })
+      form.no = purchase.nextNo()
+      ElMessage.info('已恢复上次未提交的草稿')
+      dirty.value = true
+    }
+  } catch (e) { /* 忽略损坏的草稿 */ }
+})
+onUnmounted(() => window.removeEventListener('beforeunload', onBeforeUnload))
+
+onBeforeRouteLeave(() => {
+  if (submitted || !dirty.value) return true
+  submitted = true
+  clearDraft()
+  return true
+})
+
+/* ---------------- 明细 ---------------- */
+function onSupplierChange(name) {
+  form.items = []
+  ElMessage.info(`已切换供应商为【${name}】，原明细已清空`)
+}
 
 function onPick({ supplier, goods }) {
   if (supplier !== form.supplier) {
@@ -192,10 +241,16 @@ function onPick({ supplier, goods }) {
     form.items = []
     ElMessage.info(`已切换供应商为【${supplier}】，原明细已清空`)
   }
+  let added = 0
   goods.forEach(g => {
     if (form.items.some(i => i.name === g.name)) return
-    form.items.push({ name: g.name, spec: g.spec, unit: '支', price: g.price, qty: 1 })
+    form.items.push({
+      code: g.code, name: g.name, spec: g.spec, unit: '支',
+      price: g.price, qty: 1, category: g.type || form.category
+    })
+    added++
   })
+  if (goods.length && !added) ElMessage.warning('所选货品已在明细中，未重复添加')
 }
 
 async function removeItem(row, index) {
@@ -207,13 +262,47 @@ async function removeItem(row, index) {
   } catch (e) { /* 取消 */ }
 }
 
+/* ---------------- 校验与提交 ---------------- */
+function validate() {
+  if (!form.supplier) return '请选择供应商'
+  if (!form.items.length) return '请至少添加一个货品'
+  for (let i = 0; i < form.items.length; i++) {
+    const r = form.items[i]
+    const price = Number(r.price)
+    if (!Number.isFinite(price) || price <= 0) return `第 ${i + 1} 行【${r.name}】单价需大于 0`
+    if (price > 10000) return `第 ${i + 1} 行【${r.name}】单价 ${price} 元超过上限 10000 元`
+    const qty = Number(r.qty)
+    if (!Number.isInteger(qty) || qty <= 0) return `第 ${i + 1} 行【${r.name}】采购数量需为正整数，当前为「${r.qty}」`
+    if (qty > 1000000) return `第 ${i + 1} 行【${r.name}】采购数量 ${qty} 超过上限 1,000,000`
+  }
+  if (form.freight !== '' && (!Number.isFinite(Number(form.freight)) || Number(form.freight) < 0)) {
+    return '运费需为不小于 0 的数字'
+  }
+  return ''
+}
+
 async function submit() {
-  if (!form.supplier) return ElMessage.error('请选择供应商')
-  if (!form.items.length) return ElMessage.error('请至少添加一个货品')
+  const err = validate()
+  if (err) return ElMessage.error(err)
   try {
     await ElMessageBox.confirm('是否将货品采购信息提交？提交后进入待审核，不可直接修改。', '提交确认', {
       confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
     })
+    purchase.add({
+      no: form.no,
+      buyer: form.buyer,
+      creator: form.creator,
+      supplier: form.supplier,
+      warehouse: form.warehouse,
+      category: form.category,
+      logistics: form.logistics,
+      freight: Number(form.freight || 0),
+      expressNo: form.expressNo,
+      date: `${form.date} ${new Date().toTimeString().slice(0, 5)}`,
+      items: form.items.map(i => ({ ...i, price: Number(i.price), qty: Number(i.qty) }))
+    })
+    submitted = true
+    clearDraft()
     ElMessage.success(`采购单 ${form.no} 已提交，状态：待审核`)
     router.push('/purchase')
   } catch (e) { /* 取消 */ }
@@ -224,6 +313,8 @@ async function cancel() {
     await ElMessageBox.confirm('是否放弃本次填写？已填写内容不会保存。', '取消新建', {
       confirmButtonText: '放弃', cancelButtonText: '继续填写', type: 'warning'
     })
+    submitted = true
+    clearDraft()
     router.push('/purchase')
   } catch (e) { /* 继续 */ }
 }
@@ -232,4 +323,5 @@ async function cancel() {
 <style scoped>
 .strong { font-weight: 600; }
 :deep(.el-form-item) { margin-bottom: 16px; }
+.limit-tip { padding: 8px 16px 12px; font-size: 11.5px; color: var(--ink-3); }
 </style>

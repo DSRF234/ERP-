@@ -2,14 +2,14 @@
   <div>
     <PageHeader title="采购订单" sub="采购单全流程：新建 → 审核 → 进行中 → 已完成">
       <el-button v-can="'b-purchase-create'" size="small" type="primary" :icon="Plus" @click="router.push('/purchase/create')">新建采购单</el-button>
-      <el-button size="small" @click="drawer = true">供应商管理</el-button>
+      <el-button v-can="'b-supplier-view'" size="small" @click="drawer = true">供应商管理</el-button>
     </PageHeader>
 
     <StatCards :items="stats" />
 
     <div class="toolbar">
       <el-input v-model="kw" size="small" style="width: 240px" clearable :prefix-icon="Search"
-        placeholder="输入采购单编号/采购员/物流公司" />
+        placeholder="输入采购单编号/采购员/制单人/物流公司" />
       <el-button size="small" type="primary" @click="page = 1">搜索</el-button>
       <el-select v-model="status" size="small" style="width: 118px">
         <el-option label="全部状态" value="all" />
@@ -23,43 +23,82 @@
         <el-option label="全部收货仓" value="all" />
         <el-option v-for="w in warehouses" :key="w" :label="w" :value="w" />
       </el-select>
-      <span class="grow">共 {{ view.length }} 条</span>
+      <span class="grow">共 {{ view.length }} 单</span>
     </div>
 
     <div class="card">
-      <el-table :data="paged" size="small" class="order-table">
-        <el-table-column prop="no" label="采购编号" width="120" />
-        <el-table-column prop="buyer" label="采购员" width="76" />
-        <el-table-column prop="supplier" label="供应商" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="warehouse" label="收货仓" width="86" />
-        <el-table-column prop="date" label="采购时间" width="118" />
-        <el-table-column prop="expressNo" label="物流单号" width="124" />
-        <el-table-column prop="logistics" label="物流公司" width="86" />
-        <el-table-column prop="category" label="货品类型" width="78" />
-        <el-table-column label="运费" width="78" align="right">
-          <template #default="{ row }"><span class="mono">{{ money(row.freight) }}</span></template>
+      <el-table :data="tableRows" size="small" class="order-table" :span-method="spanMethod">
+        <el-table-column label="采购编号" width="114">
+          <template #default="{ row }"><span class="mono">{{ row.order.no }}</span></template>
         </el-table-column>
-        <el-table-column label="总采购金额" width="104" align="right">
-          <template #default="{ row }"><span class="mono strong">{{ money(row.amount) }}</span></template>
+        <el-table-column label="采购员" width="56">
+          <template #default="{ row }">{{ row.order.buyer }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="76">
+        <el-table-column label="制单人" width="56">
+          <template #default="{ row }">{{ row.order.creator }}</template>
+        </el-table-column>
+        <el-table-column label="供应商" width="76" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.order.supplier }}</template>
+        </el-table-column>
+        <el-table-column label="收货仓" width="64">
+          <template #default="{ row }">{{ row.order.warehouse }}</template>
+        </el-table-column>
+
+        <el-table-column label="采购货品" width="82" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.item.name }}</template>
+        </el-table-column>
+        <el-table-column label="规格" width="58">
+          <template #default="{ row }">{{ row.item.spec }}</template>
+        </el-table-column>
+        <el-table-column label="单价" width="64" align="right">
+          <template #default="{ row }"><span class="mono">{{ money(row.item.price) }}</span></template>
+        </el-table-column>
+        <el-table-column label="采购数量" width="64" align="right">
+          <template #default="{ row }"><span class="mono">{{ num(row.item.qty) }}{{ row.item.unit }}</span></template>
+        </el-table-column>
+        <el-table-column label="采购金额" width="92" align="right">
+          <template #default="{ row }"><span class="mono">{{ money(row.item.price * row.item.qty) }}</span></template>
+        </el-table-column>
+        <el-table-column label="货品类型" width="66">
+          <template #default="{ row }">{{ row.item.category || row.order.category }}</template>
+        </el-table-column>
+
+        <el-table-column label="采购时间" width="78">
+          <template #default="{ row }"><span class="mono">{{ row.order.date }}</span></template>
+        </el-table-column>
+        <el-table-column label="物流公司 / 单号" width="104" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-tag size="small" :type="TAG[row.status]">{{ row.status }}</el-tag>
+            <div class="two-line">
+              <span>{{ row.order.logistics }}</span>
+              <em class="mono">{{ row.order.expressNo }}</em>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="运费" width="62" align="right">
+          <template #default="{ row }"><span class="mono">{{ money(row.order.freight) }}</span></template>
+        </el-table-column>
+        <el-table-column label="状态" width="58">
           <template #default="{ row }">
-            <el-button v-can="'b-purchase-delete'" link type="danger" size="small" @click="remove(row)">删除</el-button>
-            <el-button v-can="'b-purchase-audit'" v-if="row.status === '待审核'" link type="primary" size="small"
-              @click="openAudit(row)">审批</el-button>
-            <el-button v-can="'b-purchase-inbound'" v-if="row.status === '进行中'" link type="success" size="small"
-              @click="warehousing(row)">确认入库</el-button>
+            <el-tag size="small" :type="TAG[row.order.status]">{{ row.order.status }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="106" fixed="right">
+          <template #default="{ row }">
+            <span class="ops">
+            <el-button v-can="'b-purchase-audit'" v-if="row.order.status === '待审核'" link type="primary" size="small"
+              @click="openAudit(row.order)">审批</el-button>
+            <el-button v-can="'b-purchase-inbound'" v-if="row.order.status === '进行中'" link type="success" size="small"
+              @click="warehousing(row.order)">确认入库</el-button>
+            <el-button v-can="'b-purchase-delete'" link type="danger" size="small"
+              @click="remove(row.order)">删除</el-button>
+            </span>
           </template>
         </el-table-column>
       </el-table>
       <div class="pager">
-        <el-pagination v-model:current-page="page" :page-size="PAGE_SIZE"
-          :total="view.length" layout="total, prev, pager, next" small background />
+        <el-pagination v-model:current-page="page" v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50]" :total="view.length"
+          layout="total, sizes, prev, pager, next" small background />
       </div>
     </div>
 
@@ -69,7 +108,7 @@
     </el-drawer>
 
     <!-- 审核弹窗 -->
-    <el-dialog v-model="audit.visible" title="审核" width="780px" align-center class="audit-dlg">
+    <el-dialog v-model="audit.visible" title="审核" width="820px" align-center class="audit-dlg">
       <div class="audit-info">
         <div class="ai-item">
           <label>供货商</label>
@@ -77,7 +116,7 @@
         </div>
         <div class="ai-item">
           <label>制单人</label>
-          <div class="ai-val">{{ audit.row?.buyer }}</div>
+          <div class="ai-val">{{ audit.row?.creator }}</div>
         </div>
         <div class="ai-item">
           <label>制单时间</label>
@@ -85,11 +124,15 @@
         </div>
         <div class="ai-item">
           <label>采购金额</label>
-          <div class="ai-val">{{ money(audit.row?.amount) }}</div>
+          <div class="ai-val">{{ money(auditAmount) }}</div>
         </div>
         <div class="ai-item">
           <label>运费</label>
           <div class="ai-val">{{ money(audit.row?.freight) }}</div>
+        </div>
+        <div class="ai-item payable">
+          <label>应付金额（采购金额 + 运费）</label>
+          <div class="ai-val strong">{{ money(auditAmount + Number(audit.row?.freight || 0)) }}</div>
         </div>
         <div class="ai-item">
           <label>当前状态</label>
@@ -98,7 +141,8 @@
       </div>
 
       <div class="sec-title">采购货品</div>
-      <el-table :data="auditGoods" size="small" empty-text="暂无货品明细">
+      <el-table :data="auditItems" size="small" empty-text="暂无货品明细" show-summary
+        :summary-method="auditSummary">
         <el-table-column type="index" label="序号" width="56" />
         <el-table-column prop="name" label="采购货品" min-width="120" />
         <el-table-column prop="spec" label="规格" width="110" />
@@ -106,10 +150,10 @@
           <template #default="{ row }"><span class="mono">{{ money(row.price) }}</span></template>
         </el-table-column>
         <el-table-column label="采购数量" width="104" align="right">
-          <template #default="{ row }"><span class="mono">{{ row.qty }}{{ row.unit }}</span></template>
+          <template #default="{ row }"><span class="mono">{{ num(row.qty) }}{{ row.unit }}</span></template>
         </el-table-column>
         <el-table-column label="采购金额" width="118" align="right">
-          <template #default="{ row }"><span class="mono">{{ money(row.amount) }}</span></template>
+          <template #default="{ row }"><span class="mono">{{ money(row.price * row.qty) }}</span></template>
         </el-table-column>
         <el-table-column prop="category" label="货品类型" width="104" />
       </el-table>
@@ -128,122 +172,109 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCards from '@/components/StatCards.vue'
 import SupplierPanel from '@/components/purchase/SupplierPanel.vue'
 import { money } from '@/utils/format'
-import { useStockStore } from '@/stores/stock'
+import { usePurchaseStore, amountOf } from '@/stores/purchase'
+
+defineOptions({ name: 'PurchaseList' })
 
 const router = useRouter()
-const stockStore = useStockStore()
+const route = useRoute()
+const purchase = usePurchaseStore()
+
 const STATUS = ['待审核', '进行中', '已完成', '已驳回']
 const TAG = { 待审核: 'info', 进行中: 'warning', 已完成: 'success', 已驳回: 'danger' }
 
-const rows = ref([
-  { no: 'CG202607221421', buyer: '张某某', supplier: '某林林公司', warehouse: '华东主仓', date: '2026-07-22 14:27', expressNo: 'DB1234567891234', logistics: '某邦物流', category: '家居日用', freight: 100, amount: 20000, status: '待审核' },
-  { no: 'CG202607221418', buyer: '李某', supplier: '美妆公司', warehouse: '华南仓', date: '2026-07-22 11:03', expressNo: 'DB1234567891235', logistics: '某东物流', category: '美妆个护', freight: 80, amount: 46500, status: '待审核' },
-  { no: 'CG202607211207', buyer: '张某某', supplier: '某林林公司', warehouse: '华东主仓', date: '2026-07-21 09:42', expressNo: 'DB1234567891188', logistics: '某邦物流', category: '家居日用', freight: 120, amount: 38200, status: '进行中' },
-  { no: 'CG202607201155', buyer: '王某', supplier: '雅美化妆品', warehouse: '平台仓1', date: '2026-07-20 16:18', expressNo: 'JD7788001122', logistics: '某东物流', category: '美妆个护', freight: 60, amount: 128600, status: '进行中' },
-  { no: 'CG202607191022', buyer: '李某', supplier: '美妆公司', warehouse: '华东主仓', date: '2026-07-19 10:05', expressNo: 'DB1234567891023', logistics: '某邦物流', category: '美妆个护', freight: 95, amount: 27400, status: '进行中' },
-  { no: 'CG202607180916', buyer: '张某某', supplier: '某林林公司', warehouse: '华南仓', date: '2026-07-18 08:56', expressNo: 'JD7788000987', logistics: '某东物流', category: '家居日用', freight: 130, amount: 91300, status: '已完成' },
-  { no: 'CG202607170844', buyer: '王某', supplier: '雅美化妆品', warehouse: '华东主仓', date: '2026-07-17 14:31', expressNo: 'DB1234567890876', logistics: '某邦物流', category: '美妆个护', freight: 70, amount: 52600, status: '已完成' },
-  { no: 'CG202607160733', buyer: '李某', supplier: '美妆公司', warehouse: '平台仓2', date: '2026-07-16 09:12', expressNo: 'JD7788000765', logistics: '某东物流', category: '美妆个护', freight: 45, amount: 15800, status: '已完成' },
-  { no: 'CG202607150622', buyer: '张某某', supplier: '某林林公司', warehouse: '华东主仓', date: '2026-07-15 15:44', expressNo: 'DB1234567890654', logistics: '某邦物流', category: '家居日用', freight: 110, amount: 67400, status: '已完成' },
-  { no: 'CG202607140511', buyer: '王某', supplier: '雅美化妆品', warehouse: '华南仓', date: '2026-07-14 11:26', expressNo: 'DB1234567890543', logistics: '某邦物流', category: '美妆个护', freight: 88, amount: 33900, status: '已驳回' },
-  { no: 'CG202607130422', buyer: '李某', supplier: '美妆公司', warehouse: '华东主仓', date: '2026-07-13 10:08', expressNo: 'JD7788000432', logistics: '某东物流', category: '美妆个护', freight: 55, amount: 21800, status: '进行中' },
-  { no: 'CG202607120315', buyer: '张某某', supplier: '某林林公司', warehouse: '华东主仓', date: '2026-07-12 17:02', expressNo: 'DB1234567890321', logistics: '某邦物流', category: '家居日用', freight: 100, amount: 44900, status: '待审核' }
-])
-
-const kw = ref('')
+const kw = ref(String(route.query.kw || ''))
 const status = ref('all')
 const category = ref('all')
 const warehouse = ref('all')
-const categories = computed(() => [...new Set(rows.value.map(r => r.category).filter(Boolean))])
-const warehouses = computed(() => [...new Set(rows.value.map(r => r.warehouse).filter(Boolean))])
 const page = ref(1)
-const PAGE_SIZE = 20
+const pageSize = ref(10)
 const drawer = ref(false)
 
-const view = computed(() => rows.value.filter(r => {
+const categories = computed(() => [...new Set(purchase.list.map(r => r.category).filter(Boolean))])
+const warehouses = computed(() => [...new Set(purchase.list.map(r => r.warehouse).filter(Boolean))])
+
+/** 单据级筛选（搜索支持编号/采购员/制单人/物流/供应商 + 货品名） */
+const view = computed(() => purchase.list.filter(r => {
   const k = kw.value.trim()
-  const okKw = !k || [r.no, r.buyer, r.logistics, r.supplier, r.expressNo].some(v => String(v).includes(k))
+  const okKw = !k || [r.no, r.buyer, r.creator, r.logistics, r.supplier, r.expressNo,
+    ...(r.items || []).map(i => i.name)].some(v => String(v).includes(k))
   const okStatus = status.value === 'all' || r.status === status.value
-  const okCat = category.value === 'all' || r.category === category.value
+  const okCat = category.value === 'all' || r.category === category.value ||
+    (r.items || []).some(i => i.category === category.value)
   const okWh = warehouse.value === 'all' || r.warehouse === warehouse.value
   return okKw && okStatus && okCat && okWh
 }))
-const paged = computed(() => view.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
 
+/* ---------------- 一行一货品：单据字段纵向合并 ---------------- */
+const pagedOrders = computed(() => view.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
+const tableRows = computed(() => pagedOrders.value.flatMap(order => {
+  const items = order.items && order.items.length
+    ? order.items
+    : [{ name: '—', spec: '—', price: 0, qty: 0, unit: '', category: order.category }]
+  return items.map((item, i) => ({ order, item, itemIndex: i, rowspan: i === 0 ? items.length : 0 }))
+}))
+/** 单据级列索引：这些列在首行向下合并 */
+const MERGE_COLS = [0, 1, 2, 3, 4, 11, 12, 13, 14, 15]
+function spanMethod({ row, columnIndex }) {
+  if (!MERGE_COLS.includes(columnIndex)) return { rowspan: 1, colspan: 1 }
+  if (row.itemIndex === 0) return { rowspan: row.rowspan, colspan: 1 }
+  return { rowspan: 0, colspan: 0 }
+}
+
+/* ---------------- 统计卡：金额与运费按筛选结果全量合计（PRD 4.1） ---------------- */
 const sum = (arr, key) => arr.reduce((s, r) => s + Number(r[key] || 0), 0)
-const wan = v => (v >= 10000 ? (v / 10000).toFixed(2) + ' 万元' : v.toLocaleString('zh-CN') + ' 元')
+const wan = v => (v >= 10000 ? `${(v / 10000).toFixed(2)} 万元` : `${v.toLocaleString('zh-CN')} 元`)
 const stats = computed(() => {
-  // 与下方列表同一口径：计数按筛选后的行，
-  // 金额与运费只统计「已完成」的单据（未完成的不计入实际采购额）
   const all = view.value
-  const done = all.filter(r => r.status === '已完成')
   return [
     { label: '总采购订单', value: all.length, unit: '单' },
-    { label: '已完成订单', value: done.length, unit: '单' },
+    { label: '已完成订单', value: all.filter(r => r.status === '已完成').length, unit: '单' },
     { label: '进行中订单', value: all.filter(r => r.status === '进行中').length, unit: '单', tone: 'warn' },
     { label: '未审核订单', value: all.filter(r => r.status === '待审核').length, unit: '单', tone: 'warn' },
-    { label: '总采购金额', value: wan(sum(done, 'amount')) },
-    { label: '总运费金额', value: wan(sum(done, 'freight')) }
+    { label: '总采购金额', value: wan(sum(all, 'amount')) },
+    { label: '总运费金额', value: wan(sum(all, 'freight')) }
   ]
 })
 
-// 筛选后当前页超出范围时回到最后一页
-watch(() => view.value.length, n => {
-  const max = Math.max(1, Math.ceil(n / PAGE_SIZE))
+watch([() => view.value.length, pageSize], () => {
+  const max = Math.max(1, Math.ceil(view.value.length / pageSize.value))
   if (page.value > max) page.value = max
 })
+watch(() => route.query.kw, v => { kw.value = String(v || '') })
 
-/* ------- 删除 ------- */
+const num = v => Number(v || 0).toLocaleString('zh-CN')
+
+/* ---------------- 删除 ---------------- */
 async function remove(row) {
   try {
     await ElMessageBox.confirm(`是否删除采购单【${row.no}】？删除后不可恢复。`, '删除采购单', {
       confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
     })
-    rows.value = rows.value.filter(r => r.no !== row.no)
-    ElMessage.success('已删除')
+    const res = purchase.remove(row.no)
+    res.ok ? ElMessage.success('已删除') : ElMessage.error(res.msg)
   } catch (e) { /* 取消 */ }
 }
 
-/* ------- 审核 ------- */
+/* ---------------- 审核 ---------------- */
 const audit = reactive({ visible: false, row: null, reason: '' })
-/** 当前单据的货品明细：数量 1000，单价由采购金额反推，保证与顶部金额一致 */
-const auditGoods = computed(() => {
-  const r = audit.row
-  if (!r) return []
-  const home = r.category === '家居日用'
-  const qty = 1000
-  return [{
-    name: home ? '洗面奶' : '精华液',
-    spec: home ? '100g/支' : '30ml/瓶',
-    unit: home ? '支' : '瓶',
-    price: Number(r.amount) / qty,
-    qty,
-    amount: Number(r.amount),
-    category: r.category
-  }]
-})
-
-const SKU_BY_CATEGORY = { '家居日用': 'SKU-200118', '美妆个护': 'SKU-100231' }
-
-/** 确认入库：按收货仓增加库存，采购单转已完成 */
-function warehousing(row) {
-  const qty = 1000
-  const sku = SKU_BY_CATEGORY[row.category] || 'SKU-100231'
-  ElMessageBox.confirm(
-    `采购单 ${row.no} 将按收货仓「${row.warehouse}」入库，库存增加 ${qty} 件，入库后单据转为「已完成」。`,
-    '确认入库', { type: 'warning', confirmButtonText: '确认入库' }
-  ).then(() => {
-    stockStore.inbound(sku, row.warehouse, qty)
-    row.status = '已完成'
-    ElMessage.success(`入库完成：${row.warehouse} 库存 +${qty}，可在「库存记录」查看`)
-  }).catch(() => {})
+const auditItems = computed(() => audit.row?.items || [])
+const auditAmount = computed(() => (audit.row ? amountOf(audit.row) : 0))
+function auditSummary({ columns, data }) {
+  const out = []
+  columns.forEach((col, i) => {
+    if (i === 0) out[i] = '合计'
+    else if (i === 5) out[i] = money(data.reduce((s, r) => s + Number(r.price || 0) * Number(r.qty || 0), 0))
+    else out[i] = ''
+  })
+  return out
 }
 
 function openAudit(row) {
@@ -252,22 +283,39 @@ function openAudit(row) {
   audit.visible = true
 }
 function approve() {
-  audit.row.status = '进行中'
+  const res = purchase.approve(audit.row.no)
+  if (!res.ok) return ElMessage.error(res.msg)
   audit.visible = false
   ElMessage.success(`采购单 ${audit.row.no} 审核通过，状态变为「进行中」`)
 }
 function reject() {
-  if (!audit.reason.trim()) return ElMessage.error('驳回时必须填写驳回原因')
-  audit.row.status = '已驳回'
+  const res = purchase.reject(audit.row.no, audit.reason)
+  if (!res.ok) return ElMessage.error(res.msg)
   audit.visible = false
-  ElMessage.success(`已驳回并通知制单人 ${audit.row.buyer}`)
+  ElMessage.success(`已驳回并通知制单人 ${res.to}（顶栏铃铛可查看）`)
+}
+
+/* ---------------- 确认入库 ---------------- */
+function warehousing(row) {
+  const total = (row.items || []).reduce((s, i) => s + Number(i.qty || 0), 0)
+  ElMessageBox.confirm(
+    `采购单 ${row.no} 将按收货仓「${row.warehouse}」入库，共 ${row.items.length} 个货品、合计 ${num(total)} 件；入库后单据转为「已完成」，库存记录同步增加。`,
+    '确认入库', { type: 'warning', confirmButtonText: '确认入库' }
+  ).then(() => {
+    const res = purchase.inbound(row.no)
+    if (!res.ok) return ElMessage.error(res.msg)
+    ElMessage.success(`入库完成：${row.warehouse} 库存 +${num(res.total)}，可在「库存记录」查看`)
+  }).catch(() => {})
 }
 </script>
 
 <style scoped>
 .strong { font-weight: 600; }
-/* 12 列要在 1200px 内放下，字号收一档避免逐列换行 */
 .order-table :deep(.el-table__cell) { font-size: 11.5px; }
+.order-table :deep(.cell) { padding: 0 6px; }
+.order-table .ops { display: flex; gap: 2px; align-items: center; white-space: nowrap; }
+.two-line { display: flex; flex-direction: column; line-height: 1.35; }
+.two-line em { font-style: normal; font-size: 10.5px; color: var(--ink-3); }
 
 /* 审核弹窗 */
 .audit-dlg :deep(.el-dialog__header) {
@@ -284,5 +332,6 @@ function reject() {
   font-size: 12.5px; color: var(--ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.ai-item.payable .ai-val { border-color: var(--brand); background: var(--brand-l); color: var(--brand-d); }
 .sec-title { margin: 16px 0 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
 </style>
