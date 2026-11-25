@@ -45,8 +45,8 @@ function showDbError(err) {
         </div>
         <div style="font-size:13px;color:#344054;background:#F9FAFB;border:1px solid #EAECF0;border-radius:8px;padding:14px 16px;line-height:1.9">
           <b>请先启动后端：</b><br>
-          1. 双击项目根目录的 <code>启动后端.bat</code><br>
-          2. 命令行执行 <code>cd server &amp;&amp; npm start</code><br>
+          双击项目根目录的 <code>启动.bat</code>（会自动拉起数据库服务与前端）<br>
+          或命令行执行 <code>cd server &amp;&amp; npm start</code><br>
           接口地址：<code>${API_BASE}</code>
         </div>
         <div style="margin-top:18px">
