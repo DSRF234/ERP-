@@ -1,0 +1,16 @@
+{
+  "name": "erp-xingye-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "星野优选 ERP 本地数据库服务（Express + MySQL）",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "mysql2": "^3.11.5"
+  }
+}
