@@ -828,7 +828,71 @@ const HIST = [
     "shippedAt": "2026-11-08 21:10",
     "doneAt": "2026-11-08 21:10",
     "financePushed": true
+  },
+  {
+    "no": "DY20261117018",
+    "platform": "抖音",
+    "shop": "抖音店铺",
+    "receiver": "袁**",
+    "phone": "136****2215",
+    "address": "江苏省南京市建邺区",
+    "note": "",
+    "carrier": "中通",
+    "amount": 264.0,
+    "settle": 13.2,
+    "actual": 250.8,
+    "warehouse": "华南仓",
+    "payTime": "2026-11-17 19:05",
+    "orderTime": "2026-11-17 19:05",
+    "deadline": "2026-11-19 19:05",
+    "platformGoods": "星野收纳箱 大号",
+    "goods": [
+      {
+        "name": "星野收纳箱",
+        "spec": "大号",
+        "qty": 1,
+        "sku": "SKU-400011"
+      }
+    ],
+    "status": "shipped",
+    "afterStatus": "售后中",
+    "financePushed": false,
+    "expressNo": "ZT9900112233",
+    "shippedAt": "2026-11-18 08:30"
+  },
+  {
+    "no": "JD20261107004",
+    "platform": "京东",
+    "shop": "京东店铺",
+    "receiver": "范**",
+    "phone": "138****3391",
+    "address": "湖北省武汉市江汉区",
+    "note": "",
+    "carrier": "邮政",
+    "amount": 899.0,
+    "settle": 26.97,
+    "actual": 872.03,
+    "warehouse": "华东主仓",
+    "payTime": "2026-11-07 14:50",
+    "orderTime": "2026-11-07 14:50",
+    "deadline": "2026-11-09 14:50",
+    "platformGoods": "兰蔻小黑瓶 30ml",
+    "goods": [
+      {
+        "name": "兰蔻小黑瓶",
+        "spec": "30ml",
+        "qty": 1,
+        "sku": "SKU-100188"
+      }
+    ],
+    "status": "done",
+    "afterStatus": "售后中",
+    "financePushed": false,
+    "expressNo": "YZ6677889900",
+    "shippedAt": "2026-11-08 09:10",
+    "doneAt": "2026-11-10 16:00"
   }
+
 ]
 
 export const useOrderStore = defineStore('order', {

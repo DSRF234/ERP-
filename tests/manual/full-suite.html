@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>full suite</title>
+<style>body{font-family:Consolas,monospace;font-size:13px}</style></head>
+<body><pre id="out">running...</pre>
+<script type="module">
+import { createPinia, setActivePinia } from 'pinia'
+import { useOrderStore } from '/src/stores/order.js'
+import { useStockStore } from '/src/stores/stock.js'
+import { usePurchaseStore } from '/src/stores/purchase.js'
+import { useInventoryStore } from '/src/stores/inventory.js'
+import { useAfterStore } from '/src/stores/aftersale.js'
+import { useUserStore } from '/src/stores/user.js'
+import { purchaseOrders } from '/src/data/purchase.js'
+import { stockRows } from '/src/data/stock.js'
+import { tickets } from '/src/data/aftersale.js'
+
+setActivePinia(createPinia())
+const log = []
+let pass = 0, fail = 0
+const ok = (n, c, e = '') => { c ? pass++ : fail++; log.push(`${c ? 'PASS' : 'FAIL'} | ${n}${e ? ' | ' + e : ''}`) }
+const sec = t => log.push(`\n=== ${t} ===`)
+const throws = (fn) => { try { fn(); return false } catch { return true } }
+
+try {
+  const O = useOrderStore(), S = useStockStore(), P = usePurchaseStore()
+  const I = useInventoryStore(), A = useAfterStore(), U = useUserStore()
+
+  /* ========== A 登录与账号 ========== */
+  sec('A 登录与账号')
+  ok('A1 错误密码被拒绝', throws(() => U.login('genziyi', 'wrong')))
+  ok('A2 不存在账号被拒绝', throws(() => U.login('nobody', 'Xy@2026')))
+  ok('A3 正确密码可登录', (() => { const u = U.login('genziyi', 'Xy@2026'); return u.account === 'genziyi' })())
+  ok('A4 原密码错误时改密失败', throws(() => U.changePassword('bad', 'New12345')))
+  U.changePassword('Xy@2026', 'New12345')
+  ok('A5 旧密码失效', throws(() => U.login('genziyi', 'Xy@2026')))
+  ok('A6 新密码可登录', (() => { const u = U.login('genziyi', 'New12345'); return !!u })())
+  U.logout()
+  ok('A7 退出后未登录', U.isLogin === false)
+
+  /* ========== B 订单主流程 ========== */
+  sec('B 订单主流程')
+  const beforeReview = O.byStatus('review').length
+  O.create({ platform: '天猫', shop: 'x', receiver: '测试', phone: '13800000000',
+             address: '杭州', note: '', goodsName: '雅诗兰黛小棕瓶', qty: 1, amount: 1000 })
+  ok('B1 新建订单进入待审核', O.byStatus('review').length === beforeReview + 1)
+  const o = O.byStatus('review').find(x => x.amount === 1000)
+  const r1 = O.approve(o, '华南仓', '圆通')
+  ok('B2 审核通过 → 待发货', r1.ok && O.orders.find(x => x.no === o.no).status === 'pending')
+  ok('B3 生成出库单号', !!r1.outboundNo, r1.outboundNo)
+  ok('B4 待发货阶段无运单号', !O.orders.find(x => x.no === o.no).expressNo)
+  const ship = O.ship(O.orders.find(x => x.no === o.no))
+  ok('B5 出库回传 → 已发货', !!ship && O.orders.find(x => x.no === o.no).status === 'shipped', ship?.expressNo)
+  ok('B6 已发货有运单号', !!O.orders.find(x => x.no === o.no).expressNo)
+  ok('B7 确认收货成功', O.confirmReceive(O.orders.find(x => x.no === o.no)).ok)
+  const done = O.orders.find(x => x.no === o.no)
+  ok('B8 完结后售后状态=已完结', done.afterStatus === '已完结')
+  ok('B9 完结后推送财务', done.financePushed === true)
+  ok('B10 进入对账中心', O.financeToCheck.some(x => x.no === done.no))
+
+  /* ========== C 订单异常与边界 ========== */
+  sec('C 订单异常与边界')
+  /* 构造一张必定缺货的单，验证审核会被拦 */
+  O.create({ platform: '天猫', shop: 'x', receiver: '缺货测试', phone: '13800000000',
+             address: '杭州', note: '', goodsName: '雅诗兰黛小棕瓶', qty: 99999, amount: 100 })
+  const o2 = O.byStatus('review').find(x => x.goods[0].qty === 99999)
+  const c1 = O.approve(o2, '华东主仓')
+  ok('C1 库存不足时审核被拒', c1.ok === false, c1.msg)
+  ok('C1b 被拒后状态仍为待审核', O.orders.find(x => x.no === o2.no).status === 'review')
+  O.reject({ no: o2.no })
+  const o3 = O.byStatus('review')[0]
+  ok('C2 待审核单不能确认收货', O.confirmReceive(o3).ok === false)
+  ok('C3 重复确认收货被拒', O.confirmReceive(O.orders.find(x => x.no === done.no)).ok === false)
+  ok('C4 已完结单不能再审核', O.approve(O.orders.find(x => x.no === done.no), '华南仓').ok === false)
+  ok('C5 非法售后状态被拒', O.setAfterStatus(done.no, '瞎写').ok === false)
+  ok('C6 状态未被非法值污染', O.orders.find(x => x.no === done.no).afterStatus === '已完结')
+  const wCount = O.byStatus('review').length
+  const rw = O.withdraw(o3)
+  ok('C7 撤回订单回到待审核且数量不变', O.byStatus('review').length === wCount, `status=${O.orders.find(x => x.no === o3.no).status}`)
+  const rj = O.reject({ no: o3.no })
+  ok('C8 驳回后移出待审核', O.byStatus('review').length === wCount - 1)
+
+  /* ========== D 售后流转 ========== */
+  sec('D 售后流转')
+  const t0 = tickets.length
+  const tk = A.createFromOrder(done, '退货', '测试原因')
+  ok('D1 发起售后写入工单', tickets.length === t0 + 1, tk.ticket)
+  ok('D2 售后单关联订单号', tk.orderNo === done.no)
+  ok('D3 订单转售后中', O.orders.find(x => x.no === done.no).afterStatus === '售后中')
+  ok('D4 售后中撤出对账', !O.financeToCheck.some(x => x.no === done.no))
+  ok('D5 售后中撤出发货数据', !O.financeUnsettled.some(x => x.no === done.no))
+
+  /* 换货：审核通过 → 处理中 → 完成 → 回已完结 */
+  const tk2 = A.createFromOrder(done, '换货', '换货测试')
+  A.approve(tk2, { type: '换货', result: 'agree', amount: 0 })
+  ok('D6 换货审核后进入处理中', tickets.find(t => t.ticket === tk2.ticket).status === 'doing')
+  A.completeExchange(tickets.find(t => t.ticket === tk2.ticket))
+  ok('D7 换货完成 → 已完结', O.orders.find(x => x.no === done.no).afterStatus === '已完结')
+  ok('D8 换货完成后重新进对账', O.financeToCheck.some(x => x.no === done.no))
+
+  /* 仅退款：同意即打款，直达完成 */
+  const tk3 = A.createFromOrder(done, '仅退款', '退款测试')
+  A.approve(tk3, { type: '仅退款', result: 'agree', amount: 100 })
+  const t3 = tickets.find(t => t.ticket === tk3.ticket)
+  ok('D9 仅退款同意即完成', t3.status === 'done' && t3.result === '同意')
+  ok('D10 仅退款后订单=已退款', O.orders.find(x => x.no === done.no).afterStatus === '已退款')
+  ok('D11 已退款不进对账', !O.financeToCheck.some(x => x.no === done.no))
+
+  /* 拒绝：订单回到已完结 */
+  const tk4 = A.createFromOrder(done, '退货', '拒绝测试')
+  A.approve(tk4, { type: '退货', result: 'reject', amount: 0 })
+  ok('D12 拒绝后订单回已完结', O.orders.find(x => x.no === done.no).afterStatus === '已完结')
+  ok('D13 拒绝后金额清零', tickets.find(t => t.ticket === tk4.ticket).amount === 0)
+
+  /* ========== E 财务口径 ========== */
+  sec('E 财务口径')
+  ok('E1 对账中心仅含已完结', O.financeToCheck.every(x => x.afterStatus === '已完结'))
+  ok('E2 发货数据含运输中与已完结', O.financeUnsettled.every(x => x.status === 'shipped' || (x.status === 'done' && x.afterStatus === '已完结')))
+  ok('E3 金额勾稽：结算+到账=订单金额', O.financeToCheck.every(x => Math.abs((Number(x.settle) + Number(x.actual)) - Number(x.amount)) < 0.01))
+  ok('E4 已退款单不推送财务', O.orders.filter(x => x.afterStatus === '已退款').every(x => !x.financePushed))
+
+  /* ========== F 采购链路 ========== */
+  sec('F 采购链路')
+  const p0 = P.orders.length
+  P.add({ buyer: '测试员', supplier: '某林林公司', warehouse: '华东主仓', category: '家居日用',
+          date: '2026-11-25', logistics: '某邦物流', freight: 100,
+          items: [{ code: 'SE-2026-001', name: '洗面奶 100g', spec: '100g/支', unit: '支', price: 10, qty: 500 }] })
+  const po = P.orders[0]
+  ok('F1 新建采购单', P.orders.length === p0 + 1, po.no)
+  ok('F2 新单状态待审核', po.status === '待审核')
+  ok('F3 待审核不能入库', P.inbound(po.no).ok === false)
+  ok('F4 待审核不能确认应付', (() => { try { return P.orders[0].payableChecked !== true } catch { return true } })())
+  ok('F5 审批通过→进行中', P.approve(po.no).ok && P.orders.find(x => x.no === po.no).status === '进行中')
+  ok('F6 重复审批被拒', P.approve(po.no).ok === false)
+  const stockBefore = stockRows.find(r => r.code === 'SE-2026-001' && r.warehouse === '华东主仓').left
+  const ri = P.inbound(po.no)
+  ok('F7 确认入库成功', ri.ok === true, `+${ri.qty} 件`)
+  ok('F8 库存同步增加', stockRows.find(r => r.code === 'SE-2026-001' && r.warehouse === '华东主仓').left === stockBefore + 500)
+  ok('F9 采购单转已完成', P.orders.find(x => x.no === po.no).status === '已完成')
+  ok('F10 重复入库被拒', P.inbound(po.no).ok === false)
+  ok('F11 入库单号=采购单号', stockRows.find(r => r.code === 'SE-2026-001' && r.warehouse === '华东主仓').inNo === po.no)
+  ok('F12 应付台账同源', purchaseOrders.some(x => x.no === po.no))
+  ok('F13 驳回必须填原因', P.reject(P.orders[0].no, '') .ok === false)
+
+  /* ========== G 库存一致性 ========== */
+  sec('G 库存一致性')
+  const row = stockRows.find(r => r.code === 'SE-2026-001' && r.warehouse === '华东主仓')
+  const leftNow = row.left
+  ok('G1 超量扣减返回失败', S.deduct('SE-2026-001', '华东主仓', leftNow + 999) === false)
+  ok('G2 扣减失败不改数量', row.left === leftNow)
+  ok('G3 可用量不为负', S.availableOf('SE-2026-001', '华东主仓') >= 0)
+  const rowsBefore = stockRows.length
+  P.add({ buyer: 'x', supplier: 'x', warehouse: '华东主仓', category: '家居日用', date: '2026-11-25',
+          logistics: 'x', freight: 0, items: [{ code: 'SE-2026-001', name: '洗面奶 100g', spec: '—', unit: '支', price: 1, qty: 50 }] })
+  const p2 = P.orders[0]; P.approve(p2.no); P.inbound(p2.no)
+  ok('G4 同编码入库合并行', stockRows.length === rowsBefore, `${rowsBefore} → ${stockRows.length}`)
+  P.add({ buyer: 'x', supplier: 'x', warehouse: '华东主仓', category: '家居日用', date: '2026-11-25',
+          logistics: 'x', freight: 0, items: [{ code: 'NEW-SKU-001', name: '新品测试', spec: '—', unit: '件', price: 1, qty: 30 }] })
+  const p3 = P.orders[0]; P.approve(p3.no); P.inbound(p3.no)
+  ok('G5 新编码自动建行', stockRows.length === rowsBefore + 1)
+  const nr = stockRows.find(r => r.code === 'NEW-SKU-001')
+  ok('G6 新行带名称与数量', nr && nr.name === '新品测试' && nr.left === 30)
+  ok('G7 零库存判定缺货', (() => { const z = stockRows.find(r => r.left === 0); return !z || I.rows.find(x => x.code === z.code && x.warehouse === z.warehouse)?.status === '缺货' })())
+  ok('G8 库存页行数与数据层一致', I.rows.length === stockRows.length, `${I.rows.length}`)
+
+  /* ========== H 数据一致性 ========== */
+  sec('H 数据一致性')
+  ok('H1 订单号唯一', new Set(O.orders.map(x => x.no)).size === O.orders.length)
+  ok('H2 采购单号唯一', new Set(P.orders.map(x => x.no)).size === P.orders.length)
+  ok('H3 售后单号唯一', new Set(tickets.map(x => x.ticket)).size === tickets.length)
+  const orderNos = new Set(O.orders.map(x => x.no))
+  ok('H4 售后单均能对上订单', tickets.every(t => orderNos.has(t.orderNo)))
+  ok('H5 订单售后状态取值合法', O.orders.every(x => !x.afterStatus || ['已完结', '售后中', '已退款'].includes(x.afterStatus)))
+  ok('H6 采购明细均带编码', P.orders.every(o => o.items.every(i => !!i.code)))
+
+} catch (e) {
+  log.push('\nERROR | ' + (e && e.stack ? e.stack : e))
+}
+
+log.unshift(`总计 ${pass + fail} 项｜通过 ${pass}｜失败 ${fail}`)
+document.getElementById('out').textContent = log.join('\n')
+</script>
+</body></html>
