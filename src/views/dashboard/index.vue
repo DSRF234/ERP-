@@ -9,23 +9,23 @@
     <div class="fund">
       <div class="fund-main">
         <div class="lbl">现有资金</div>
-        <div class="num" :class="{ neg: funds.net < 0 }">￥{{ funds.text.net }}</div>
+        <div class="num" :class="{ neg: funds.net < 0 }">{{ funds.text.net }}</div>
         <div class="sub">对账中心实际到账 − 应付账款</div>
       </div>
       <div class="fund-item">
         <span>实际到账合计</span>
-        <b class="pos">￥{{ funds.text.receipt }}</b>
+        <b class="pos">{{ funds.text.receipt }}</b>
         <i>对账中心 {{ reconCount }} 张单据</i>
       </div>
       <div class="fund-item">
         <span>应付合计</span>
-        <b class="neg">￥{{ funds.text.payable }}</b>
+        <b class="neg">{{ funds.text.payable }}</b>
         <i>进行中 + 已完成的采购单</i>
       </div>
       <div class="fund-item">
         <span>待审核采购</span>
         <b>{{ funds.pendingCount }} 单</b>
-        <i>潜在应付 ￥{{ funds.text.pendingAmount }}</i>
+        <i>潜在应付 {{ funds.text.pendingAmount }}</i>
       </div>
     </div>
 
@@ -274,7 +274,7 @@ const share = computed(() => channels.value.filter(c => c.pct > 0))
 </script>
 
 <style scoped>
-.fund { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.fund { display: grid; grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
 .fund-main { background: #0E7A6B; border-radius: 8px; padding: 16px 18px; color: #fff; }
 .fund-main .lbl { font-size: 12px; opacity: .82; }
 .fund-main .num { font-size: 27px; font-weight: 600; letter-spacing: -.5px; margin: 8px 0 6px; font-variant-numeric: tabular-nums; }
@@ -286,7 +286,7 @@ const share = computed(() => channels.value.filter(c => c.pct > 0))
 .fund-item b.pos { color: #1E8E5A; }
 .fund-item b.neg { color: var(--danger); }
 .fund-item i { font-style: normal; font-size: 11.5px; color: var(--ink-3); }
-@media (max-width: 1280px) { .fund { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 960px) { .fund { grid-template-columns: 1fr 1fr; } }
 .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 12px; }
 .kpi { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
 .kpi .k { font-size: 12px; color: var(--ink-3); }

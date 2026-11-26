@@ -7,18 +7,18 @@
     <div class="stats">
       <div class="stat">
         <div class="k">应付合计</div>
-        <div class="v neg">￥{{ money(funds.payable) }}</div>
+        <div class="v neg">{{ money(funds.payable) }}</div>
         <div class="d">进行中 + 已完成的采购单（货款 + 运费）</div>
       </div>
       <div class="stat">
         <div class="k">现有资金</div>
-        <div class="v" :class="{ neg: funds.net < 0 }">￥{{ money(funds.net) }}</div>
-        <div class="d">对账中心实际到账 ￥{{ money(funds.receipt) }} − 应付合计</div>
+        <div class="v" :class="{ neg: funds.net < 0 }">{{ money(funds.net) }}</div>
+        <div class="d">对账中心实际到账 {{ money(funds.receipt) }} − 应付合计</div>
       </div>
       <div class="stat">
         <div class="k">待审核采购单</div>
         <div class="v">{{ funds.pendingCount }}<i>单</i></div>
-        <div class="d">潜在应付 ￥{{ money(funds.pendingAmount) }}</div>
+        <div class="d">潜在应付 {{ money(funds.pendingAmount) }}</div>
       </div>
     </div>
 
@@ -191,14 +191,14 @@ function confirmPayable() {
 </script>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
 .stat { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
 .stat .k { font-size: 12px; color: var(--ink-3); }
 .stat .v { font-size: 23px; font-weight: 600; margin: 7px 0 6px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .stat .v i { font-size: 13px; font-weight: 400; color: var(--ink-3); font-style: normal; margin-left: 2px; }
 .stat .v.neg { color: var(--danger); }
 .stat .d { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
-@media (max-width: 1280px) { .stats { grid-template-columns: 1fr; } }
+@media (max-width: 860px) { .stats { grid-template-columns: 1fr; } }
 .filters { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .count { margin-left: auto; font-size: 12px; color: var(--ink-3); }
 .sec-t { font-size: 12.5px; font-weight: 600; margin-bottom: 9px; padding-left: 8px; border-left: 3px solid var(--brand); }
