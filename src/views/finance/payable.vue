@@ -4,6 +4,24 @@
       <el-button v-can="'b-fin-payable-export'" size="small">导出</el-button>
     </PageHeader>
 
+    <div class="stats">
+      <div class="stat">
+        <div class="k">应付合计</div>
+        <div class="v neg">{{ money(funds.payable) }}</div>
+        <div class="d">进行中 + 已完成的采购单（货款 + 运费）</div>
+      </div>
+      <div class="stat">
+        <div class="k">现有资金</div>
+        <div class="v" :class="{ neg: funds.net < 0 }">{{ money(funds.net) }}</div>
+        <div class="d">对账中心实际到账 {{ money(funds.receipt) }} − 应付合计</div>
+      </div>
+      <div class="stat">
+        <div class="k">待审核采购单</div>
+        <div class="v">{{ funds.pendingCount }}<i>单</i></div>
+        <div class="d">潜在应付 {{ money(funds.pendingAmount) }}</div>
+      </div>
+    </div>
+
     <div class="filters">
       <el-input v-model="kw" size="small" placeholder="采购单编号 / 采购商品" style="width: 220px" clearable />
       <el-select v-model="f.status" size="small" style="width: 140px" placeholder="全部状态">
@@ -12,7 +30,7 @@
       </el-select>
       <el-button size="small" type="primary">查找</el-button>
       <el-button size="small" @click="reset">重置</el-button>
-      <span class="count">共 {{ view.length }} 条 · 应付合计 {{ money(sumTotal) }}</span>
+      <span class="count">当前筛选 {{ view.length }} 条 · 合计 {{ money(sumTotal) }}</span>
     </div>
 
     <div class="card">
@@ -112,6 +130,8 @@ import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { money } from '@/utils/format'
 import { purchaseOrders, totalOf, payableOf, qtyOf, checkPayable } from '@/data/purchase'
+import { fundSummary } from '@/data/finance'
+import { useOrderStore } from '@/stores/order'
 
 const STATUS = ['待审核', '进行中', '已完成', '已驳回']
 const TAG = { 待审核: 'info', 进行中: 'warning', 已完成: 'success', 已驳回: 'danger' }
@@ -120,6 +140,9 @@ const kw = ref('')
 const f = reactive({ status: '' })
 const drawer = ref(false)
 const cur = ref(null)
+
+const orderStore = useOrderStore()
+const funds = computed(() => fundSummary(orderStore.financeToCheck))
 
 const rows = computed(() => purchaseOrders.map(o => ({
   no: o.no,
@@ -168,6 +191,14 @@ function confirmPayable() {
 </script>
 
 <style scoped>
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.stat { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.stat .k { font-size: 12px; color: var(--ink-3); }
+.stat .v { font-size: 23px; font-weight: 600; margin: 7px 0 6px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.stat .v i { font-size: 13px; font-weight: 400; color: var(--ink-3); font-style: normal; margin-left: 2px; }
+.stat .v.neg { color: var(--danger); }
+.stat .d { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+@media (max-width: 860px) { .stats { grid-template-columns: 1fr; } }
 .filters { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .count { margin-left: auto; font-size: 12px; color: var(--ink-3); }
 .sec-t { font-size: 12.5px; font-weight: 600; margin-bottom: 9px; padding-left: 8px; border-left: 3px solid var(--brand); }

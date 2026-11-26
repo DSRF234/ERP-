@@ -6,6 +6,24 @@
       </el-radio-group>
     </PageHeader>
 
+    <div class="fund">
+      <div class="fund-main">
+        <div class="lbl">现有资金</div>
+        <div class="num" :class="{ neg: funds.net < 0 }">{{ funds.text.net }}</div>
+        <div class="sub">{{ periodMeta.name }}：实际到账 − 应付账款</div>
+      </div>
+      <div class="fund-item">
+        <span>实际到账合计</span>
+        <b class="pos">{{ funds.text.receipt }}</b>
+        <i>{{ periodMeta.name }}对账中心 {{ reconCount }} 张单据</i>
+      </div>
+      <div class="fund-item">
+        <span>应付合计</span>
+        <b class="neg">{{ funds.text.payable }}</b>
+        <i>{{ periodMeta.name }}进行中 + 已完成采购单</i>
+      </div>
+    </div>
+
     <div class="kpis">
       <div class="kpi" v-for="k in kpis" :key="k.label" :class="{ warn: k.warn }">
         <div class="k">{{ k.label }}</div>
@@ -81,6 +99,19 @@ import { ref, computed } from 'vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { useOrderStore } from '@/stores/order'
 import { tickets } from '@/data/aftersale'
+import { fundSummary, RECON_DEMO } from '@/data/finance'
+
+/* 现有资金：到账 − 应付 */
+const funds = computed(() => fundSummary(orderStore.financeToCheck, startOf(period.value)))
+const reconCount = computed(() => {
+  const from = startOf(period.value)
+  const inRange = t => {
+    const d = new Date(String(t || '').replace(' ', 'T'))
+    return !isNaN(d.getTime()) && d >= from
+  }
+  return orderStore.financeToCheck.filter(o => inRange(o.orderTime || o.payTime)).length +
+    RECON_DEMO.filter(r => inRange(r.time)).length
+})
 
 const PERIODS = [
   { key: 'day', name: '本日', granule: '按 4 小时' },
@@ -246,6 +277,19 @@ const share = computed(() => channels.value.filter(c => c.pct > 0))
 </script>
 
 <style scoped>
+.fund { display: grid; grid-template-columns: 1.4fr repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.fund-main { background: #0E7A6B; border-radius: 8px; padding: 16px 18px; color: #fff; }
+.fund-main .lbl { font-size: 12px; opacity: .82; }
+.fund-main .num { font-size: 27px; font-weight: 600; letter-spacing: -.5px; margin: 8px 0 6px; font-variant-numeric: tabular-nums; }
+.fund-main .num.neg { color: #FFD5D2; }
+.fund-main .sub { font-size: 11.5px; opacity: .78; }
+.fund-item { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.fund-item span { font-size: 12px; color: var(--ink-3); }
+.fund-item b { font-size: 20px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.fund-item b.pos { color: #1E8E5A; }
+.fund-item b.neg { color: var(--danger); }
+.fund-item i { font-style: normal; font-size: 11.5px; color: var(--ink-3); }
+@media (max-width: 960px) { .fund { grid-template-columns: 1fr 1fr; } }
 .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 12px; }
 .kpi { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
 .kpi .k { font-size: 12px; color: var(--ink-3); }
