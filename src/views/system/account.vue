@@ -84,27 +84,28 @@
 
     <!-- 新建 / 编辑 -->
     <el-dialog v-model="dlgVisible" :title="editing ? '编辑账号' : '新建账号'" width="520px">
-      <div class="field"><label>姓名</label>
+      <div class="req-note">带 <span class="req-mark">*</span> 的为必填项</div>
+      <div class="field"><label class="req">姓名</label>
         <el-input v-model="af.name" size="small" placeholder="仅支持汉字和「·」" style="width:240px" />
       </div>
-      <div class="field"><label>登录账号</label>
+      <div class="field"><label class="req">登录账号</label>
         <el-input v-model="af.account" size="small" placeholder="姓名的拼音，全局唯一" style="width:240px" />
       </div>
-      <div class="field"><label>手机号</label>
-        <el-input v-model="af.phone" size="small" placeholder="选填，11 位数字，用于找回密码" style="width:240px" />
+      <div class="field"><label class="req">手机号</label>
+        <el-input v-model="af.phone" size="small" placeholder="必填，1 开头的 11 位数字，用于找回密码" style="width:240px" />
       </div>
-      <div class="field"><label>所属职位</label>
+      <div class="field"><label class="req">所属职位</label>
         <el-select v-model="af.postId" size="small" style="width:240px" placeholder="仅可指派启用状态的职位">
           <el-option v-for="p in postOptions" :key="p.id" :value="p.id" :disabled="p.status === '停用'"
             :label="`${p.name} · ${p.dept}${p.status === '停用' ? '（已停用）' : ''}`" />
         </el-select>
       </div>
-      <div v-if="!editing" class="field"><label>初始密码</label>
+      <div v-if="!editing" class="field"><label class="req">初始密码</label>
         <el-input v-model="af.password" size="small" style="width:200px" readonly />
         <el-button link type="primary" size="small" @click="regenPwd">重新生成</el-button>
         <el-button link size="small" @click="copyPwd">复制</el-button>
       </div>
-      <div class="field"><label>状态</label>
+      <div class="field"><label class="req">状态</label>
         <el-tag size="small" type="success" effect="plain">{{ editing ? editing.status : '启用' }}</el-tag>
         <span v-if="!editing" class="hint">新建账号默认启用，需要停用时在列表中手动操作</span>
       </div>
@@ -193,8 +194,11 @@ function submitAcc() {
   if (!af.account.trim()) return ElMessage.error('请填写登录账号')
   if (!/^[a-z][a-z0-9]*$/i.test(af.account.trim())) return ElMessage.error('登录账号使用姓名拼音，只能包含字母和数字')
   if (accounts.some(a => a.account === af.account.trim() && a !== editing.value)) return ElMessage.error('登录账号已存在，请更换')
-  if (af.phone && !/^\d{11}$/.test(af.phone)) return ElMessage.error('手机号须为 11 位数字')
+  if (!af.phone.trim()) return ElMessage.error('请填写手机号')
+  if (!/^1\d{10}$/.test(af.phone.trim())) return ElMessage.error('手机号须为 1 开头的 11 位数字')
   if (!af.postId) return ElMessage.error('账号必须挂在职位上')
+  if (!af.password) return ElMessage.error('初始密码不能为空，请重新生成')
+  if (!af.status) return ElMessage.error('状态不能为空')
 
   /* 新建一律启用；编辑不改状态 */
   const status = editing.value ? editing.value.status : '启用'
@@ -202,7 +206,7 @@ function submitAcc() {
   if (editing.value) {
     const prevAccount = editing.value.account
     Object.assign(editing.value, {
-      name: af.name.trim(), account: af.account.trim(), phone: af.phone,
+      name: af.name.trim(), account: af.account.trim(), phone: af.phone.trim(),
       postId: af.postId, status, remark: af.remark
     })
     /* 同步登录身份：姓名 / 账号 / 职位变了，登录后的称呼与权限要跟着变 */
@@ -213,7 +217,7 @@ function submitAcc() {
     ElMessage.success('已保存，权限按新职位即时生效')
   } else {
     accounts.push({
-      id: 'acc-' + Date.now(), name: af.name.trim(), account: af.account.trim(), phone: af.phone,
+      id: 'acc-' + Date.now(), name: af.name.trim(), account: af.account.trim(), phone: af.phone.trim(),
       postId: af.postId, status, lastLogin: '', remark: af.remark
     })
     /* 同步登录身份：否则新账号在账号管理里看得到、却登录不了 */
@@ -296,6 +300,11 @@ function exportAccounts() {
 .op-wrap { display: inline-flex; }
 .field { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .field label { width: 74px; font-size: 12.5px; color: var(--ink-2); flex: none; }
+/* 必填红星用伪元素渲染：不写入 label 的文本节点，避免破坏 lib.mjs 里
+   dlgField / dlgPick 按 label.innerText 精确匹配字段的定位逻辑 */
+.field label.req::before { content: '*'; color: #F56C6C; margin-right: 3px; font-weight: 600; }
+.req-note { font-size: 11.5px; color: var(--ink-3); margin: 0 0 12px 0; }
+.req-note .req-mark { color: #F56C6C; font-weight: 600; }
 .hint { font-size: 11.5px; color: var(--ink-3); }
 .tipbox { margin-top: 6px; }
 .tip {

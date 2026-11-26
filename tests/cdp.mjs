@@ -24,7 +24,10 @@ export async function connect(port = 9223) {
     } catch (e) { /* 端口还没起来 */ }
     await sleep(250)
   }
-  const page = list.find(t => t.type === 'page' && t.webSocketDebuggerUrl)
+  const pages = list.filter(t => t.type === 'page' && t.webSocketDebuggerUrl)
+  /* 优先连被测站点：Edge 冷启动常带一个 edge://sync-confirmation-dialog 内部页，
+     若直接取第一个 page 会连到它，导致后续 goto/断言全部落空。 */
+  const page = pages.find(t => (t.url || '').includes('127.0.0.1:8905/index.html')) || pages[0]
   if (!page) throw new Error('未找到可调试的页面目标')
 
   const ws = new WebSocket(page.webSocketDebuggerUrl)

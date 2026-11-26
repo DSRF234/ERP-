@@ -27,21 +27,21 @@
         <span class="extra">当前 {{ warehouses.length }} 个仓、覆盖 {{ coveredCount }} 个地区</span>
       </div>
       <el-table :data="view" size="small">
-        <el-table-column prop="name" label="发货仓" min-width="170" />
-        <el-table-column prop="type" label="仓储类型" min-width="160">
+        <el-table-column prop="name" label="发货仓" width="104" />
+        <el-table-column prop="type" label="仓储类型" width="94">
           <template #default="{ row }">
             <el-tag size="small" :type="row.type === '自营仓' ? 'primary' : 'info'" effect="plain">{{ row.type }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="city" label="所在城市" min-width="160" />
-        <el-table-column label="负责地区" min-width="340">
+        <el-table-column prop="city" label="所在城市" width="88" />
+        <el-table-column label="负责地区" min-width="520">
           <template #default="{ row }">
             <div class="areas">
               <span v-for="a in row.areas" :key="a" class="area">{{ a }}</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="地区数" min-width="120" align="right">
+        <el-table-column label="地区数" width="72" align="right">
           <template #default="{ row }"><span class="mono">{{ row.areas.length }}</span></template>
         </el-table-column>
         <el-table-column label="操作" width="96" fixed="right">
@@ -205,10 +205,10 @@ function exportCsv() {
 .cov { font-size: 11.5px; color: var(--ink-3); }
 .tt { max-width: 300px; line-height: 1.7; }
 
-.areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 5px 6px; padding: 2px 0; }
+.areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px 7px; padding: 2px 0; }
 .area {
   text-align: center;
-  font-size: 11.5px; line-height: 18px; padding: 0 7px; border-radius: 3px;
+  font-size: 13px; line-height: 22px; padding: 0 8px; border-radius: 3px;
   background: var(--fill); color: var(--ink-2);
 }
 
