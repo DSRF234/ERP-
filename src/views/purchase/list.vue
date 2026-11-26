@@ -89,8 +89,14 @@
               @click="openAudit(row.order)">审批</el-button>
             <el-button v-can="'b-purchase-inbound'" v-if="row.order.status === '进行中'" link type="success" size="small"
               @click="warehousing(row.order)">确认入库</el-button>
-            <el-button v-can="'b-purchase-delete'" link type="danger" size="small"
-              @click="remove(row.order)">删除</el-button>
+            <el-tooltip :content="deleteTip(row.order)" :disabled="canDelete(row.order)" placement="top">
+              <span class="op-wrap">
+                <el-button v-can="'b-purchase-delete'" link size="small"
+                  :type="canDelete(row.order) ? 'danger' : 'info'"
+                  :disabled="!canDelete(row.order)"
+                  @click="remove(row.order)">删除</el-button>
+              </span>
+            </el-tooltip>
             </span>
           </template>
         </el-table-column>
@@ -254,8 +260,12 @@ watch(() => route.query.kw, v => { kw.value = String(v || '') })
 
 const num = v => Number(v || 0).toLocaleString('zh-CN')
 
-/* ---------------- 删除 ---------------- */
+/* ---------------- 删除：仅「待审核」可删，其余状态置灰 ---------------- */
+const canDelete = o => o.status === '待审核'
+const deleteTip = o => canDelete(o) ? '' : `「${o.status}」的采购单不可删除，仅「待审核」状态可删除`
+
 async function remove(row) {
+  if (!canDelete(row)) return ElMessage.warning(deleteTip(row))
   try {
     await ElMessageBox.confirm(`是否删除采购单【${row.no}】？删除后不可恢复。`, '删除采购单', {
       confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'
@@ -316,6 +326,7 @@ function warehousing(row) {
 .order-table :deep(.el-table__cell) { font-size: 11.5px; }
 .order-table :deep(.cell) { padding: 0 6px; }
 .order-table .ops { display: flex; gap: 2px; align-items: center; white-space: nowrap; }
+.order-table .op-wrap { display: inline-flex; }
 .two-line { display: flex; flex-direction: column; line-height: 1.35; }
 .two-line em { font-style: normal; font-size: 10.5px; color: var(--ink-3); }
 
