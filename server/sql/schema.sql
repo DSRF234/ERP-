@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS aftersales (
   customer_phone  VARCHAR(24) DEFAULT '',
   customer_addr   VARCHAR(255) DEFAULT '',
   message         VARCHAR(500) DEFAULT '',
+  proofs          LONGTEXT     DEFAULT NULL COMMENT '客户凭证文件名，JSON 数组',
+  new_addr        VARCHAR(255) DEFAULT '' COMMENT '改地址后的新地址',
   status          VARCHAR(8) DEFAULT 'wait' COMMENT 'wait/doing/done',
   queue           VARCHAR(16) DEFAULT '',
   result          VARCHAR(16) DEFAULT '',

@@ -56,7 +56,10 @@ export async function loadBootstrap() {
       goods: t.goods_text, sku: t.sku, qty: t.qty,
       orderTime: t.order_time, orderAmount: t.order_amount, amount: t.amount,
       customer: { name: t.customer_name, phone: t.customer_phone, addr: t.customer_addr },
-      message: t.message, status: t.status, queue: t.queue, result: t.result, duty: t.duty,
+      message: t.message,
+      proofs: (() => { try { return t.proofs ? JSON.parse(t.proofs) : [] } catch (e) { return [] } })(),
+      newAddr: t.new_addr || '',
+      status: t.status, queue: t.queue, result: t.result, duty: t.duty,
       auditRemark: t.audit_remark, auditor: t.auditor, auditTime: t.audit_time,
       who: t.who, finishedAt: t.finished_at, workOrder: t.work_order,
       refundWay: t.refund_way, addressSync: t.address_sync
@@ -138,13 +141,14 @@ export async function saveBootstrap(payload) {
       await conn.query(
         `INSERT INTO aftersales (ticket, order_no, channel, apply_type, type, reason, apply_time, sla,
           logistics, express_no, goods_text, sku, qty, order_time, order_amount, amount,
-          customer_name, customer_phone, customer_addr, message, status, queue, result, duty,
+          customer_name, customer_phone, customer_addr, message, proofs, new_addr, status, queue, result, duty,
           audit_remark, auditor, audit_time, who, finished_at, work_order, refund_way, address_sync)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [s(t.ticket), s(t.orderNo), s(t.channel), s(t.applyType), s(t.type), s(t.reason),
          s(t.applyTime), s(t.sla), s(t.logistics), s(t.expressNo), s(t.goods), s(t.sku), n(t.qty) || 1,
          s(t.orderTime), n(t.orderAmount), n(t.amount),
          s(t.customer?.name), s(t.customer?.phone), s(t.customer?.addr), s(t.message),
+         JSON.stringify(Array.isArray(t.proofs) ? t.proofs : []), s(t.newAddr),
          s(t.status) || 'wait', s(t.queue), s(t.result), s(t.duty), s(t.auditRemark),
          s(t.auditor), s(t.auditTime), s(t.who), s(t.finishedAt), s(t.workOrder),
          s(t.refundWay), s(t.addressSync)]

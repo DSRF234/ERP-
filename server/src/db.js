@@ -44,7 +44,9 @@ export async function initSchema() {
 async function ensureColumns(conn) {
   const want = [
     { table: 'order_goods', column: 'price', ddl: "ALTER TABLE order_goods ADD COLUMN price DECIMAL(12,2) DEFAULT 0 COMMENT '成交单价' AFTER sku" },
-    { table: 'stock_items', column: 'cost_price', ddl: "ALTER TABLE stock_items ADD COLUMN cost_price DECIMAL(12,2) DEFAULT 0 COMMENT '成本单价' AFTER left_qty" }
+    { table: 'stock_items', column: 'cost_price', ddl: "ALTER TABLE stock_items ADD COLUMN cost_price DECIMAL(12,2) DEFAULT 0 COMMENT '成本单价' AFTER left_qty" },
+    { table: 'aftersales', column: 'proofs', ddl: "ALTER TABLE aftersales ADD COLUMN proofs LONGTEXT DEFAULT NULL COMMENT '客户凭证 JSON' AFTER message" },
+    { table: 'aftersales', column: 'new_addr', ddl: "ALTER TABLE aftersales ADD COLUMN new_addr VARCHAR(255) DEFAULT '' COMMENT '改地址后新地址' AFTER proofs" }
   ]
   for (const w of want) {
     const [rows] = await conn.query(
