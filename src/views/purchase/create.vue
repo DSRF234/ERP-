@@ -99,36 +99,42 @@
     <div class="card">
       <div class="card-head">
         <h3>采购货品明细</h3>
-        <span class="extra">共 {{ form.items.length }} 个货品</span>
+        <span class="extra">共 {{ form.items.length }} 个货品 · 进货单价默认取供应商报价，可改</span>
       </div>
-      <el-table :data="form.items" size="small">
-        <el-table-column type="index" label="序号" width="56" />
-        <el-table-column type="selection" width="42" />
-        <el-table-column prop="name" label="采购货品" min-width="170" />
-        <el-table-column prop="spec" label="规格" width="110" />
-        <el-table-column label="单位" width="96">
+      <el-table :data="form.items" size="small" class="goods-table">
+        <el-table-column type="index" label="序号" width="48" />
+        <el-table-column type="selection" width="36" />
+        <el-table-column label="图片" width="52" align="center">
+          <template #default><span class="thumb">图</span></template>
+        </el-table-column>
+        <el-table-column prop="code" label="货码编号" width="108">
+          <template #default="{ row }"><span class="mono">{{ row.code || '—' }}</span></template>
+        </el-table-column>
+        <el-table-column prop="name" label="货品名称" min-width="128" show-overflow-tooltip />
+        <el-table-column prop="spec" label="规格" width="88" show-overflow-tooltip />
+        <el-table-column label="单位" width="82">
           <template #default="{ row }">
             <el-select v-model="row.unit" size="small">
               <el-option v-for="u in units" :key="u" :label="u" :value="u" />
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column label="单价（元）" width="118" align="right">
+        <el-table-column label="进货单价（元）" width="110" align="right">
           <template #default="{ row }">
-            <el-input v-model.number="row.price" size="small" style="width: 92px" />
+            <el-input v-model.number="row.price" size="small" style="width: 84px" />
           </template>
         </el-table-column>
-        <el-table-column label="采购数量" width="118" align="right">
+        <el-table-column label="采购数量" width="98" align="right">
           <template #default="{ row }">
-            <el-input v-model.number="row.qty" size="small" style="width: 92px" />
+            <el-input v-model.number="row.qty" size="small" style="width: 76px" />
           </template>
         </el-table-column>
-        <el-table-column label="总采购金额（元）" width="140" align="right">
+        <el-table-column label="总采购金额（元）" width="120" align="right">
           <template #default="{ row }">
             <span class="mono strong">{{ money(row.price * row.qty) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="88" fixed="right">
+        <el-table-column label="操作" width="68" fixed="right">
           <template #default="{ row, $index }">
             <el-button v-can="'b-purchase-create-del'" link type="danger" size="small" @click="removeItem(row, $index)">删除</el-button>
           </template>
@@ -140,7 +146,7 @@
           总采购金额（元）　<b>{{ money(total) }}</b>
         </span>
       </div>
-      <div class="limit-tip">单价上限 10,000 元／采购数量需为正整数（≤ 1,000,000），提交时逐行校验</div>
+      <div class="limit-tip">进货单价上限 10,000 元／采购数量需为正整数（≤ 1,000,000），提交时逐行校验</div>
     </div>
 
     <GoodsPicker v-model="picker" :supplier="form.supplier" @confirm="onPick" />
@@ -269,8 +275,8 @@ function validate() {
   for (let i = 0; i < form.items.length; i++) {
     const r = form.items[i]
     const price = Number(r.price)
-    if (!Number.isFinite(price) || price <= 0) return `第 ${i + 1} 行【${r.name}】单价需大于 0`
-    if (price > 10000) return `第 ${i + 1} 行【${r.name}】单价 ${price} 元超过上限 10000 元`
+    if (!Number.isFinite(price) || price <= 0) return `第 ${i + 1} 行【${r.name}】进货单价需大于 0`
+    if (price > 10000) return `第 ${i + 1} 行【${r.name}】进货单价 ${price} 元超过上限 10000 元`
     const qty = Number(r.qty)
     if (!Number.isInteger(qty) || qty <= 0) return `第 ${i + 1} 行【${r.name}】采购数量需为正整数，当前为「${r.qty}」`
     if (qty > 1000000) return `第 ${i + 1} 行【${r.name}】采购数量 ${qty} 超过上限 1,000,000`
@@ -324,4 +330,13 @@ async function cancel() {
 .strong { font-weight: 600; }
 :deep(.el-form-item) { margin-bottom: 16px; }
 .limit-tip { padding: 8px 16px 12px; font-size: 11.5px; color: var(--ink-3); }
+
+/* 明细表：字段与「供应商货品」对齐（图片 / 货码编号 / 货品名称 / 规格 / 进货单价） */
+.goods-table :deep(.el-table__cell) { padding: 6px 0; }
+.goods-table :deep(.cell) { padding: 0 8px; }
+.thumb {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 4px;
+  background: var(--fill); color: var(--ink-3); font-size: 11px;
+}
 </style>
