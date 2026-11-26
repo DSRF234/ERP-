@@ -109,8 +109,8 @@
     </el-dialog>
 
     <!-- 添加货品到供应商 -->
-    <el-dialog v-model="goods.visible" :title="`添加货品 · ${active?.name || ''}`" width="520px" align-center>
-      <p class="dlg-hint">同一供应商下货码编号不可重复；进货单价 0~10000 元。</p>
+    <el-dialog v-model="goods.visible" :title="`添加货品 · ${active?.name || ''}`" width="560px" align-center>
+      <p class="dlg-hint">同一供应商下货码编号不可重复；规格与单位均为必填；进货单价 0~10000 元。</p>
       <el-form :model="goods.form" :rules="goodsRules" ref="goodsRef" label-width="92px" size="small">
         <el-form-item label="采购货品类型" prop="type">
           <el-select v-model="goods.form.type" style="width: 100%">
@@ -125,9 +125,20 @@
         <el-form-item label="货品编码" prop="code">
           <el-input v-model="goods.form.code" placeholder="字母大写-年-001，如 SO-2026-001" />
         </el-form-item>
-        <el-form-item label="规格" prop="spec">
-          <el-input v-model="goods.form.spec" placeholder="如 100g/支" />
-        </el-form-item>
+        <el-row :gutter="8">
+          <el-col :span="16">
+            <el-form-item label="规格" prop="spec">
+              <el-input v-model="goods.form.spec" placeholder="如 100g" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="单位" prop="unit" label-width="48px">
+              <el-select v-model="goods.form.unit" placeholder="请选择" style="width: 100%">
+                <el-option v-for="u in UNITS" :key="u" :label="u" :value="u" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="进货单价" prop="price">
           <el-input v-model.number="goods.form.price" placeholder="0.00，最高 10000" />
         </el-form-item>
@@ -153,6 +164,8 @@ const purchase = usePurchaseStore()
 
 const TYPES = ['家居日用', '美妆个护']
 const CO_STATES = ['合作中', '已停用']
+/** 货品单位：与规格联合使用，规格列展示为「100g/支」 */
+const UNITS = ['个', '支', '件', '盒', '瓶', '包', '套']
 
 const kwInput = ref('')
 const kw = ref('')
@@ -252,9 +265,11 @@ async function submitAdd() {
 
 /* ------- 添加货品 ------- */
 const goodsRef = ref()
-const goods = reactive({ visible: false, form: { type: '美妆个护', name: '', code: '', spec: '', price: null } })
+const goods = reactive({ visible: false, form: { type: '美妆个护', name: '', code: '', spec: '', unit: '', price: null } })
 const goodsRules = {
   name: [{ required: true, message: '请输入货品名称', trigger: 'blur' }],
+  unit: [{ required: true, message: '请选择单位', trigger: 'change' }],
+  spec: [{ required: true, message: '请输入规格', trigger: 'blur' }],
   code: [
     { required: true, message: '请输入货品编码', trigger: 'blur' },
     {
@@ -281,7 +296,7 @@ const goodsRules = {
 
 function openGoods() {
   if (!active.value) return ElMessage.warning('请先选择供应商')
-  goods.form = { type: '美妆个护', name: '', code: '', spec: '', price: null }
+  goods.form = { type: '美妆个护', name: '', code: '', spec: '', unit: '', price: null }
   goods.visible = true
 }
 async function submitGoods() {

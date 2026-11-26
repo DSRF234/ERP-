@@ -99,7 +99,7 @@
     <div class="card">
       <div class="card-head">
         <h3>采购货品明细</h3>
-        <span class="extra">共 {{ form.items.length }} 个货品 · 进货单价默认取供应商报价，可改</span>
+        <span class="extra">共 {{ form.items.length }} 个货品 · 规格 / 单位取自供应商档案，进货单价可改</span>
       </div>
       <el-table :data="form.items" size="small" class="goods-table">
         <el-table-column type="index" label="序号" width="48" />
@@ -111,22 +111,18 @@
           <template #default="{ row }"><span class="mono">{{ row.code || '—' }}</span></template>
         </el-table-column>
         <el-table-column prop="name" label="货品名称" min-width="128" show-overflow-tooltip />
-        <el-table-column prop="spec" label="规格" width="88" show-overflow-tooltip />
-        <el-table-column label="单位" width="82">
-          <template #default="{ row }">
-            <el-select v-model="row.unit" size="small">
-              <el-option v-for="u in units" :key="u" :label="u" :value="u" />
-            </el-select>
-          </template>
-        </el-table-column>
+        <el-table-column prop="spec" label="规格" width="104" show-overflow-tooltip />
         <el-table-column label="进货单价（元）" width="110" align="right">
           <template #default="{ row }">
             <el-input v-model.number="row.price" size="small" style="width: 84px" />
           </template>
         </el-table-column>
-        <el-table-column label="采购数量" width="98" align="right">
+        <el-table-column label="采购数量" width="112" align="right">
           <template #default="{ row }">
-            <el-input v-model.number="row.qty" size="small" style="width: 76px" />
+            <div class="qty-cell">
+              <el-input v-model.number="row.qty" size="small" style="width: 76px" />
+              <span v-if="row.unit" class="qty-unit">{{ row.unit }}</span>
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="总采购金额（元）" width="120" align="right">
@@ -173,7 +169,6 @@ const user = useUserStore()
 const DRAFT_KEY = 'xy_erp_purchase_draft'
 const buyers = ['张某某', '李某', '王某']
 const warehouses = ['华东主仓', '华南仓', '平台仓1', '平台仓2']
-const units = ['个', '支', '件', '盒', '瓶']
 
 const supplierNames = computed(() => supplierStore.activeNames)
 
@@ -251,7 +246,9 @@ function onPick({ supplier, goods }) {
   goods.forEach(g => {
     if (form.items.some(i => i.name === g.name)) return
     form.items.push({
-      code: g.code, name: g.name, spec: g.spec, unit: '支',
+      code: g.code, name: g.name, spec: g.spec,
+      // 单位不在这里选：取供应商货品档案里的单位（老数据没存单位时从规格「100g/支」反解）
+      unit: supplierStore.unitOf(g),
       price: g.price, qty: 1, category: g.type || form.category
     })
     added++
@@ -339,4 +336,7 @@ async function cancel() {
   width: 32px; height: 32px; border-radius: 4px;
   background: var(--fill); color: var(--ink-3); font-size: 11px;
 }
+/* 采购数量：单位跟着规格走，只读显示 */
+.qty-cell { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.qty-unit { font-size: 12px; color: var(--ink-2); min-width: 14px; text-align: left; }
 </style>

@@ -12,30 +12,30 @@ const seed = () => [
     name: '某林林公司', owner: '某林公', phone: '12345678901',
     address: '河北省石家庄市正定县新龙科技2211号', status: '合作中', remark: '',
     goods: [
-      { code: 'SO-2026-001', name: '洗面奶', type: '家居日用', spec: '100g/支', price: 9.99, minPrice: 12.02 },
-      { code: 'SO-2026-002', name: '睫毛膏', type: '美妆个护', spec: '8g/支', price: 8.20, minPrice: 9.80 },
-      { code: 'SO-2026-003', name: '牙膏', type: '家居日用', spec: '30g/个', price: 12.00, minPrice: 19.50 }
+      { code: 'SO-2026-001', name: '洗面奶', type: '家居日用', spec: '100g/支', unit: '支', price: 9.99, minPrice: 12.02 },
+      { code: 'SO-2026-002', name: '睫毛膏', type: '美妆个护', spec: '8g/支', unit: '支', price: 8.20, minPrice: 9.80 },
+      { code: 'SO-2026-003', name: '牙膏', type: '家居日用', spec: '30g/个', unit: '个', price: 12.00, minPrice: 19.50 }
     ]
   },
   {
     name: '美妆公司', owner: '张经理', phone: '12333445678',
     address: '河北省石家庄市正定县新龙科技222号', status: '合作中', remark: '',
     goods: [
-      { code: 'SO-2026-011', name: '眼睫毛', type: '美妆个护', spec: '5ml/支', price: 6.60, minPrice: 8.40 },
-      { code: 'SO-2026-012', name: '抽纸', type: '家居日用', spec: '3层/包', price: 3.50, minPrice: 4.20 }
+      { code: 'SO-2026-011', name: '眼睫毛', type: '美妆个护', spec: '5ml/支', unit: '支', price: 6.60, minPrice: 8.40 },
+      { code: 'SO-2026-012', name: '抽纸', type: '家居日用', spec: '3层/包', unit: '包', price: 3.50, minPrice: 4.20 }
     ]
   },
   {
     name: '和正日化', owner: '王主管', phone: '13800138001',
     address: '广州市白云区机场路 12 号', status: '已停用', remark: '',
-    goods: [{ code: 'SO-2026-021', name: '护手霜', type: '美妆个护', spec: '50g/支', price: 7.80, minPrice: 9.90 }]
+    goods: [{ code: 'SO-2026-021', name: '护手霜', type: '美妆个护', spec: '50g/支', unit: '支', price: 7.80, minPrice: 9.90 }]
   },
   {
     name: '雅美化妆品', owner: '陈志强', phone: '13900139002',
     address: '深圳市宝安区福永街道 66 号', status: '已停用', remark: '',
     goods: [
-      { code: 'SO-2026-031', name: '精华液', type: '美妆个护', spec: '30ml/瓶', price: 68.00, minPrice: 79.00 },
-      { code: 'SO-2026-032', name: '小棕瓶', type: '美妆个护', spec: '50ml/瓶', price: 380.00, minPrice: 420.00 }
+      { code: 'SO-2026-031', name: '精华液', type: '美妆个护', spec: '30ml/瓶', unit: '瓶', price: 68.00, minPrice: 79.00 },
+      { code: 'SO-2026-032', name: '小棕瓶', type: '美妆个护', spec: '50ml/瓶', unit: '瓶', price: 380.00, minPrice: 420.00 }
     ]
   }
 ]
@@ -88,15 +88,32 @@ export const useSupplierStore = defineStore('supplier', () => {
     return s.goods.some(g => String(g.code).trim().toUpperCase() === String(code).trim().toUpperCase())
   }
 
+  /**
+   * 规格与单位是联合的：录入时拆成「规格 + 单位」两个控件，
+   * 存储时规格落成「100g/支」这一个整体，单位另存一份供采购数量取用。
+   * 已带单位的规格（如手输 100g/支 且单位为支）不会重复拼接。
+   */
+  const unitOf = g => {
+    const u = String(g?.unit || '').trim()
+    if (u) return u
+    const s = String(g?.spec || '')
+    const i = s.lastIndexOf('/')
+    return i > -1 ? s.slice(i + 1).trim() : ''
+  }
+
   function addGoods(name, g) {
     const s = find(name)
     if (!s) return false
+    const spec = String(g.spec || '').trim()
+    const unit = String(g.unit || '').trim()
+    if (!spec || !unit) return false
     const price = Number(g.price)
     s.goods.push({
       code: String(g.code).trim().toUpperCase(),
       name: String(g.name).trim(),
       type: g.type,
-      spec: g.spec || '—',
+      spec: spec.endsWith(`/${unit}`) ? spec : `${spec}/${unit}`,
+      unit,
       price,
       // 最低成交价：历史成交记录，没有记录时为空，不再直接等于进货价
       minPrice: g.minPrice === undefined || g.minPrice === '' ? null : Number(g.minPrice)
@@ -122,7 +139,7 @@ export const useSupplierStore = defineStore('supplier', () => {
 
   return {
     suppliers, activeSuppliers, activeNames,
-    find, goodsOf, nameExists, phoneExists, codeExists,
+    find, goodsOf, nameExists, phoneExists, codeExists, unitOf,
     add, toggleStatus, addGoods, removeGoods, remove, reload
   }
 })
