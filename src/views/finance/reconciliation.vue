@@ -67,6 +67,7 @@ import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { money } from '@/utils/format'
+import { RECON_DEMO } from '@/data/finance'
 import { useOrderStore } from '@/stores/order'
 
 const store = useOrderStore()
@@ -90,14 +91,7 @@ const rows = computed(() => {
     checked: !!checkedMap.value[o.no]
   }))
 
-  const demo = [
-    { no: 'DZ20261106003', shop: '小程序 · 商城', goods: '星野香薰礼盒', time: '2026-11-06 08:05',
-      type: '销售出库', qty: 1, amount: 168, settle: 0, actual: 168, checked: true },
-    { no: 'DZ20261105011', shop: '抖音 · 官方旗舰店', goods: '星野收纳箱 大号', time: '2026-11-05 18:12',
-      type: '退货入库', qty: 1, amount: -528, settle: 0, actual: -528, checked: true }
-  ]
-
-  return [...fromOrders, ...demo]
+  return [...fromOrders, ...RECON_DEMO]
 })
 
 const view = computed(() => rows.value.filter(r => {
