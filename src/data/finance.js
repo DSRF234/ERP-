@@ -30,10 +30,21 @@ export const PAYABLE_STATUS = ['进行中', '已完成']
 /** 采购单应付金额 = 货款 + 运费 */
 export const payableOf = o => totalOf(o) + Number(o.freight || 0)
 
-/** 应付合计（仅已审批：进行中 + 已完成） */
-export const payableTotal = () =>
+/** 采购单发生日期（用于按时间段筛选） */
+const dateOf = str => {
+  const t = new Date(String(str || '').replace(' ', 'T'))
+  return isNaN(t.getTime()) ? null : t
+}
+
+/** 应付合计（仅已审批：进行中 + 已完成）；传 from 则只算该时间点之后的单据 */
+export const payableTotal = (from = null) =>
   purchaseOrders
     .filter(o => PAYABLE_STATUS.includes(o.status))
+    .filter(o => {
+      if (!from) return true
+      const t = dateOf(o.date)
+      return t && t >= from
+    })
     .reduce((s, o) => s + payableOf(o), 0)
 
 /** 待审核采购单（含潜在应付金额） */
@@ -42,15 +53,26 @@ export const pendingPurchase = () => {
   return { count: list.length, amount: list.reduce((s, o) => s + payableOf(o), 0) }
 }
 
-/** 到账合计：对账中心实际到账之和 */
-export const receiptTotal = financeToCheck =>
-  (financeToCheck || []).reduce((s, o) => s + Number(o.actual || 0), 0) +
-  RECON_DEMO.reduce((s, r) => s + Number(r.actual || 0), 0)
+/** 到账合计：对账中心实际到账之和；传 from 则只算该时间点之后的单据 */
+export const receiptTotal = (financeToCheck, from = null) => {
+  const inRange = t => {
+    if (!from) return true
+    const d = dateOf(t)
+    return d && d >= from
+  }
+  const fromOrders = (financeToCheck || [])
+    .filter(o => inRange(o.orderTime || o.payTime))
+    .reduce((s, o) => s + Number(o.actual || 0), 0)
+  const fromDemo = RECON_DEMO
+    .filter(r => inRange(r.time))
+    .reduce((s, r) => s + Number(r.actual || 0), 0)
+  return fromOrders + fromDemo
+}
 
-/** 现有资金汇总 */
-export const fundSummary = financeToCheck => {
-  const receipt = receiptTotal(financeToCheck)
-  const payable = payableTotal()
+/** 现有资金汇总；from 为空表示全量口径 */
+export const fundSummary = (financeToCheck, from = null) => {
+  const receipt = receiptTotal(financeToCheck, from)
+  const payable = payableTotal(from)
   const pending = pendingPurchase()
   return {
     receipt,

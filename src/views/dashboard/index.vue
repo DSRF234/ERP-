@@ -10,22 +10,17 @@
       <div class="fund-main">
         <div class="lbl">现有资金</div>
         <div class="num" :class="{ neg: funds.net < 0 }">{{ funds.text.net }}</div>
-        <div class="sub">对账中心实际到账 − 应付账款</div>
+        <div class="sub">{{ periodMeta.name }}：实际到账 − 应付账款</div>
       </div>
       <div class="fund-item">
         <span>实际到账合计</span>
         <b class="pos">{{ funds.text.receipt }}</b>
-        <i>对账中心 {{ reconCount }} 张单据</i>
+        <i>{{ periodMeta.name }}对账中心 {{ reconCount }} 张单据</i>
       </div>
       <div class="fund-item">
         <span>应付合计</span>
         <b class="neg">{{ funds.text.payable }}</b>
-        <i>进行中 + 已完成的采购单</i>
-      </div>
-      <div class="fund-item">
-        <span>待审核采购</span>
-        <b>{{ funds.pendingCount }} 单</b>
-        <i>潜在应付 {{ funds.text.pendingAmount }}</i>
+        <i>{{ periodMeta.name }}进行中 + 已完成采购单</i>
       </div>
     </div>
 
@@ -107,8 +102,16 @@ import { tickets } from '@/data/aftersale'
 import { fundSummary, RECON_DEMO } from '@/data/finance'
 
 /* 现有资金：到账 − 应付 */
-const funds = computed(() => fundSummary(orderStore.financeToCheck))
-const reconCount = computed(() => orderStore.financeToCheck.length + RECON_DEMO.length)
+const funds = computed(() => fundSummary(orderStore.financeToCheck, startOf(period.value)))
+const reconCount = computed(() => {
+  const from = startOf(period.value)
+  const inRange = t => {
+    const d = new Date(String(t || '').replace(' ', 'T'))
+    return !isNaN(d.getTime()) && d >= from
+  }
+  return orderStore.financeToCheck.filter(o => inRange(o.orderTime || o.payTime)).length +
+    RECON_DEMO.filter(r => inRange(r.time)).length
+})
 
 const PERIODS = [
   { key: 'day', name: '本日', granule: '按 4 小时' },
@@ -274,7 +277,7 @@ const share = computed(() => channels.value.filter(c => c.pct > 0))
 </script>
 
 <style scoped>
-.fund { display: grid; grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.fund { display: grid; grid-template-columns: 1.4fr repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
 .fund-main { background: #0E7A6B; border-radius: 8px; padding: 16px 18px; color: #fff; }
 .fund-main .lbl { font-size: 12px; opacity: .82; }
 .fund-main .num { font-size: 27px; font-weight: 600; letter-spacing: -.5px; margin: 8px 0 6px; font-variant-numeric: tabular-nums; }
