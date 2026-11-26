@@ -105,7 +105,10 @@
         <el-table-column type="index" label="序号" width="48" />
         <el-table-column type="selection" width="36" />
         <el-table-column label="图片" width="52" align="center">
-          <template #default><span class="thumb">图</span></template>
+          <template #default="{ row }">
+            <img v-if="row.image" class="thumb-img" :src="row.image" alt="" />
+            <span v-else class="thumb">图</span>
+          </template>
         </el-table-column>
         <el-table-column prop="code" label="货码编号" width="108">
           <template #default="{ row }"><span class="mono">{{ row.code || '—' }}</span></template>
@@ -249,6 +252,7 @@ function onPick({ supplier, goods }) {
       code: g.code, name: g.name, spec: g.spec,
       // 单位不在这里选：取供应商货品档案里的单位（老数据没存单位时从规格「100g/支」反解）
       unit: supplierStore.unitOf(g),
+      image: g.image || '',
       price: g.price, qty: 1, category: g.type || form.category
     })
     added++
@@ -302,7 +306,11 @@ async function submit() {
       freight: Number(form.freight || 0),
       expressNo: form.expressNo,
       date: `${form.date} ${new Date().toTimeString().slice(0, 5)}`,
-      items: form.items.map(i => ({ ...i, price: Number(i.price), qty: Number(i.qty) }))
+      // 图片只在明细里展示，不随单据落库（base64 每单重复存会撑爆 localStorage）
+      items: form.items.map(i => ({
+        code: i.code, name: i.name, spec: i.spec, unit: i.unit,
+        price: Number(i.price), qty: Number(i.qty), category: i.category
+      }))
     })
     submitted = true
     clearDraft()
@@ -335,6 +343,10 @@ async function cancel() {
   display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; border-radius: 4px;
   background: var(--fill); color: var(--ink-3); font-size: 11px;
+}
+.thumb-img {
+  width: 32px; height: 32px; border-radius: 4px; object-fit: cover;
+  border: 1px solid var(--line-2); background: #fff; display: block; margin: 0 auto;
 }
 /* 采购数量：单位跟着规格走，只读显示 */
 .qty-cell { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }

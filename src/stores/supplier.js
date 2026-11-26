@@ -115,6 +115,8 @@ export const useSupplierStore = defineStore('supplier', () => {
       spec: spec.endsWith(`/${unit}`) ? spec : `${spec}/${unit}`,
       unit,
       price,
+      // 货品图片：压缩后的 dataURL，随货品一起持久化；没有图片时不写该字段
+      image: g.image || '',
       // 最低成交价：历史成交记录，没有记录时为空，不再直接等于进货价
       minPrice: g.minPrice === undefined || g.minPrice === '' ? null : Number(g.minPrice)
     })

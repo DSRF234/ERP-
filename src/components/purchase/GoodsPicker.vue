@@ -1,5 +1,5 @@
 <template>
-  <el-dialog :model-value="modelValue" title="添加货品" width="860px" align-center
+  <el-dialog :model-value="modelValue" title="添加货品" width="900px" align-center
     @update:model-value="v => emit('update:modelValue', v)">
     <p class="dlg-hint">货品来自「供应商管理」，只列合作中供应商的货品；切换供应商时已选货品会清空（同一采购单只能有一个供应商）。</p>
 
@@ -23,13 +23,19 @@
         <el-table ref="tableRef" :data="goodsView" size="small" height="286" row-key="code"
           empty-text="该供应商暂无货品" @selection-change="onSelect">
           <el-table-column type="selection" width="42" />
-          <el-table-column prop="code" label="货码编号" width="130" />
-          <el-table-column prop="name" label="货品名称" min-width="120" />
-          <el-table-column prop="spec" label="规格" width="96" />
-          <el-table-column label="进货单价" width="100" align="right">
+          <el-table-column label="图片" width="52" align="center">
+            <template #default="{ row }">
+              <img v-if="row.image" class="thumb-img" :src="row.image" alt="" />
+              <span v-else class="thumb">图</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="code" label="货码编号" width="118" />
+          <el-table-column prop="name" label="货品名称" min-width="110" />
+          <el-table-column prop="spec" label="规格" width="88" />
+          <el-table-column label="进货单价" width="92" align="right">
             <template #default="{ row }"><span class="mono">{{ money(row.price) }}</span></template>
           </el-table-column>
-          <el-table-column label="最低成交价" width="104" align="right">
+          <el-table-column label="最低成交价" width="96" align="right">
             <template #default="{ row }"><span class="mono">{{ money(row.minPrice) }}</span></template>
           </el-table-column>
         </el-table>
@@ -132,4 +138,13 @@ function confirm() {
 }
 .picker-foot b { color: var(--brand-d); }
 .picker-foot .muted { margin-left: 8px; font-size: 11.5px; }
+.thumb {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 4px;
+  background: var(--fill); color: var(--ink-3); font-size: 11px;
+}
+.thumb-img {
+  width: 30px; height: 30px; border-radius: 4px; object-fit: cover;
+  border: 1px solid var(--line-2); background: #fff; display: block;
+}
 </style>
