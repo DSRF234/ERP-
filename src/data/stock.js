@@ -57,6 +57,15 @@ export const stockRows = reactive([
        warehouse: '华东主仓', inNo: 'RK20261010002', inQty: 400, outQty: 400, left: 0, warnValue: 100, unit: '个', expiry: '2028-10-10' })
 ])
 
+/* 成本单价（元），用于财务毛利表核算 */
+const COST = {
+  'SKU-100231': 560, 'SKU-100188': 480, 'SKU-200118': 168, 'SKU-300045': 86,
+  'SKU-400011': 118, 'SKU-300052': 40,
+  'SE-2026-001': 55, 'SE-2026-002': 32, 'SE-2026-003': 7, 'SE-2026-819': 4,
+  'AS-2026-021': 18, 'AS-2026-022': 210
+}
+stockRows.forEach(r => { r.costPrice = COST[r.code] ?? 0 })
+
 export const findRow = (code, warehouse) =>
   stockRows.find(r => r.code === code && r.warehouse === warehouse)
 

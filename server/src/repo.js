@@ -17,7 +17,7 @@ export async function loadBootstrap() {
   const [users] = await pool.query('SELECT * FROM users ORDER BY account')
 
   const goodsBy = {}
-  goods.forEach(g => { (goodsBy[g.order_no] ||= []).push({ name: g.name, spec: g.spec, qty: g.qty, sku: g.sku }) })
+  goods.forEach(g => { (goodsBy[g.order_no] ||= []).push({ name: g.name, spec: g.spec, qty: g.qty, sku: g.sku, price: g.price }) })
   const itemsBy = {}
   items.forEach(i => { (itemsBy[i.purchase_no] ||= []).push({ code: i.code, name: i.name, spec: i.spec, unit: i.unit, price: i.price, qty: i.qty }) })
 
@@ -44,6 +44,7 @@ export async function loadBootstrap() {
       code: r.code, warehouse: r.warehouse, name: r.name, spec: r.spec, category: r.category,
       supplier: r.supplier, batch: r.batch, unit: r.unit,
       inNo: r.in_no, inQty: r.in_qty, outQty: r.out_qty, left: r.left_qty,
+      costPrice: r.cost_price,
       warnValue: r.warn_value, warnDays: r.warn_days, warnUnit: r.warn_unit, expiry: r.expiry,
       lastRef: r.last_ref, lastRefQty: r.last_ref_qty, lastRefAt: r.last_ref_at,
       inDate: r.in_date, outNo: r.out_no, outDate: r.out_date
@@ -93,10 +94,12 @@ export async function saveBootstrap(payload) {
          s(o.doneAt), s(o.approvedAt), s(o.platformGoods), s(o.status),
          o.afterStatus ? s(o.afterStatus) : null, b(o.financePushed)]
       )
+      const totalQty = (o.goods || []).reduce((sum, g) => sum + (n(g.qty) || 1), 0) || 1
+      const unitPrice = n(o.amount) / totalQty
       for (const g of (o.goods || [])) {
         await conn.query(
-          'INSERT INTO order_goods (order_no, name, spec, qty, sku) VALUES (?,?,?,?,?)',
-          [s(o.no), s(g.name), s(g.spec), n(g.qty) || 1, s(g.sku)]
+          'INSERT INTO order_goods (order_no, name, spec, qty, sku, price) VALUES (?,?,?,?,?,?)',
+          [s(o.no), s(g.name), s(g.spec), n(g.qty) || 1, s(g.sku), Number(unitPrice.toFixed(2))]
         )
       }
     }
@@ -121,11 +124,11 @@ export async function saveBootstrap(payload) {
     for (const r of stock) {
       await conn.query(
         `INSERT INTO stock_items (code, warehouse, name, spec, category, supplier, batch, unit,
-          in_no, in_qty, out_qty, left_qty, warn_value, warn_days, warn_unit, expiry,
+          in_no, in_qty, out_qty, left_qty, cost_price, warn_value, warn_days, warn_unit, expiry,
           last_ref, last_ref_qty, last_ref_at, in_date, out_no, out_date)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [s(r.code), s(r.warehouse), s(r.name), s(r.spec), s(r.category), s(r.supplier), s(r.batch),
-         s(r.unit) || '件', s(r.inNo), n(r.inQty), n(r.outQty), n(r.left), n(r.warnValue),
+         s(r.unit) || '件', s(r.inNo), n(r.inQty), n(r.outQty), n(r.left), n(r.costPrice), n(r.warnValue),
          n(r.warnDays), s(r.warnUnit) || '月', s(r.expiry), s(r.lastRef), n(r.lastRefQty),
          s(r.lastRefAt), s(r.inDate), s(r.outNo), s(r.outDate)]
       )

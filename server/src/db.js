@@ -32,6 +32,29 @@ export async function initSchema() {
     multipleStatements: true, charset: 'utf8mb4'
   })
   await conn.query(sql)
+  await ensureColumns(conn)
   await conn.end()
   return true
+}
+
+/**
+ * 增量字段迁移：老库升级时自动补列，避免队友拉代码后手动执行 SQL。
+ * 只做「加列」这一种安全变更。
+ */
+async function ensureColumns(conn) {
+  const want = [
+    { table: 'order_goods', column: 'price', ddl: "ALTER TABLE order_goods ADD COLUMN price DECIMAL(12,2) DEFAULT 0 COMMENT '成交单价' AFTER sku" },
+    { table: 'stock_items', column: 'cost_price', ddl: "ALTER TABLE stock_items ADD COLUMN cost_price DECIMAL(12,2) DEFAULT 0 COMMENT '成本单价' AFTER left_qty" }
+  ]
+  for (const w of want) {
+    const [rows] = await conn.query(
+      'SELECT 1 FROM information_schema.columns WHERE table_schema = ? AND table_name = ? AND column_name = ? LIMIT 1',
+      [DB_CONFIG.database, w.table, w.column]
+    )
+    if (!rows.length) {
+      await conn.query(`USE \`${DB_CONFIG.database}\``)
+      await conn.query(w.ddl)
+      console.log(`[db] 已补字段 ${w.table}.${w.column}`)
+    }
+  }
 }

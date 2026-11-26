@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS order_goods (
   spec      VARCHAR(64)  DEFAULT '',
   qty       INT          DEFAULT 1,
   sku       VARCHAR(40)  DEFAULT '',
+  price     DECIMAL(12,2) DEFAULT 0 COMMENT '成交单价（整单金额按件数分摊）',
   KEY idx_order (order_no),
   KEY idx_sku (sku),
   CONSTRAINT fk_og_order FOREIGN KEY (order_no) REFERENCES orders(no) ON DELETE CASCADE
@@ -148,6 +149,7 @@ CREATE TABLE IF NOT EXISTS stock_items (
   in_qty       INT DEFAULT 0,
   out_qty      INT DEFAULT 0,
   left_qty     INT DEFAULT 0 COMMENT '剩余数量',
+  cost_price   DECIMAL(12,2) DEFAULT 0 COMMENT '成本单价',
   warn_value   INT DEFAULT 0,
   warn_days    INT DEFAULT 0,
   warn_unit    VARCHAR(8) DEFAULT '月',
