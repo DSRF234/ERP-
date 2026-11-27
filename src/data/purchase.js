@@ -12,7 +12,7 @@ const row = (no, buyer, supplier, warehouse, date, expressNo, logistics, categor
   no, buyer, creator: buyer, supplier, warehouse, date, expressNo, logistics, category, freight,
   /* 金额一律由明细推导，保证「采购单价 × 数量 = 货款」永远成立 */
   amount: items.reduce((s, i) => s + i.price * i.qty, 0),
-  items,
+  items, status,
   approvedAt: '', stockedAt: '', payableChecked: false
 })
 
