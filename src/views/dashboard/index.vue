@@ -20,7 +20,7 @@
       <div class="fund-item">
         <span>应付合计</span>
         <b class="neg">{{ funds.text.payable }}</b>
-        <i>{{ periodMeta.name }}进行中 + 已完成采购单</i>
+        <i>{{ periodMeta.name }}已完成入库的采购单</i>
       </div>
     </div>
 

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <PageHeader title="应付账款台账" sub="采购单应付 · 总金额与状态">
+    <PageHeader title="应付账款台账" sub="采购单应付 · 仅收录已完成入库的单据">
       <el-button v-can="'b-fin-payable-export'" size="small">导出</el-button>
     </PageHeader>
 
@@ -8,7 +8,7 @@
       <div class="stat">
         <div class="k">应付合计</div>
         <div class="v neg">{{ money(funds.payable) }}</div>
-        <div class="d">进行中 + 已完成的采购单（货款 + 运费）</div>
+        <div class="d">已完成入库的采购单（货款 + 运费）</div>
       </div>
       <div class="stat">
         <div class="k">现有资金</div>
@@ -24,10 +24,6 @@
 
     <div class="filters">
       <el-input v-model="kw" size="small" placeholder="采购单编号 / 采购商品" style="width: 220px" clearable />
-      <el-select v-model="f.status" size="small" style="width: 140px" placeholder="全部状态">
-        <el-option label="全部状态" value="" />
-        <el-option v-for="s in STATUS" :key="s" :label="s" :value="s" />
-      </el-select>
       <el-button size="small" type="primary">查找</el-button>
       <el-button size="small" @click="reset">重置</el-button>
       <span class="count">当前筛选 {{ view.length }} 条 · 合计 {{ money(sumTotal) }}</span>
@@ -36,7 +32,7 @@
     <div class="card">
       <div class="card-head">
         <h3>应付账款台账</h3>
-        <span class="extra">储存所有采购订单与需财务支出的订单</span>
+        <span class="extra">只收录已完成入库的采购单，单据确认应付后进入付款流程</span>
       </div>
       <el-table :data="view" size="small" max-height="560">
         <el-table-column prop="no" label="采购单编号" width="150" />
@@ -125,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { money } from '@/utils/format'
@@ -133,18 +129,16 @@ import { purchaseOrders, totalOf, payableOf, qtyOf, checkPayable } from '@/data/
 import { fundSummary } from '@/data/finance'
 import { useOrderStore } from '@/stores/order'
 
-const STATUS = ['待审核', '进行中', '已完成', '已驳回']
 const TAG = { 待审核: 'info', 进行中: 'warning', 已完成: 'success', 已驳回: 'danger' }
 
 const kw = ref('')
-const f = reactive({ status: '' })
 const drawer = ref(false)
 const cur = ref(null)
 
 const orderStore = useOrderStore()
 const funds = computed(() => fundSummary(orderStore.financeToCheck))
 
-const rows = computed(() => purchaseOrders.map(o => ({
+const rows = computed(() => purchaseOrders.filter(o => o.status === '已完成').map(o => ({
   no: o.no,
   warehouse: o.warehouse,
   goods: o.items.map(i => `${i.name} ×${i.qty}`).join('、') || '—',
@@ -161,12 +155,11 @@ const rows = computed(() => purchaseOrders.map(o => ({
 const view = computed(() => rows.value.filter(r => {
   const k = kw.value.trim()
   const okKw = !k || [r.no, r.goods].some(v => String(v).includes(k))
-  const okS = !f.status || r.status === f.status
-  return okKw && okS
+  return okKw
 }))
 
 const sumTotal = computed(() => view.value.reduce((s, r) => s + r.total, 0))
-const reset = () => { kw.value = ''; f.status = '' }
+const reset = () => { kw.value = '' }
 
 const curItems = computed(() => {
   if (!cur.value) return []
