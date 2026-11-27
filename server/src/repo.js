@@ -170,6 +170,11 @@ export async function saveBootstrap(payload) {
       }
     }
 
+    /* 兜底去重：并发保存时「先删后插」仍可能残留重复明细，提交前按单据+货品收敛为一行（保留最新一条） */
+    await conn.query(`DELETE a FROM order_goods a JOIN order_goods b
+      ON a.order_no = b.order_no AND a.sku = b.sku AND a.id < b.id`)
+    await conn.query(`DELETE a FROM purchase_items a JOIN purchase_items b
+      ON a.purchase_no = b.purchase_no AND a.code = b.code AND a.id < b.id`)
     await conn.commit()
     return { orders: orders.length, purchase: purchase.length, stock: stock.length, aftersales: aftersales.length }
   } catch (e) {

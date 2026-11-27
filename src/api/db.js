@@ -2,6 +2,7 @@ import { watch } from 'vue'
 import { useOrderStore } from '@/stores/order'
 import { purchaseOrders } from '@/data/purchase'
 import { stockRows } from '@/data/stock'
+import { applySkuMaster } from '@/data/sku'
 import { tickets } from '@/data/aftersale'
 import { accounts, postName, deptOfAccount } from '@/data/system'
 import { ACCOUNTS } from '@/stores/user'
@@ -74,6 +75,11 @@ export async function loadFromDb(pinia) {
   const empty = !data.orders?.length && !data.purchase?.length && !data.stock?.length && !data.aftersales?.length
 
   if (empty) {
+    /* 灌种子前也按主数据回填一遍，避免种子里各写一份导致基础信息不一致 */
+    const O0 = useOrderStore(pinia)
+    O0.orders.forEach(o => (o.goods || []).forEach(g => applySkuMaster(g, 'sku')))
+    purchaseOrders.forEach(p => (p.items || []).forEach(i => applySkuMaster(i, 'code')))
+    stockRows.forEach(r => applySkuMaster(r, 'code'))
     const stat = await request('/api/bootstrap', { method: 'PUT', body: JSON.stringify(snapshot(pinia)) })
     console.info('[db] 首次启动，已写入初始数据', stat)
     return { seeded: true, ...stat }
@@ -81,6 +87,10 @@ export async function loadFromDb(pinia) {
 
   hydrating = true
   const O = useOrderStore(pinia)
+  /* 商品基础信息以主数据为准：订单明细与采购明细上的名称/规格/单位一律按 code 回填 */
+  ;(data.orders || []).forEach(o => (o.goods || []).forEach(g => applySkuMaster(g, 'sku')))
+  ;(data.purchase || []).forEach(p => (p.items || []).forEach(i => applySkuMaster(i, 'code')))
+  ;(data.stock || []).forEach(r => applySkuMaster(r, 'code'))
   replaceAll(O.orders, data.orders)
   replaceAll(purchaseOrders, data.purchase)
   replaceAll(stockRows, data.stock)

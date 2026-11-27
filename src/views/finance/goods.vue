@@ -1,6 +1,6 @@
 <template>
   <div>
-    <PageHeader title="商品信息" sub="商品毛利表 · 收入 / 成本 / 毛利率">
+    <PageHeader title="商品信息" sub="商品毛利表 · 成本单价取自采购单价，成本 = 单价 × 销量">
       <span class="scope">口径：已发货 + 已完结订单</span>
     </PageHeader>
 
@@ -34,6 +34,14 @@
           <el-table-column label="收入" width="118" align="right">
             <template #default="{ row }"><span class="mono">{{ money(row.revenue) }}</span></template>
           </el-table-column>
+          <el-table-column label="成本单价" width="110" align="right">
+            <template #default="{ row }">
+              <span class="mono">{{ money(row.costPrice) }}</span>
+              <el-tooltip :content="row.costFrom" placement="top">
+                <el-icon class="src"><InfoFilled /></el-icon>
+              </el-tooltip>
+            </template>
+          </el-table-column>
           <el-table-column label="成本" width="118" align="right">
             <template #default="{ row }"><span class="mono">{{ money(row.cost) }}</span></template>
           </el-table-column>
@@ -57,10 +65,28 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { InfoFilled } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { money } from '@/utils/format'
 import { useOrderStore } from '@/stores/order'
-import { stockRows } from '@/data/stock'
+import { skuOf } from '@/data/sku'
+import { purchaseOrders } from '@/data/purchase'
+
+/** 各 SKU 的采购单价：只统计已完成（已入库）的采购单，按数量加权平均 */
+const purchaseCost = computed(() => {
+  const acc = new Map()
+  purchaseOrders
+    .filter(o => o.status === '已完成')
+    .forEach(o => (o.items || []).forEach(i => {
+      const cur = acc.get(i.code) || { amt: 0, qty: 0 }
+      cur.amt += i.price * i.qty
+      cur.qty += i.qty
+      acc.set(i.code, cur)
+    }))
+  const out = new Map()
+  acc.forEach((v, k) => { if (v.qty) out.set(k, v.amt / v.qty) })
+  return out
+})
 
 const kw = ref('')
 const supplier = ref('')
@@ -88,20 +114,28 @@ const rows = computed(() => {
       }
       cur.qty += Number(g.qty || 0)
       cur.revenue += unit * Number(g.qty || 0)
+      /* 部分老单据的规格是空或「—」，遇到有效规格就补上，避免展示成「—」 */
+      if ((!cur.spec || cur.spec === '—') && g.spec && g.spec !== '—') cur.spec = g.spec
       map.set(code, cur)
     })
   })
 
   return [...map.values()].map(r => {
-    const master = stockRows.find(x => x.code === r.code)
-    const costPrice = Number(master?.costPrice || 0)
+    const master = skuOf(r.code)
+    const fromPurchase = purchaseCost.value.get(r.code)
+    const costPrice = fromPurchase ?? Number(master?.costPrice || 0)
+    const costFrom = fromPurchase !== undefined
+      ? '来自采购单价（已完成采购的加权平均）'
+      : '暂无已完成采购，取库存初始成本'
     const cost = costPrice * r.qty
     const profit = r.revenue - cost
     return {
       ...r,
-      spec: master?.spec && master.spec !== '—' ? master.spec : r.spec,
-      supplier: master?.supplier || '—',
+      name: master.name || r.name,
+      spec: master.spec || r.spec,
+      supplier: master.supplier || '—',
       costPrice,
+      costFrom,
       cost,
       profit,
       rate: r.revenue ? +((profit / r.revenue) * 100).toFixed(1) : 0
@@ -128,5 +162,6 @@ const reset = () => { kw.value = ''; supplier.value = '' }
 .count b { color: var(--ink); font-weight: 600; }
 .strong { font-weight: 600; color: var(--ink); }
 .neg { color: var(--danger); }
+.src { margin-left: 4px; color: var(--ink-3); font-size: 12px; vertical-align: -1px; cursor: help; }
 .scope { font-size: 12px; color: var(--ink-3); }
 </style>

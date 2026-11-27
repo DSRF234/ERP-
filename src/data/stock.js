@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { applySkuMaster, skuOf } from './sku'
 
 /**
  * 库存 · 共享数据层
@@ -57,14 +58,13 @@ export const stockRows = reactive([
        warehouse: '华东主仓', inNo: 'RK20261010002', inQty: 400, outQty: 400, left: 0, warnValue: 100, unit: '个', expiry: '2028-10-10' })
 ])
 
-/* 成本单价（元），用于财务毛利表核算 */
-const COST = {
-  'SKU-100231': 560, 'SKU-100188': 480, 'SKU-200118': 168, 'SKU-300045': 86,
-  'SKU-400011': 118, 'SKU-300052': 40,
-  'SE-2026-001': 55, 'SE-2026-002': 32, 'SE-2026-003': 7, 'SE-2026-819': 4,
-  'AS-2026-021': 18, 'AS-2026-022': 210
-}
-stockRows.forEach(r => { r.costPrice = COST[r.code] ?? 0 })
+/* 基础信息（名称/规格/单位/供应商/成本价）统一由商品主数据回填，此处不再各写一份 */
+stockRows.forEach(r => {
+  applySkuMaster(r)
+  const m = skuOf(r.code)
+  if (m.costPrice !== undefined) r.costPrice = m.costPrice
+  if (m.category) r.category = m.category
+})
 
 export const findRow = (code, warehouse) =>
   stockRows.find(r => r.code === code && r.warehouse === warehouse)
