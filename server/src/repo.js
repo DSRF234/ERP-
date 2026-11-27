@@ -78,6 +78,9 @@ export async function saveBootstrap(payload) {
   const { orders = [], purchase = [], stock = [], aftersales = [], users = [] } = payload
   const conn = await pool.getConnection()
   try {
+    /* 串行化整表快照：两个标签页同时保存时，后一个会等前一个提交完再删表重写，
+       否则「先删后插」交错执行会把明细行写重（订单 46 单、明细 191 行那种） */
+    await conn.query("SELECT GET_LOCK('erp_bootstrap_save', 15)")
     await conn.beginTransaction()
 
     await conn.query('DELETE FROM orders')
@@ -173,6 +176,7 @@ export async function saveBootstrap(payload) {
     await conn.rollback()
     throw e
   } finally {
+    try { await conn.query("SELECT RELEASE_LOCK('erp_bootstrap_save')") } catch (e) { /* ignore */ }
     conn.release()
   }
 }
