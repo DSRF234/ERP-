@@ -60,7 +60,10 @@
       </div>
       <el-table :data="active.goods" size="small" empty-text="该供应商暂未关联货品" :max-height="240">
         <el-table-column label="图片" width="66">
-          <template #default><span class="thumb">图</span></template>
+          <template #default="{ row }">
+            <img v-if="row.image" class="thumb-img" :src="row.image" alt="" />
+            <span v-else class="thumb">图</span>
+          </template>
         </el-table-column>
         <el-table-column prop="code" label="货码编号" width="130" />
         <el-table-column prop="name" label="货品名称" min-width="150" />
@@ -109,8 +112,8 @@
     </el-dialog>
 
     <!-- 添加货品到供应商 -->
-    <el-dialog v-model="goods.visible" :title="`添加货品 · ${active?.name || ''}`" width="520px" align-center>
-      <p class="dlg-hint">同一供应商下货码编号不可重复；进货单价 0~10000 元。</p>
+    <el-dialog v-model="goods.visible" :title="`添加货品 · ${active?.name || ''}`" width="560px" align-center>
+      <p class="dlg-hint">同一供应商下货码编号不可重复；规格与单位均为必填；进货单价 0~10000 元。</p>
       <el-form :model="goods.form" :rules="goodsRules" ref="goodsRef" label-width="92px" size="small">
         <el-form-item label="采购货品类型" prop="type">
           <el-select v-model="goods.form.type" style="width: 100%">
@@ -119,15 +122,42 @@
             <el-option label="食品饮料" value="食品饮料" />
           </el-select>
         </el-form-item>
+        <el-form-item label="货品图片">
+          <div class="img-field">
+            <el-upload ref="imgUpRef" class="img-up" :auto-upload="false" :show-file-list="false"
+              accept="image/png,image/jpeg,image/webp" :on-change="onPickImage">
+              <div class="img-box" :class="{ empty: !goods.form.image }">
+                <img v-if="goods.form.image" :src="goods.form.image" alt="" />
+                <span v-else>+ 上传</span>
+              </div>
+            </el-upload>
+            <div class="img-tip">
+              <span>选填。支持 JPG / PNG / WebP，自动压缩到 160px 内，原图不超过 5MB</span>
+              <el-button v-if="goods.form.image" link type="danger" size="small"
+                @click="goods.form.image = ''">移除图片</el-button>
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item label="货品名称" prop="name">
           <el-input v-model="goods.form.name" placeholder="如：洗面奶" />
         </el-form-item>
         <el-form-item label="货品编码" prop="code">
           <el-input v-model="goods.form.code" placeholder="字母大写-年-001，如 SO-2026-001" />
         </el-form-item>
-        <el-form-item label="规格" prop="spec">
-          <el-input v-model="goods.form.spec" placeholder="如 100g/支" />
-        </el-form-item>
+        <el-row :gutter="8">
+          <el-col :span="16">
+            <el-form-item label="规格" prop="spec">
+              <el-input v-model="goods.form.spec" placeholder="如 100g" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="单位" prop="unit" label-width="48px">
+              <el-select v-model="goods.form.unit" placeholder="请选择" style="width: 100%">
+                <el-option v-for="u in UNITS" :key="u" :label="u" :value="u" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="进货单价" prop="price">
           <el-input v-model.number="goods.form.price" placeholder="0.00，最高 10000" />
         </el-form-item>
@@ -153,6 +183,8 @@ const purchase = usePurchaseStore()
 
 const TYPES = ['家居日用', '美妆个护']
 const CO_STATES = ['合作中', '已停用']
+/** 货品单位：与规格联合使用，规格列展示为「100g/支」 */
+const UNITS = ['个', '支', '件', '盒', '瓶', '包', '套']
 
 const kwInput = ref('')
 const kw = ref('')
@@ -252,9 +284,11 @@ async function submitAdd() {
 
 /* ------- 添加货品 ------- */
 const goodsRef = ref()
-const goods = reactive({ visible: false, form: { type: '美妆个护', name: '', code: '', spec: '', price: null } })
+const goods = reactive({ visible: false, form: { type: '美妆个护', name: '', code: '', spec: '', unit: '', price: null, image: '' } })
 const goodsRules = {
   name: [{ required: true, message: '请输入货品名称', trigger: 'blur' }],
+  unit: [{ required: true, message: '请选择单位', trigger: 'change' }],
+  spec: [{ required: true, message: '请输入规格', trigger: 'blur' }],
   code: [
     { required: true, message: '请输入货品编码', trigger: 'blur' },
     {
@@ -281,8 +315,53 @@ const goodsRules = {
 
 function openGoods() {
   if (!active.value) return ElMessage.warning('请先选择供应商')
-  goods.form = { type: '美妆个护', name: '', code: '', spec: '', price: null }
+  goods.form = { type: '美妆个护', name: '', code: '', spec: '', unit: '', price: null, image: '' }
   goods.visible = true
+}
+
+/* ------- 货品图片：本地读取 + 压缩成 dataURL（无后端，随货品一起存本地） ------- */
+const imgUpRef = ref()
+const IMG_MAX_EDGE = 160
+const IMG_MAX_FILE = 5 * 1024 * 1024
+
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = reject
+    reader.onload = () => {
+      const img = new Image()
+      img.onerror = reject
+      img.onload = () => {
+        const scale = Math.min(1, IMG_MAX_EDGE / Math.max(img.width, img.height))
+        const w = Math.max(1, Math.round(img.width * scale))
+        const h = Math.max(1, Math.round(img.height * scale))
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', 0.82))
+      }
+      img.src = reader.result
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+async function onPickImage(uploadFile) {
+  const raw = uploadFile?.raw
+  imgUpRef.value?.clearFiles()
+  if (!raw) return
+  if (!/^image\/(png|jpeg|webp)$/.test(raw.type)) {
+    return ElMessage.error('只支持 JPG / PNG / WebP 格式的图片')
+  }
+  if (raw.size > IMG_MAX_FILE) {
+    return ElMessage.error('图片不能超过 5MB，请压缩后再上传')
+  }
+  try {
+    goods.form.image = await compressImage(raw)
+  } catch (e) {
+    ElMessage.error('图片读取失败，请换一张试试')
+  }
 }
 async function submitGoods() {
   try { await goodsRef.value.validate() } catch (e) { return }
@@ -318,6 +397,23 @@ async function removeGoods(row) {
   width: 34px; height: 34px; border-radius: 4px; background: var(--fill);
   color: var(--ink-3); font-size: 11px; display: flex; align-items: center; justify-content: center;
 }
+.thumb-img {
+  width: 34px; height: 34px; border-radius: 4px; object-fit: cover;
+  border: 1px solid var(--line-2); background: #fff; display: block;
+}
+
+/* 添加货品：图片上传 */
+.img-field { display: flex; align-items: center; gap: 12px; }
+.img-up :deep(.el-upload) { display: block; }
+.img-box {
+  width: 72px; height: 72px; border-radius: 6px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); background: #fff; cursor: pointer;
+}
+.img-box.empty { border-style: dashed; color: var(--ink-3); font-size: 11.5px; background: var(--fill); }
+.img-box.empty:hover { border-color: var(--brand); color: var(--brand-d); }
+.img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.img-tip { display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; color: var(--ink-3); }
 .empty-tip {
   margin-top: 14px; padding: 26px; text-align: center;
   border: 1px dashed var(--line); border-radius: 8px;

@@ -43,7 +43,7 @@
             </template>
           </el-table-column>
           <el-table-column prop="dept" label="所属部门" min-width="140" />
-          <el-table-column label="关联账号" min-width="110" align="right">
+          <el-table-column label="关联账号" min-width="110" align="left" header-align="left">
             <template #default="{ row }"><span class="mono">{{ countOf(row.id) }}</span></template>
           </el-table-column>
           <el-table-column prop="scope" label="数据范围" min-width="150" />
@@ -84,28 +84,29 @@
 
     <!-- 新建职位 -->
     <el-dialog v-model="newVisible" title="新建职位" width="560px">
-      <div class="field"><label>职位名称</label>
+      <div class="req-note">带 <span class="req-mark">*</span> 的为必填项</div>
+      <div class="field"><label class="req">职位名称</label>
         <el-input v-model="nf.name" size="small" placeholder="仅支持汉字和数字，同部门内不可重名" style="width:240px" />
       </div>
-      <div class="field"><label>所属部门</label>
+      <div class="field"><label class="req">所属部门</label>
         <el-select v-model="nf.dept" size="small" style="width:240px">
           <el-option v-for="d in DEPTS" :key="d" :label="d" :value="d" />
         </el-select>
       </div>
-      <div class="field"><label>数据范围</label>
+      <div class="field"><label class="req">数据范围</label>
         <el-select v-model="nf.scope" size="small" style="width:240px">
           <el-option v-for="s in SCOPES" :key="s" :label="s" :value="s" />
         </el-select>
       </div>
-      <div class="field"><label>权限模板</label>
+      <div class="field"><label class="req">权限模板</label>
         <el-select v-model="nf.template" size="small" style="width:240px">
           <el-option label="空白（稍后在权限管理分配）" value="blank" />
           <el-option v-for="p in posts" :key="p.id" :label="'复制自 ' + p.name" :value="p.id" />
         </el-select>
       </div>
       <div class="field" style="align-items:flex-start">
-        <label style="padding-top:5px">职位说明</label>
-        <el-input v-model="nf.note" type="textarea" :rows="2" size="small" placeholder="选填" />
+        <label class="req" style="padding-top:5px">职位说明</label>
+        <el-input v-model="nf.note" type="textarea" :rows="2" size="small" placeholder="必填，简要描述岗位职责" />
       </div>
       <el-alert class="tipbox" type="info" :closable="false"
         title="提交后职位为启用状态、关联账号 0；请到「权限管理」分配权限，未配权限的职位其账号登录后看不到任何菜单。" />
@@ -210,12 +211,12 @@ const noop = () => {}
 
 /* ---------- 新建职位 ---------- */
 const newVisible = ref(false)
-const nf = reactive({ name: '', dept: '售后部', scope: '本部门', template: '', note: '' })
+const nf = reactive({ name: '', dept: '售后部', scope: '本部门', template: 'blank', note: '' })
 function openNew() {
   nf.name = ''
   nf.dept = dept.value || '售后部'
   nf.scope = '本部门'
-  nf.template = ''
+  nf.template = 'blank'
   nf.note = ''
   newVisible.value = true
 }
@@ -224,6 +225,10 @@ function submitNew() {
   if (!name) return ElMessage.error('请填写职位名称')
   if (!/^[\u4e00-\u9fa5\d]+$/.test(name)) return ElMessage.error('职位名称仅支持汉字和数字')
   if (posts.some(p => p.dept === nf.dept && p.name === name)) return ElMessage.error('同一部门内职位名称不可重复')
+  if (!nf.dept) return ElMessage.error('请选择所属部门')
+  if (!nf.scope) return ElMessage.error('请选择数据范围')
+  if (!nf.template) return ElMessage.error('请选择权限模板')
+  if (!nf.note.trim()) return ElMessage.error('请填写职位说明')
   const tpl = posts.find(p => p.id === nf.template)
   posts.push({
     id: 'post-' + Date.now(),
@@ -370,6 +375,10 @@ function exportOne(p) {
 .sec-t { font-size: 12.5px; font-weight: 600; margin-bottom: 9px; padding-left: 8px; border-left: 3px solid var(--brand); }
 .field { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .field label { width: 80px; font-size: 12.5px; color: var(--ink-2); flex: none; }
+/* 必填红星用伪元素渲染，不写入 label 文本节点（见 account.vue 同款说明） */
+.field label.req::before { content: '*'; color: #F56C6C; margin-right: 3px; font-weight: 600; }
+.req-note { font-size: 11.5px; color: var(--ink-3); margin: 0 0 12px 0; }
+.req-note .req-mark { color: #F56C6C; font-weight: 600; }
 .tipbox { margin-top: 6px; }
 .sub { font-size: 11px; color: var(--ink-3); }
 .tip { font-size: 11.5px; color: var(--ink-3); line-height: 1.7; }

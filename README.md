@@ -6,14 +6,62 @@
 
 ## 一、启动
 
+**方式一：一键启动（推荐）**
+
+双击 `启动.bat` —— 自动检查依赖 → 启动数据库服务 → 启动前端 → 打开浏览器。
+首次运行会自动安装前后端依赖，之后约 5 秒完成。
+
+**方式二：手动**
+
 ```bash
+# 1. 后端（先确保本地 MySQL 已启动）
+cd server
+npm install
+npm start          # http://localhost:3001
+
+# 2. 前端（另开一个终端）
 npm install
 npm run dev        # http://localhost:5173
 ```
 
-Windows 可直接双击 `启动.bat`。
+> 后端连不上时前端会直接停在「数据库连接失败」页，不会静默降级。
 
-## 二、登录
+## 二、数据库
+
+本地 MySQL 8.0，库名 `erp_xingye`，首次启动自动建库建表。
+
+| 配置 | 默认值 | 覆盖方式 |
+|---|---|---|
+| 主机 | 127.0.0.1:3306 | 环境变量 `DB_HOST` / `DB_PORT` |
+| 账号 | root / 123456 | `DB_USER` / `DB_PASSWORD` |
+| 库名 | erp_xingye | `DB_NAME` |
+| 接口 | http://localhost:3001 | 前端 `VITE_API_BASE` |
+
+**表结构（8 张）**
+
+| 表 | 说明 |
+|---|---|
+| `orders` | 订单主表 |
+| `order_goods` | 订单商品明细（一单多行） |
+| `aftersales` | 售后工单 |
+| `purchase_orders` | 采购单主表 |
+| `purchase_items` | 采购货品明细 |
+| `stock_items` | 库存（货品编码 + 仓库唯一） |
+| `stock_moves` | 库存出入库流水 |
+| `users` | 账号 |
+
+建表语句见 `server/sql/schema.sql`。
+
+**数据怎么流转**
+
+```
+启动 → GET /api/bootstrap → 覆盖前端内存数组 → 页面渲染
+改动 → 防抖 900ms → PUT /api/bootstrap → 事务整表替换
+```
+
+首次启动若库为空，会把前端种子数据自动灌入，之后一律以数据库为准。
+
+## 三、登录
 
 打开后先进登录页，账号密码见登录页底部的「演示账号」（初始密码统一 `Xy@2026`），点任意一行可自动填充。
 

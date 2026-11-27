@@ -69,10 +69,15 @@ export const usePurchaseStore = defineStore('purchase', () => {
     return warehousingOrder(no)
   }
 
+  /**
+   * 删除采购单：仅「待审核」状态允许。
+   * 进行中（已审核待入库）/ 已完成（已入库，库存与应付已产生）/ 已驳回 一律禁止。
+   */
   function remove(no) {
     const i = orders.findIndex(o => o.no === no)
     if (i === -1) return { ok: false, msg: '单据不存在' }
-    if (orders[i].status === '进行中') return { ok: false, msg: '「进行中」的单据不能删除，请先确认入库' }
+    const st = orders[i].status
+    if (st !== '待审核') return { ok: false, msg: `「${st}」的采购单不可删除，仅「待审核」状态可删除` }
     orders.splice(i, 1)
     return { ok: true }
   }

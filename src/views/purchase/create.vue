@@ -99,36 +99,41 @@
     <div class="card">
       <div class="card-head">
         <h3>采购货品明细</h3>
-        <span class="extra">共 {{ form.items.length }} 个货品</span>
+        <span class="extra">共 {{ form.items.length }} 个货品 · 规格 / 单位取自供应商档案，进货单价可改</span>
       </div>
-      <el-table :data="form.items" size="small">
-        <el-table-column type="index" label="序号" width="56" />
-        <el-table-column type="selection" width="42" />
-        <el-table-column prop="name" label="采购货品" min-width="170" />
-        <el-table-column prop="spec" label="规格" width="110" />
-        <el-table-column label="单位" width="96">
+      <el-table :data="form.items" size="small" class="goods-table">
+        <el-table-column type="index" label="序号" width="48" />
+        <el-table-column type="selection" width="36" />
+        <el-table-column label="图片" width="52" align="center">
           <template #default="{ row }">
-            <el-select v-model="row.unit" size="small">
-              <el-option v-for="u in units" :key="u" :label="u" :value="u" />
-            </el-select>
+            <img v-if="row.image" class="thumb-img" :src="row.image" alt="" />
+            <span v-else class="thumb">图</span>
           </template>
         </el-table-column>
-        <el-table-column label="单价（元）" width="118" align="right">
+        <el-table-column prop="code" label="货码编号" width="108">
+          <template #default="{ row }"><span class="mono">{{ row.code || '—' }}</span></template>
+        </el-table-column>
+        <el-table-column prop="name" label="货品名称" min-width="128" show-overflow-tooltip />
+        <el-table-column prop="spec" label="规格" width="104" show-overflow-tooltip />
+        <el-table-column label="进货单价（元）" width="110" align="right">
           <template #default="{ row }">
-            <el-input v-model.number="row.price" size="small" style="width: 92px" />
+            <el-input v-model.number="row.price" size="small" style="width: 84px" />
           </template>
         </el-table-column>
-        <el-table-column label="采购数量" width="118" align="right">
+        <el-table-column label="采购数量" width="112" align="right">
           <template #default="{ row }">
-            <el-input v-model.number="row.qty" size="small" style="width: 92px" />
+            <div class="qty-cell">
+              <el-input v-model.number="row.qty" size="small" style="width: 76px" />
+              <span v-if="row.unit" class="qty-unit">{{ row.unit }}</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="总采购金额（元）" width="140" align="right">
+        <el-table-column label="总采购金额（元）" width="120" align="right">
           <template #default="{ row }">
             <span class="mono strong">{{ money(row.price * row.qty) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="88" fixed="right">
+        <el-table-column label="操作" width="68" fixed="right">
           <template #default="{ row, $index }">
             <el-button v-can="'b-purchase-create-del'" link type="danger" size="small" @click="removeItem(row, $index)">删除</el-button>
           </template>
@@ -140,7 +145,7 @@
           总采购金额（元）　<b>{{ money(total) }}</b>
         </span>
       </div>
-      <div class="limit-tip">单价上限 10,000 元／采购数量需为正整数（≤ 1,000,000），提交时逐行校验</div>
+      <div class="limit-tip">进货单价上限 10,000 元／采购数量需为正整数（≤ 1,000,000），提交时逐行校验</div>
     </div>
 
     <GoodsPicker v-model="picker" :supplier="form.supplier" @confirm="onPick" />
@@ -167,7 +172,6 @@ const user = useUserStore()
 const DRAFT_KEY = 'xy_erp_purchase_draft'
 const buyers = ['张某某', '李某', '王某']
 const warehouses = ['华东主仓', '华南仓', '平台仓1', '平台仓2']
-const units = ['个', '支', '件', '盒', '瓶']
 
 const supplierNames = computed(() => supplierStore.activeNames)
 
@@ -245,7 +249,10 @@ function onPick({ supplier, goods }) {
   goods.forEach(g => {
     if (form.items.some(i => i.name === g.name)) return
     form.items.push({
-      code: g.code, name: g.name, spec: g.spec, unit: '支',
+      code: g.code, name: g.name, spec: g.spec,
+      // 单位不在这里选：取供应商货品档案里的单位（老数据没存单位时从规格「100g/支」反解）
+      unit: supplierStore.unitOf(g),
+      image: g.image || '',
       price: g.price, qty: 1, category: g.type || form.category
     })
     added++
@@ -269,8 +276,8 @@ function validate() {
   for (let i = 0; i < form.items.length; i++) {
     const r = form.items[i]
     const price = Number(r.price)
-    if (!Number.isFinite(price) || price <= 0) return `第 ${i + 1} 行【${r.name}】单价需大于 0`
-    if (price > 10000) return `第 ${i + 1} 行【${r.name}】单价 ${price} 元超过上限 10000 元`
+    if (!Number.isFinite(price) || price <= 0) return `第 ${i + 1} 行【${r.name}】进货单价需大于 0`
+    if (price > 10000) return `第 ${i + 1} 行【${r.name}】进货单价 ${price} 元超过上限 10000 元`
     const qty = Number(r.qty)
     if (!Number.isInteger(qty) || qty <= 0) return `第 ${i + 1} 行【${r.name}】采购数量需为正整数，当前为「${r.qty}」`
     if (qty > 1000000) return `第 ${i + 1} 行【${r.name}】采购数量 ${qty} 超过上限 1,000,000`
@@ -299,7 +306,11 @@ async function submit() {
       freight: Number(form.freight || 0),
       expressNo: form.expressNo,
       date: `${form.date} ${new Date().toTimeString().slice(0, 5)}`,
-      items: form.items.map(i => ({ ...i, price: Number(i.price), qty: Number(i.qty) }))
+      // 图片只在明细里展示，不随单据落库（base64 每单重复存会撑爆 localStorage）
+      items: form.items.map(i => ({
+        code: i.code, name: i.name, spec: i.spec, unit: i.unit,
+        price: Number(i.price), qty: Number(i.qty), category: i.category
+      }))
     })
     submitted = true
     clearDraft()
@@ -324,4 +335,20 @@ async function cancel() {
 .strong { font-weight: 600; }
 :deep(.el-form-item) { margin-bottom: 16px; }
 .limit-tip { padding: 8px 16px 12px; font-size: 11.5px; color: var(--ink-3); }
+
+/* 明细表：字段与「供应商货品」对齐（图片 / 货码编号 / 货品名称 / 规格 / 进货单价） */
+.goods-table :deep(.el-table__cell) { padding: 6px 0; }
+.goods-table :deep(.cell) { padding: 0 8px; }
+.thumb {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 4px;
+  background: var(--fill); color: var(--ink-3); font-size: 11px;
+}
+.thumb-img {
+  width: 32px; height: 32px; border-radius: 4px; object-fit: cover;
+  border: 1px solid var(--line-2); background: #fff; display: block; margin: 0 auto;
+}
+/* 采购数量：单位跟着规格走，只读显示 */
+.qty-cell { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.qty-unit { font-size: 12px; color: var(--ink-2); min-width: 14px; text-align: left; }
 </style>

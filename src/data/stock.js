@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { applySkuMaster, skuOf } from './sku'
 
 /**
  * 库存 · 共享数据层
@@ -56,6 +57,14 @@ export const stockRows = reactive([
   mk({ name: '星野香薰蜡烛', code: 'SKU-300052', batch: 'B20261010', category: '家居日用', supplier: '深圳香氛实业',
        warehouse: '华东主仓', inNo: 'RK20261010002', inQty: 400, outQty: 400, left: 0, warnValue: 100, unit: '个', expiry: '2028-10-10' })
 ])
+
+/* 基础信息（名称/规格/单位/供应商/成本价）统一由商品主数据回填，此处不再各写一份 */
+stockRows.forEach(r => {
+  applySkuMaster(r)
+  const m = skuOf(r.code)
+  r.costPrice = m.purchasePrice ?? r.costPrice ?? 0
+  if (m.category) r.category = m.category
+})
 
 export const findRow = (code, warehouse) =>
   stockRows.find(r => r.code === code && r.warehouse === warehouse)
