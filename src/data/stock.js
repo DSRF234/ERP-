@@ -62,7 +62,7 @@ export const stockRows = reactive([
 stockRows.forEach(r => {
   applySkuMaster(r)
   const m = skuOf(r.code)
-  if (m.costPrice !== undefined) r.costPrice = m.costPrice
+  r.costPrice = m.purchasePrice ?? r.costPrice ?? 0
   if (m.category) r.category = m.category
 })
 

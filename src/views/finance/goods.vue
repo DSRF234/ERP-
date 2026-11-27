@@ -21,20 +21,24 @@
         <el-table-column type="index" label="序号" width="56" align="center" />
 
         <el-table-column label="商品基础信息" align="center">
-          <el-table-column prop="code" label="商品编码" width="140">
+          <el-table-column label="商品编码" width="118">
+            <template #default="{ row }"><span class="mono">{{ row.spu }}</span></template>
+          </el-table-column>
+          <el-table-column label="SKU 码" width="126">
             <template #default="{ row }"><span class="mono">{{ row.code }}</span></template>
           </el-table-column>
-          <el-table-column prop="name" label="商品名称" min-width="170" show-overflow-tooltip />
-          <el-table-column prop="spec" label="规格型号" width="120" />
-          <el-table-column prop="supplier" label="供应商" min-width="170" show-overflow-tooltip />
+          <el-table-column prop="name" label="商品名称" min-width="150" show-overflow-tooltip />
+          <el-table-column prop="spec" label="规格型号" width="100" />
+          <el-table-column prop="category" label="货品类型" width="92" />
+          <el-table-column prop="supplier" label="供应商" min-width="140" show-overflow-tooltip />
         </el-table-column>
 
         <el-table-column label="经营数据" align="center">
-          <el-table-column prop="qty" label="销量" width="84" align="right" />
-          <el-table-column label="收入" width="118" align="right">
+          <el-table-column prop="qty" label="销量" width="70" align="right" />
+          <el-table-column label="收入" width="104" align="right">
             <template #default="{ row }"><span class="mono">{{ money(row.revenue) }}</span></template>
           </el-table-column>
-          <el-table-column label="成本单价" width="110" align="right">
+          <el-table-column label="进货单价" width="104" align="right">
             <template #default="{ row }">
               <span class="mono">{{ money(row.costPrice) }}</span>
               <el-tooltip :content="row.costFrom" placement="top">
@@ -42,15 +46,15 @@
               </el-tooltip>
             </template>
           </el-table-column>
-          <el-table-column label="成本" width="118" align="right">
+          <el-table-column label="成本" width="104" align="right">
             <template #default="{ row }"><span class="mono">{{ money(row.cost) }}</span></template>
           </el-table-column>
-          <el-table-column label="毛利额" width="118" align="right">
+          <el-table-column label="毛利额" width="104" align="right">
             <template #default="{ row }">
               <span class="mono strong" :class="{ neg: row.profit < 0 }">{{ money(row.profit) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="毛利率" width="92" align="right">
+          <el-table-column label="毛利率" width="84" align="right">
             <template #default="{ row }">
               <el-tag size="small" :type="row.rate >= 40 ? 'success' : row.rate >= 20 ? 'warning' : 'danger'" effect="plain">
                 {{ row.rate }}%
@@ -123,7 +127,7 @@ const rows = computed(() => {
   return [...map.values()].map(r => {
     const master = skuOf(r.code)
     const fromPurchase = purchaseCost.value.get(r.code)
-    const costPrice = fromPurchase ?? Number(master?.costPrice || 0)
+    const costPrice = fromPurchase ?? Number(master?.purchasePrice || 0)
     const costFrom = fromPurchase !== undefined
       ? '来自采购单价（已完成采购的加权平均）'
       : '暂无已完成采购，取库存初始成本'
@@ -131,7 +135,9 @@ const rows = computed(() => {
     const profit = r.revenue - cost
     return {
       ...r,
+      spu: master.spu || '—',
       name: master.name || r.name,
+      category: master.category || '—',
       spec: master.spec || r.spec,
       supplier: master.supplier || '—',
       costPrice,
