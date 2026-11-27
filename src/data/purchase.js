@@ -43,7 +43,9 @@ purchaseOrders.forEach(o => {
 const demoOrder = purchaseOrders.find(o => o.no === 'CG202611061421')
 if (demoOrder) demoOrder.creator = '王佳丽'
 
-export const totalOf = o => o.items.reduce((s, i) => s + i.price * i.qty, 0)
+/* 金额以单据的货款字段为准；没有 amount 时（历史上只有明细的单据）退回按明细累加 */
+export const totalOf = o =>
+  Number(o.amount || 0) || (o.items || []).reduce((s, i) => s + i.price * i.qty, 0)
 export const qtyOf = o => o.items.reduce((s, i) => s + i.qty, 0)
 export const payableOf = o => totalOf(o) + Number(o.freight || 0)
 

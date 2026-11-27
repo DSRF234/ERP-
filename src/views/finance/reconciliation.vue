@@ -13,11 +13,6 @@
 
     <div class="filters">
       <el-input v-model="kw" size="small" placeholder="单据编号 / 店铺 / 商品名称" style="width: 240px" clearable />
-      <el-select v-model="f.type" size="small" style="width: 140px" placeholder="全部单据类型">
-        <el-option label="全部单据类型" value="" />
-        <el-option label="销售出库" value="销售出库" />
-        <el-option label="退货入库" value="退货入库" />
-      </el-select>
       <el-button size="small" type="primary">查询</el-button>
       <el-button size="small" @click="reset">重置</el-button>
       <span class="count">共 {{ view.length }} 条</span>
@@ -33,7 +28,6 @@
         <el-table-column prop="shop" label="店铺" min-width="170" />
         <el-table-column prop="goods" label="商品名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="time" label="下单时间" width="145" />
-        <el-table-column prop="type" label="单据类型" width="105" />
         <el-table-column prop="qty" label="商品数量" width="90" align="right" />
         <el-table-column label="订单金额" width="110" align="right">
           <template #default="{ row }"><span class="mono">{{ money(row.amount) }}</span></template>
@@ -72,7 +66,6 @@ import { useOrderStore } from '@/stores/order'
 
 const store = useOrderStore()
 const kw = ref('')
-const f = reactive({ type: '' })
 
 /** 已核对状态用本地 Map 记录，避免污染订单 store */
 const checkedMap = ref({})
@@ -97,10 +90,9 @@ const rows = computed(() => {
 const view = computed(() => rows.value.filter(r => {
   const k = kw.value.trim()
   const okKw = !k || [r.no, r.shop, r.goods].some(v => String(v).includes(k))
-  const okT = !f.type || r.type === f.type
-  return okKw && okT
+  return okKw
 }))
-const reset = () => { kw.value = ''; f.type = '' }
+const reset = () => { kw.value = '' }
 
 const sum = computed(() => view.value.reduce((s, r) => ({
   order: s.order + r.amount, settle: s.settle + r.settle, actual: s.actual + r.actual
