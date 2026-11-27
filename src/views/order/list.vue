@@ -2,7 +2,7 @@
   <div>
     <PageHeader :title="cfg.title" :sub="cfg.sub">
       <el-button v-can="pid.batch" v-if="status === 'review' && !batchMode" size="small" type="primary" @click="enterBatch">批量审核</el-button>
-      <el-button v-can="pid.create" v-if="status === 'review'" size="small" @click="createVisible = true">新建订单</el-button>
+      <el-button v-can="pid.create" v-if="status === 'review'" size="small" @click="openCreate">新建订单</el-button>
       <el-button v-can="pid.exp" size="small" @click="exportOrders">导出</el-button>
     </PageHeader>
 
@@ -453,19 +453,83 @@
     </el-dialog>
 
     <!-- 新建订单 -->
-    <el-dialog v-model="createVisible" title="新建订单" width="640px">
+    <el-dialog v-model="createVisible" title="新建订单" width="840px">
       <el-form :model="form" label-width="96px" size="small">
         <el-row :gutter="12">
           <el-col :span="12"><el-form-item label="平台"><el-select v-model="form.platform" style="width:100%">
             <el-option v-for="p in ['天猫','抖音','京东','小程序']" :key="p" :label="p" :value="p" /></el-select></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="店铺"><el-input v-model="form.shop" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="店铺"><el-input v-model="form.shop" placeholder="如：旗舰店" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="收件人"><el-input v-model="form.receiver" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="手机号"><el-input v-model="form.phone" maxlength="11" placeholder="11 位手机号" /></el-form-item></el-col>
-          <el-col :span="24"><el-form-item label="收件地址"><el-input v-model="form.address" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="商品名称"><el-input v-model="form.goodsName" placeholder="如：雅诗兰黛小棕瓶" /></el-form-item></el-col>
-          <el-col :span="6"><el-form-item label="数量"><el-input v-model.number="form.qty" /></el-form-item></el-col>
-          <el-col :span="6"><el-form-item label="订单金额"><el-input v-model.number="form.amount" /></el-form-item></el-col>
-          <el-col :span="24"><el-form-item label="买家留言"><el-input v-model="form.note" placeholder="选填" /></el-form-item></el-col>
+          <el-col :span="12">
+            <el-form-item label="收货省份">
+              <el-select v-model="form.province" filterable placeholder="搜索 / 选择省份" style="width:100%">
+                <el-option-group v-for="g in REGIONS" :key="g.key" :label="g.key">
+                  <el-option v-for="a in g.areas" :key="a" :label="areaFull(a)" :value="a" />
+                </el-option-group>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="发货仓库">
+              <el-input :model-value="createWarehouse" readonly
+                :placeholder="form.province ? '该省份未配置发货仓' : '选择省份后自动匹配'">
+                <template v-if="createWarehouse" #append>
+                  <el-tag size="small" type="primary" effect="plain">{{ warehouseType }}</el-tag>
+                </template>
+              </el-input>
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="详细地址">
+              <el-input v-model="form.addressDetail" placeholder="街道、门牌号等（不用重复填写省份）" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <div class="goods-head">
+          <span class="sec-t">商品明细</span>
+          <span class="goods-sum">共 {{ createTotalQty }} 件</span>
+          <el-button link type="primary" @click="addItem">+ 添加商品</el-button>
+        </div>
+
+        <div class="goods-box">
+          <div v-for="(it, i) in form.items" :key="i" class="item">
+            <div class="item-main">
+              <el-select v-model="it.sku" filterable placeholder="输入名称 / 编码搜索商品" class="item-sel"
+                @change="onPick(it)">
+                <el-option v-for="p in productOptions" :key="p.sku" :label="`${p.name} · ${p.code}`"
+                  :value="p.sku" :disabled="p.total <= 0 || pickedElsewhere(p.sku, i)">
+                  <span class="opt-name">{{ p.name }}</span>
+                  <span class="opt-meta">{{ p.code }} · 总可用 {{ p.total }}{{ p.unit }}</span>
+                </el-option>
+              </el-select>
+              <el-input-number v-model="it.qty" :min="1" :max="99999" controls-position="right" class="item-qty" />
+              <span class="item-avail" :class="availClass(it)">
+                {{ !it.sku ? '—' : (createWarehouse ? `本仓可用 ${availOf(it)}` : '待选省份') }}
+              </span>
+              <el-button link type="danger" @click="removeItem(i)">移除</el-button>
+            </div>
+            <div v-if="it.sku" class="item-whs">
+              <span class="wh-label">各仓可用</span>
+              <span v-for="w in WAREHOUSES" :key="w" class="wh-item">
+                {{ w }} <b :class="whAvail(it.sku, w) >= it.qty ? 'ok' : 'bad'">{{ whAvail(it.sku, w) }}</b>
+              </span>
+            </div>
+          </div>
+          <div v-if="!form.items.length" class="goods-empty">还没有商品，点「+ 添加商品」开始</div>
+        </div>
+
+        <el-alert v-if="stockIssues.length" type="error" :closable="false" show-icon class="goods-alert"
+          :title="`${stockIssues.length} 个商品库存不足，无法保存`">
+          <div v-for="x in stockIssues" :key="x.sku" class="issue">
+            {{ x.name }}：需 {{ x.qty }} 件，{{ createWarehouse }}可用 {{ x.avail }} 件；各仓 {{ x.detail }}
+          </div>
+        </el-alert>
+
+        <el-row :gutter="12" style="margin-top:12px">
+          <el-col :span="8"><el-form-item label="订单金额"><el-input v-model.number="form.amount" placeholder="0.00" /></el-form-item></el-col>
+          <el-col :span="16"><el-form-item label="买家留言"><el-input v-model="form.note" placeholder="选填" /></el-form-item></el-col>
         </el-row>
       </el-form>
       <template #footer>
@@ -485,6 +549,8 @@ import { useOrderStore, CARRIERS } from '@/stores/order'
 import { useStockStore, WAREHOUSES } from '@/stores/stock'
 import { tickets as afterTickets, nowStr } from '@/data/aftersale'
 import { orderTrackOf } from '@/data/orderTrack'
+import { REGIONS, ownerOfArea } from '@/data/system'
+import { productCatalog } from '@/data/orderProducts'
 
 const props = defineProps({ status: { type: String, default: 'review' } })
 
@@ -545,8 +611,11 @@ const createVisible = ref(false)
 const cur = ref(null)
 const useAlt = ref(true)
 const rejectReason = ref('')
-const form = reactive({ platform: '天猫', shop: '', receiver: '', phone: '', address: '', note: '',
-  goodsName: '', qty: 1, amount: 0 })
+const form = reactive({
+  platform: '天猫', shop: '', receiver: '', phone: '',
+  province: '', addressDetail: '', note: '', amount: 0,
+  items: [{ sku: '', qty: 1 }]
+})
 
 /* 详情抽屉：进度、状态与物流文案 */
 const ORDER_STEPS = ['待审核', '待发货', '已发货', '已完结']
@@ -569,6 +638,57 @@ const detailTrack = computed(() => {
   if (!o || !o.expressNo || !['shipped', 'done'].includes(o.status)) return null
   return orderTrackOf(o)
 })
+
+/* 新建订单：商品目录、省份匹配发货仓、库存比对 */
+const MUNICIPALITIES = ['北京', '天津', '上海', '重庆']
+const AUTONOMOUS = ['内蒙古', '广西', '西藏', '宁夏', '新疆']
+
+/** 省份简称补全为地址里的正式名称 */
+function areaFull(area) {
+  if (!area) return ''
+  if (MUNICIPALITIES.includes(area)) return area + '市'
+  if (AUTONOMOUS.includes(area)) return area + '自治区'
+  if (area === '香港' || area === '澳门') return area + '特别行政区'
+  return area + '省'
+}
+
+const productOptions = computed(() => productCatalog())
+const createWarehouseObj = computed(() => (form.province ? ownerOfArea(form.province) : null))
+const createWarehouse = computed(() => createWarehouseObj.value?.name || '')
+const warehouseType = computed(() => createWarehouseObj.value?.type || '')
+
+const createItems = computed(() => form.items.filter(i => i.sku))
+const createTotalQty = computed(() =>
+  createItems.value.reduce((s, i) => s + (Number(i.qty) || 0), 0))
+
+const availOf = it => (it.sku && createWarehouse.value)
+  ? stockStore.availableOf(it.sku, createWarehouse.value)
+  : 0
+const whAvail = (sku, w) => stockStore.availableOf(sku, w)
+const availClass = it => (!it.sku || !createWarehouse.value) ? '' : (availOf(it) >= it.qty ? 'ok' : 'bad')
+
+const stockIssues = computed(() => {
+  if (!createWarehouse.value) return []
+  return createItems.value
+    .filter(i => i.qty > availOf(i))
+    .map(i => ({
+      sku: i.sku,
+      name: productOptions.value.find(p => p.sku === i.sku)?.name || i.sku,
+      qty: i.qty,
+      avail: availOf(i),
+      detail: WAREHOUSES.map(w => `${w} ${whAvail(i.sku, w)}`).join(' / ')
+    }))
+})
+
+function pickedElsewhere(sku, i) {
+  return form.items.some((it, idx) => idx !== i && it.sku === sku)
+}
+function addItem() { form.items.push({ sku: '', qty: 1 }) }
+function removeItem(i) { form.items.splice(i, 1) }
+function onPick(it) {
+  const p = productOptions.value.find(x => x.sku === it.sku)
+  if (p && p.total <= 0) ElMessage.warning(`「${p.name}」四个仓都没有可用库存`)
+}
 
 /* 库存校验（单条 / 批量共用） */
 const stockOf = (wh, sku) => stockStore.availableOf(sku, wh)
@@ -781,12 +901,47 @@ function exportOrders() {
   ElMessage.success(`已导出 ${list.length} 条订单`)
 }
 
+function openCreate() {
+  Object.assign(form, {
+    platform: '天猫', shop: '', receiver: '', phone: '',
+    province: '', addressDetail: '', note: '', amount: 0,
+    items: [{ sku: '', qty: 1 }]
+  })
+  createVisible.value = true
+}
+
 function createOrder() {
-  if (!form.receiver || !form.address) return ElMessage.error('请填写收件人与地址')
+  if (!form.receiver) return ElMessage.error('请填写收件人')
+  if (!form.province) return ElMessage.error('请选择收货省份')
+  if (!form.addressDetail.trim()) return ElMessage.error('请填写详细地址')
+  if (!createWarehouse.value) return ElMessage.error('该省份还没有配置发货仓库，请先在「发货仓设置」中分配')
+  if (form.items.some(i => !i.sku)) return ElMessage.error('有商品行还没选择商品')
+  if (!createItems.value.length) return ElMessage.error('请至少选择一个商品')
+
+  const skus = createItems.value.map(i => i.sku)
+  if (new Set(skus).size !== skus.length) return ElMessage.error('同一商品不能重复添加，请合并数量')
+
+  // 库存比对：任一商品在当前发货仓不足就拦截，并列出四个仓的可用量
+  if (stockIssues.value.length) {
+    const x = stockIssues.value[0]
+    return ElMessage({
+      type: 'error', duration: 5600, showClose: true,
+      message: `${x.name}：${createWarehouse.value}可用 ${x.avail} 件，不足 ${x.qty} 件；各仓可用 ${x.detail}`
+    })
+  }
   if (!form.amount || form.amount <= 0) return ElMessage.error('请填写订单金额')
-  store.create(form)
+
+  store.create({
+    ...form,
+    address: areaFull(form.province) + form.addressDetail.trim(),
+    warehouse: createWarehouse.value,
+    items: createItems.value.map(i => {
+      const p = productOptions.value.find(x => x.sku === i.sku)
+      return { sku: i.sku, name: p?.name || i.sku, spec: p?.spec || '—', qty: Number(i.qty) || 1 }
+    })
+  })
   createVisible.value = false
-  ElMessage.success('订单已创建，进入待审核')
+  ElMessage.success(`订单已创建，发货仓：${createWarehouse.value}，进入待审核`)
 }
 
 /* 申请售后 */
@@ -957,4 +1112,30 @@ function submitAfter() {
   margin-top: 10px; font-size: 11.5px; line-height: 1.7; color: var(--ink-3);
   background: var(--fill); border: 1px dashed var(--line); border-radius: 6px; padding: 9px 11px;
 }
+
+/* 新建订单 · 商品明细 */
+.goods-head { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+.goods-head .sec-t { margin: 0; }
+.goods-sum { font-size: 11.5px; color: var(--ink-3); }
+.goods-head .el-button { margin-left: auto; }
+.goods-box { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #FAFBFC; }
+.item + .item { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.item-main { display: flex; align-items: center; gap: 10px; }
+.item-sel { flex: 1; min-width: 0; }
+.item-qty { width: 110px; flex: none; }
+.item-avail { width: 96px; flex: none; font-size: 11.5px; color: var(--ink-3); }
+.item-avail.ok { color: var(--ok); font-weight: 600; }
+.item-avail.bad { color: var(--danger); font-weight: 600; }
+.item-whs {
+  margin-top: 6px; padding-left: 2px; display: flex; flex-wrap: wrap; gap: 4px 12px;
+  font-size: 11.5px; color: var(--ink-3);
+}
+.item-whs .wh-label { color: var(--ink-2); }
+.item-whs b { font-weight: 600; }
+.item-whs .ok { color: var(--ok); }
+.item-whs .bad { color: var(--danger); }
+.goods-empty { padding: 12px 0; text-align: center; font-size: 12px; color: var(--ink-3); }
+.goods-alert { margin-top: 12px; }
+.goods-alert .issue { font-size: 11.5px; line-height: 1.7; }
+.opt-meta { float: right; margin-left: 16px; color: var(--ink-3); font-size: 11.5px; }
 </style>

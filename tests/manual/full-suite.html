@@ -41,7 +41,8 @@ try {
   sec('B 订单主流程')
   const beforeReview = O.byStatus('review').length
   O.create({ platform: '天猫', shop: 'x', receiver: '测试', phone: '13800000000',
-             address: '杭州', note: '', goodsName: '雅诗兰黛小棕瓶', qty: 1, amount: 1000 })
+             province: '浙江', warehouse: '华东主仓', address: '浙江省杭州市', note: '', amount: 1000,
+             items: [{ sku: 'SKU-100231', name: '雅诗兰黛小棕瓶', spec: '50ml', qty: 1 }] })
   ok('B1 新建订单进入待审核', O.byStatus('review').length === beforeReview + 1)
   const o = O.byStatus('review').find(x => x.amount === 1000)
   const r1 = O.approve(o, '华南仓', '圆通')
@@ -61,7 +62,8 @@ try {
   sec('C 订单异常与边界')
   /* 构造一张必定缺货的单，验证审核会被拦 */
   O.create({ platform: '天猫', shop: 'x', receiver: '缺货测试', phone: '13800000000',
-             address: '杭州', note: '', goodsName: '雅诗兰黛小棕瓶', qty: 99999, amount: 100 })
+             province: '浙江', warehouse: '华东主仓', address: '浙江省杭州市', note: '', amount: 100,
+             items: [{ sku: 'SKU-100231', name: '雅诗兰黛小棕瓶', spec: '50ml', qty: 99999 }] })
   const o2 = O.byStatus('review').find(x => x.goods[0].qty === 99999)
   const c1 = O.approve(o2, '华东主仓')
   ok('C1 库存不足时审核被拒', c1.ok === false, c1.msg)

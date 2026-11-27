@@ -1017,23 +1017,39 @@ export const useOrderStore = defineStore('order', {
 
     /** 新建订单：直接进入待审核 */
     create(form) {
-      const { carrier, expressNo } = genExpress()
-      const seq = String(this.orders.length + 1).padStart(3, '0')
+      const { carrier } = genExpress()
       const amount = Number(form.amount) || 0
       const settle = +(amount * 0.05).toFixed(2)
-      this.orders.unshift({
+
+      const picked = (Array.isArray(form.items) ? form.items : [])
+        .filter(i => i && i.sku)
+        .map(i => ({
+          sku: i.sku,
+          name: i.name || i.sku,
+          spec: i.spec || '—',
+          qty: Number(i.qty) || 1
+        }))
+      // 兼容旧调用（goodsName + qty），新页面统一传 items
+      const goods = picked.length
+        ? picked
+        : [{ name: form.goodsName || '待补充商品', spec: '—', qty: Number(form.qty) || 1, sku: 'SKU-100231' }]
+
+      const order = {
         no: 'NEW' + Date.now().toString().slice(-9),
         platform: form.platform, shop: form.shop || '自建店铺',
-        receiver: form.receiver, phone: form.phone, address: form.address,
+        receiver: form.receiver, phone: form.phone,
+        province: form.province || '',
+        address: form.address,
         note: form.note || '', carrier,
         amount, settle, actual: +(amount - settle).toFixed(2),
-        warehouse: '华东主仓',
+        warehouse: form.warehouse || '华东主仓',
         payTime: now(), orderTime: now(), deadline: offsetHours(48),
-        platformGoods: form.goodsName || '—',
-        goods: [{ name: form.goodsName || '待补充商品', spec: '—', qty: Number(form.qty) || 1, sku: 'SKU-100231' }],
-        stock: { '华东主仓': 10, '华南仓': 10, '平台仓1': 10, '平台仓2': 10 },
+        platformGoods: goods.map(g => `${g.name} ×${g.qty}`).join('、'),
+        goods,
         status: 'review'
-      })
+      }
+      this.orders.unshift(order)
+      return order
     }
   }
 })
