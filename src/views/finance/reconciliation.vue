@@ -1,6 +1,9 @@
 <template>
   <div>
     <PageHeader title="对账中心" sub="核对平台账单的实际到账金额">
+      <el-button v-can="'b-fin-recon-check'" size="small" type="primary" :disabled="!pendingCount" @click="batchCheck">
+        批量核对<template v-if="pendingCount">（{{ pendingCount }}）</template>
+      </el-button>
       <el-button v-can="'b-fin-recon-export'" size="small">导出</el-button>
     </PageHeader>
 
@@ -23,7 +26,8 @@
         <h3>平台账单</h3>
         <span class="extra">订单完结后自动汇入，核对后收录不可修改</span>
       </div>
-      <el-table :data="view" size="small" max-height="540">
+      <el-table ref="tableRef" :data="view" size="small" max-height="540" @selection-change="onSelection">
+        <el-table-column type="selection" width="44" :selectable="row => !row.checked" />
         <el-table-column prop="no" label="单据编号" width="160" />
         <el-table-column prop="shop" label="店铺" min-width="170" />
         <el-table-column prop="goods" label="商品名称" min-width="180" show-overflow-tooltip />
@@ -58,7 +62,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { money } from '@/utils/format'
 import { RECON_DEMO } from '@/data/finance'
@@ -99,11 +103,43 @@ const sum = computed(() => view.value.reduce((s, r) => ({
 }), { order: 0, settle: 0, actual: 0 }))
 const unchecked = computed(() => rows.value.filter(r => !r.checked).length)
 
+const tableRef = ref(null)
+const selected = ref([])
+const onSelection = v => { selected.value = v }
+/** 当前选中里还没核对的条数，为 0 时批量按钮置灰 */
+const pendingCount = computed(() => selected.value.filter(r => !r.checked).length)
+
+/** 把单据标记为已核对，返回实际新增的条数 */
+function markChecked(rows) {
+  const next = { ...checkedMap.value }
+  let n = 0
+  rows.forEach(row => {
+    const key = row.no.startsWith('DZ') ? row.no.replace(/^DZ/, '') : row.no
+    const hit = store.orders.find(o => o.no === key || 'DZ' + o.no.slice(2) === row.no)
+    if (hit && !next[hit.no]) { next[hit.no] = true; n++ }
+  })
+  checkedMap.value = next
+  return n
+}
+
 function check(row) {
-  const key = row.no.startsWith('DZ') ? row.no.replace(/^DZ/, '') : row.no
-  const hit = store.orders.find(o => o.no === key || 'DZ' + o.no.slice(2) === row.no)
-  if (hit) checkedMap.value = { ...checkedMap.value, [hit.no]: true }
+  markChecked([row])
   ElMessage.success(`单据 ${row.no} 已核对收录`)
+  tableRef.value?.clearSelection()
+}
+
+async function batchCheck() {
+  const targets = selected.value.filter(r => !r.checked)
+  if (!targets.length) return
+  try {
+    await ElMessageBox.confirm(
+      `确认核对选中的 ${targets.length} 笔单据？核对后收录不可修改。`,
+      '批量核对', { type: 'warning', confirmButtonText: '确认核对', cancelButtonText: '取消' }
+    )
+  } catch (e) { return }
+  const n = markChecked(targets)
+  ElMessage.success(`已批量核对 ${n} 笔单据`)
+  tableRef.value?.clearSelection()
 }
 </script>
 
